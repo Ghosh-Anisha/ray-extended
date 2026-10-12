@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "878d8a519c9e3918b1207a1c",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Yes I cancelled it. The classes are too expensive for us now, please stop the plan."
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "subscription",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

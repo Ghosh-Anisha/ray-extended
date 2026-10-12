@@ -15,9 +15,9 @@ const MIN = 60_000;
 const DAY = 24 * 60 * MIN;
 
 const AUTH_REFS: Record<string, string> = {
-  mdt_FL_karan: "FLOOPKARAN0815UPI",
-  mdt_ST_acme: "STACKLYACME0807CARD",
-  mdt_STU_neha: "SHARMANEHA0911UPI",
+  mdt_FL_karan: "UMNFLOOP7302",
+  mdt_ST_acme: "UMNSTACK5518",
+  mdt_STU_neha: "UMNSHARMA4410",
 };
 
 const PLAYBOOK: Record<string, { sub_call_value_limit: number | null; sub_pause_days: number | null }> = {

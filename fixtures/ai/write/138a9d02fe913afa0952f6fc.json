@@ -1,0 +1,123 @@
+{
+  "job": "write",
+  "key": "138a9d02fe913afa0952f6fc",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "didnt_authorise_reply",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "subscription",
+        "situation": "E",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "merchant",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹499",
+        "payment_id": "pay_ref1",
+        "cause": "didnt_authorise",
+        "promised_by": "12:00 PM on 12 Oct",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "FitLoop"
+      },
+      "records": [
+        {
+          "status": "captured",
+          "amount": "₹499",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000201",
+          "email": "karan.mehta@example.com",
+          "receipt": "inv_FL_karan_3",
+          "created_at": "10:00 AM on 12 Oct",
+          "captured_at": "10:00 AM on 12 Oct"
+        },
+        {
+          "status": "active",
+          "plan": "FitLoop Monthly",
+          "amount": "₹499",
+          "retries_left": 3,
+          "b2b": false,
+          "lifetime_value": "₹998",
+          "started_at": 1786422600000
+        },
+        {
+          "name": "Karan Mehta",
+          "email": "karan.mehta@example.com",
+          "phone": "+919800000201",
+          "language": "en",
+          "country": "IN"
+        },
+        {
+          "subscription_id": "sub_FL_karan",
+          "amount": "₹499",
+          "status": "paid",
+          "attempts": 1,
+          "billing_start": "10:00 AM on 11 Aug",
+          "billing_end": "10:00 AM on 10 Sep",
+          "notified_at": "10:00 AM on 10 Aug"
+        },
+        {
+          "subscription_id": "sub_FL_karan",
+          "amount": "₹499",
+          "status": "paid",
+          "attempts": 1,
+          "billing_start": "10:00 AM on 10 Sep",
+          "billing_end": "10:00 AM on 10 Oct",
+          "notified_at": "10:00 AM on 9 Sep"
+        },
+        {
+          "subscription_id": "sub_FL_karan",
+          "amount": "₹499",
+          "status": "paid",
+          "attempts": 2,
+          "payment_id": "pay_ref1",
+          "error_reason": "Insufficient balance in bank account",
+          "billing_start": "10:00 AM on 10 Oct",
+          "billing_end": "10:00 AM on 9 Nov",
+          "notified_at": "10:00 AM on 9 Oct"
+        },
+        {
+          "subscription_id": "sub_FL_karan",
+          "method": "upi_autopay",
+          "status": "active",
+          "max_amount": "₹2,000"
+        },
+        {
+          "message_id": "msg_ref1",
+          "channel": "whatsapp",
+          "to": "+919800000201",
+          "from": "wa:fitloop",
+          "body": "Hi Karan, this is FitLoop. We've got your message about your FitLoop Monthly. You'll hear from us by 12:00 PM.\nTeam FitLoop",
+          "within_24h": true
+        }
+      ],
+      "timers": [
+        {
+          "kind": "promised_time",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team FitLoop",
+      "evidence": [
+        "✗ Razorpay has no record of when Karan Mehta approved the AutoPay.",
+        "✓ Razorpay sent the pre-debit notice on 9 Oct, before the ₹499 charge.",
+        "✓ ₹499 was charged on 12 Oct."
+      ],
+      "example": "Hi Karan, this is FitLoop. We understand the ₹499 FitLoop Monthly renewal on 12 Oct surprised you.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+    "confidence": "likely"
+  }
+}
