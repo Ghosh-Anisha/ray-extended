@@ -1,0 +1,23 @@
+{
+  "job": "understand",
+  "key": "5e6c2bb0cc4e6dbdb8008483",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "I was charged 499 twice for one banana bread, UTR 628514730119. Refund the extra one or I'll raise a chargeback with my bank."
+  },
+  "output": {
+    "amount": 499,
+    "rough_time": null,
+    "utr": "628514730119",
+    "payment_id": null,
+    "intent": "refund_or_cancel",
+    "language": "en",
+    "mood": "angry",
+    "legal_or_chargeback_words": [
+      "chargeback"
+    ],
+    "confidence": "sure"
+  }
+}

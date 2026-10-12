@@ -101,6 +101,13 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
   const packNote = (ctx: EngineContext, kase: Case) => lastNote(ctx, kase.id, N.pack)?.payload as unknown as PackNote | undefined;
   // A threat with no dispute yet: the paid-no-order flow handles it.
   const isThreat = (ctx: EngineContext, kase: Case) => kase.situation === "A" && !disputeNote(ctx, kase);
+  // The paid-no-order hooks read the case's situation letter, which means
+  // something else in that moment (its A is "authorised, not captured").
+  // They get the case with their own situation, from their own notes.
+  const asPno = (ctx: EngineContext, kase: Case): Case => ({
+    ...kase,
+    situation: (lastNote(ctx, kase.id, "pno_situation")?.payload.situation as Case["situation"] | undefined) ?? null,
+  });
 
   const eventName = (e: { kind: string; payload: Record<string, unknown> }) => (e.kind === "webhook" ? String(e.payload.event ?? "") : "");
   const disputeIdIn = (e: { payload: Record<string, unknown> }) =>
@@ -524,7 +531,7 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
 
       if (isThreat(ctx, kase)) {
         if (e.kind === "message_in" && !notes(ctx, kase.id, N.threat).length) note(ctx, kase, { kind: N.threat }, e.sourceId);
-        const r = await pno.investigate(ctx, kase, e);
+        const r = await pno.investigate(ctx, asPno(ctx, kase), e);
         // Still situation A for this moment; the paid-no-order situation is on its notes.
         ctx.repo.cases.update(kase.id, { situation: "A" });
         return { ...r, situation: "A" };
@@ -562,7 +569,7 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     async decide(ctx, kase) {
       if (isThreat(ctx, kase)) {
         // Always asks: a rule from another moment never acts here.
-        const d = await pno.decide(ctx, kase);
+        const d = await pno.decide(ctx, asPno(ctx, kase));
         return d.to === "acting" ? { ...d, to: "waiting_merchant", ruleId: undefined, reason: "Needs your tap." } : d;
       }
       const due = lastNote(ctx, kase.id, N.deadlineDue);
@@ -589,12 +596,12 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     },
 
     async proposeActions(ctx, kase, d) {
-      if (isThreat(ctx, kase)) return pno.proposeActions(ctx, kase, d);
+      if (isThreat(ctx, kase)) return pno.proposeActions(ctx, asPno(ctx, kase), d);
       return (d as Decision & { proposals?: ProposedAction[] }).proposals ?? [];
     },
 
     async onApproval(ctx, kase, approval) {
-      if (isThreat(ctx, kase)) return pno.onApproval(ctx, kase, approval);
+      if (isThreat(ctx, kase)) return pno.onApproval(ctx, asPno(ctx, kase), approval);
       const offered = openProposals(ctx, kase.id);
       let proposal: ProposedAction | undefined;
       let holdUntil: number | undefined;
@@ -611,7 +618,7 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     },
 
     async verify(ctx, kase, e): Promise<VerifyResult> {
-      if (isThreat(ctx, kase) && !(e && DISPUTE_EVENTS.includes(eventName(e)))) return pno.verify(ctx, kase, e);
+      if (isThreat(ctx, kase) && !(e && DISPUTE_EVENTS.includes(eventName(e)))) return pno.verify(ctx, asPno(ctx, kase), e);
       const accepted = () =>
         ctx.repo.actions.list(and(eq(s.actions.case_id, kase.id), eq(s.actions.tool, "accept_dispute"), eq(s.actions.status, "done"))).at(-1);
       if (!e) {
@@ -631,7 +638,8 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
         const r = await onDispute(ctx, kase, id, e.at);
         for (const f of r.findings) ctx.repo.caseEvents.insert({ id: newId("cev"), case_id: kase.id, at: ctx.clock.now(), type: "finding", payload: { text: f.text, cited_by: e.sourceId }, evidence_ref: f.evidenceRef });
         const plan = await planFor(ctx, kase);
-        note(ctx, kase, { kind: N.decision, recommend: plan.recommend, lane: null, why: ["A new stage always asks."], at_deadline: false }, kase.id);
+        const dn2 = () => disputeNote(ctx, kase)!;
+        note(ctx, kase, { kind: N.decision, recommend: plan.recommend, lane: null, why: [dn2().situation === "E" ? "A new stage always asks." : "A dispute arrived on a case RAY was already handling, so it asks."], at_deadline: false }, kase.id);
         return { to: "waiting_merchant", reason: plan.summary, timers: r.timers, proposals: plan.proposals };
       }
       if (e.kind === "message_in") {
@@ -671,18 +679,18 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     },
 
     async onPromisedTime(ctx, kase, e) {
-      if (isThreat(ctx, kase)) return pno.onPromisedTime(ctx, kase, e);
+      if (isThreat(ctx, kase)) return pno.onPromisedTime(ctx, asPno(ctx, kase), e);
       return { reason: "Nothing was promised to the cardholder." };
     },
 
     countsAsSaved(ctx, kase) {
-      if (isThreat(ctx, kase)) return pno.countsAsSaved(ctx, kase);
+      if (isThreat(ctx, kase)) return pno.countsAsSaved(ctx, asPno(ctx, kase));
       const o = lastNote(ctx, kase.id, N.outcome);
       return !!o?.payload.saved;
     },
 
     async onChange(ctx, kase, text, e) {
-      if (isThreat(ctx, kase) && pno.onChange) return pno.onChange(ctx, kase, text, e);
+      if (isThreat(ctx, kase) && pno.onChange) return pno.onChange(ctx, asPno(ctx, kase), text, e);
       // The merchant's note is data: RAY redrafts the message to the
       // customer from it (the write job), never follows it.
       const offered = openProposals(ctx, kase.id);

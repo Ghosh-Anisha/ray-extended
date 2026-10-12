@@ -1,0 +1,277 @@
+{
+  "label": "recorded in Claude Code",
+  "note": "Step 10 (chargebacks). Claude Code acted as the model for each input below. Written to fixtures/ai/ by `npx tsx src/flows/chargebacks/record-fixtures.ts`. All people and businesses are fictional.",
+  "entries": [
+    {
+      "name": "investigate: chargeback evidence for disp_LB_deepa (not_received)",
+      "job": "investigate",
+      "request": {
+        "case": {
+          "moment": "chargeback",
+          "merchant": "Leafy Bakes",
+          "dispute_id": "disp_LB_deepa",
+          "payment_id": "pay_LB1221DEEPA",
+          "amount": "₹1,850",
+          "reason": "Product not received",
+          "type": "not_received",
+          "phase": "chargeback",
+          "looking_for": [
+            "delivery proof",
+            "chats",
+            "past orders",
+            "earlier RAY case",
+            "refund or single charge",
+            "Buyer Protection claim"
+          ]
+        },
+        "evidence": [
+          {
+            "id": "so_leafy_1221",
+            "type": "store_order",
+            "summary": "Order #1221 is completed (Shipped by courier)"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "output": {
+            "findings": [],
+            "next": {
+              "tool": "get_dispute",
+              "id": "disp_LB_deepa"
+            },
+            "cause": null,
+            "side": null,
+            "situation": null,
+            "confidence": "likely"
+          },
+          "result": {
+            "evidence_ids": [
+              "disp_LB_deepa"
+            ],
+            "data": {
+              "id": "disp_LB_deepa",
+              "payment_id": "pay_LB1221DEEPA",
+              "status": "open",
+              "phase": "chargeback",
+              "amount": 185000,
+              "currency": "INR",
+              "reason_code": "13.1",
+              "reason": "Product not received",
+              "network": "Visa",
+              "deducted": true,
+              "respond_by": 1792557000000,
+              "created_at": 1791779400000,
+              "evidence": null
+            }
+          }
+        },
+        {
+          "output": {
+            "findings": [
+              {
+                "text": "Razorpay's dispute record: ₹1,850 for not received, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+                "evidence_id": "disp_LB_deepa",
+                "supports": "not_received"
+              }
+            ],
+            "next": null,
+            "cause": "not_received",
+            "side": "customer_or_bank",
+            "situation": "C",
+            "confidence": "likely"
+          }
+        }
+      ]
+    },
+    {
+      "name": "investigate: chargeback evidence for disp_LB_meera (not_received)",
+      "job": "investigate",
+      "request": {
+        "case": {
+          "moment": "chargeback",
+          "merchant": "Leafy Bakes",
+          "dispute_id": "disp_LB_meera",
+          "payment_id": "pay_LB1198MEERA",
+          "amount": "₹6,900",
+          "reason": "Product not received",
+          "type": "not_received",
+          "phase": "chargeback",
+          "looking_for": [
+            "delivery proof",
+            "chats",
+            "past orders",
+            "earlier RAY case",
+            "refund or single charge",
+            "Buyer Protection claim"
+          ]
+        },
+        "evidence": [
+          {
+            "id": "so_leafy_1198",
+            "type": "store_order",
+            "summary": "Order #1198 is completed (Shipped by courier)"
+          },
+          {
+            "id": "bpc_LB_meera",
+            "type": "buyer_protection_claim",
+            "summary": "Open Buyer Protection claim: Customer says the party cake never arrived"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "output": {
+            "findings": [],
+            "next": {
+              "tool": "get_dispute",
+              "id": "disp_LB_meera"
+            },
+            "cause": null,
+            "side": null,
+            "situation": null,
+            "confidence": "likely"
+          },
+          "result": {
+            "evidence_ids": [
+              "disp_LB_meera"
+            ],
+            "data": {
+              "id": "disp_LB_meera",
+              "payment_id": "pay_LB1198MEERA",
+              "status": "open",
+              "phase": "chargeback",
+              "amount": 690000,
+              "currency": "INR",
+              "reason_code": "13.1",
+              "reason": "Product not received",
+              "network": "Visa",
+              "deducted": true,
+              "respond_by": 1792297800000,
+              "created_at": 1791693000000,
+              "evidence": null
+            }
+          }
+        },
+        {
+          "output": {
+            "findings": [
+              {
+                "text": "Razorpay's dispute record: ₹6,900 for not received, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+                "evidence_id": "disp_LB_meera",
+                "supports": "not_received"
+              }
+            ],
+            "next": null,
+            "cause": "not_received",
+            "side": "customer_or_bank",
+            "situation": "C",
+            "confidence": "likely"
+          }
+        }
+      ]
+    },
+    {
+      "name": "investigate: chargeback evidence for disp_LB_sanjay (duplicate)",
+      "job": "investigate",
+      "request": {
+        "case": {
+          "moment": "chargeback",
+          "merchant": "Leafy Bakes",
+          "dispute_id": "disp_LB_sanjay",
+          "payment_id": "pay_LB1210SANJAY",
+          "amount": "₹1,299",
+          "reason": "Duplicate charge",
+          "type": "duplicate",
+          "phase": "chargeback",
+          "looking_for": [
+            "delivery proof",
+            "chats",
+            "past orders",
+            "earlier RAY case",
+            "refund or single charge",
+            "Buyer Protection claim"
+          ]
+        },
+        "evidence": [
+          {
+            "id": "so_leafy_1210",
+            "type": "store_order",
+            "summary": "Order #1210 is completed (Shipped by courier)"
+          }
+        ]
+      },
+      "steps": [
+        {
+          "output": {
+            "findings": [],
+            "next": {
+              "tool": "get_dispute",
+              "id": "disp_LB_sanjay"
+            },
+            "cause": null,
+            "side": null,
+            "situation": null,
+            "confidence": "likely"
+          },
+          "result": {
+            "evidence_ids": [
+              "disp_LB_sanjay"
+            ],
+            "data": {
+              "id": "disp_LB_sanjay",
+              "payment_id": "pay_LB1210SANJAY",
+              "status": "open",
+              "phase": "chargeback",
+              "amount": 129900,
+              "currency": "INR",
+              "reason_code": "4834",
+              "reason": "Duplicate charge",
+              "network": "Mastercard",
+              "deducted": true,
+              "respond_by": 1792125000000,
+              "created_at": 1791520200000,
+              "evidence": null
+            }
+          }
+        },
+        {
+          "output": {
+            "findings": [
+              {
+                "text": "Razorpay's dispute record: ₹1,299 for a duplicate charge, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+                "evidence_id": "disp_LB_sanjay",
+                "supports": "duplicate"
+              }
+            ],
+            "next": null,
+            "cause": "duplicate",
+            "side": "customer_or_bank",
+            "situation": "D",
+            "confidence": "likely"
+          }
+        }
+      ]
+    },
+    {
+      "name": "understand: Rahul threatens a chargeback over a double charge",
+      "job": "understand",
+      "input": {
+        "text": "I was charged 499 twice for one banana bread, UTR 628514730119. Refund the extra one or I'll raise a chargeback with my bank."
+      },
+      "output": {
+        "amount": 499,
+        "rough_time": null,
+        "utr": "628514730119",
+        "payment_id": null,
+        "intent": "refund_or_cancel",
+        "language": "en",
+        "mood": "angry",
+        "legal_or_chargeback_words": [
+          "chargeback"
+        ],
+        "confidence": "sure"
+      }
+    }
+  ]
+}

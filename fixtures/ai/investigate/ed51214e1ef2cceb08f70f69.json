@@ -1,0 +1,94 @@
+{
+  "job": "investigate",
+  "key": "ed51214e1ef2cceb08f70f69",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "chargeback",
+      "merchant": "Leafy Bakes",
+      "dispute_id": "disp_LB_meera",
+      "payment_id": "pay_LB1198MEERA",
+      "amount": "₹6,900",
+      "reason": "Product not received",
+      "type": "not_received",
+      "phase": "chargeback",
+      "looking_for": [
+        "delivery proof",
+        "chats",
+        "past orders",
+        "earlier RAY case",
+        "refund or single charge",
+        "Buyer Protection claim"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "so_leafy_1198",
+        "type": "store_order",
+        "summary": "Order #1198 is completed (Shipped by courier)"
+      },
+      {
+        "id": "bpc_LB_meera",
+        "type": "buyer_protection_claim",
+        "summary": "Open Buyer Protection claim: Customer says the party cake never arrived"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_dispute",
+        "id": "disp_LB_meera",
+        "result": {
+          "evidence_ids": [
+            "disp_LB_meera"
+          ],
+          "data": {
+            "id": "disp_LB_meera",
+            "payment_id": "pay_LB1198MEERA",
+            "status": "open",
+            "phase": "chargeback",
+            "amount": 690000,
+            "currency": "INR",
+            "reason_code": "13.1",
+            "reason": "Product not received",
+            "network": "Visa",
+            "deducted": true,
+            "respond_by": 1792297800000,
+            "created_at": 1791693000000,
+            "evidence": null
+          }
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Razorpay's dispute record: ₹6,900 for not received, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+        "evidence_id": "disp_LB_meera",
+        "supports": "not_received"
+      }
+    ],
+    "next": null,
+    "cause": "not_received",
+    "side": "customer_or_bank",
+    "situation": "C",
+    "confidence": "likely"
+  }
+}
