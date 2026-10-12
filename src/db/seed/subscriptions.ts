@@ -3,7 +3,8 @@
 // - Each mandate was approved by the subscriber a minute after sign-up,
 //   with a fictional mandate reference.
 // - Razorpay sent the pre-debit notice 24 hours before each cycle.
-// - FitLoop calls subscribers worth more than ₹500 (Karan's ₹998 so far);
+// - FitLoop calls subscribers worth more than ₹500 (Karan's ₹998 so far)
+//   and pauses for the default month;
 //   Sharma Tutorials calls above ₹5,000 and a pause skips a month (30 days);
 //   Stackly never calls.
 import { eq } from "drizzle-orm";
@@ -21,7 +22,7 @@ const AUTH_REFS: Record<string, string> = {
 };
 
 const PLAYBOOK: Record<string, { sub_call_value_limit: number | null; sub_pause_days: number | null }> = {
-  m_fitloop: { sub_call_value_limit: 50_000, sub_pause_days: 30 },
+  m_fitloop: { sub_call_value_limit: 50_000, sub_pause_days: null },
   m_sharma_tutorials: { sub_call_value_limit: 500_000, sub_pause_days: 30 },
   m_stackly: { sub_call_value_limit: null, sub_pause_days: null },
 };

@@ -252,7 +252,9 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
   function offerProposal(ctx: EngineContext, kase: Case, offer: Offer): ProposedAction & { option: Option } {
     const c = context(ctx, kase);
     const r = recipient(ctx, kase, c.customer, c.sub)!;
-    const skip = (c.merchant.sub_pause_days ?? DEFAULT_PAUSE_DAYS) === 30 && c.merchant.id === "m_sharma_tutorials";
+    // A merchant who set the pause to one 30-day cycle (Sharma Tutorials)
+    // means "skip a month"; the default pause is worded as a month's break.
+    const skip = c.merchant.sub_pause_days === 30;
     if (offer === "pause") {
       const args = { subscription_id: c.sub.id };
       return {

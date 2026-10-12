@@ -14,7 +14,11 @@ Every change outside `src/flows/subscriptions/` and `src/db/seed/subscriptions.t
 6. **Webhooks sim, `src/adapters/webhooks/index.ts`**: two events, `subscription.activated` (sign-up finished: mandate authorised, first invoice paid, active) and `subscription.charged` (the pending invoice paid: by its link or by the bank retry; a second charge for an already-paid cycle is recorded as a second payment, which is what the duplicate path needs). `subscription.pending` now issues the next cycle's invoice when the subscription has none pending; when one is pending (the only case before Step 9) it does exactly what it did.
 7. **Migration `0900_subscriptions`** (+ `schema.ts` columns): `mandates.authorised_at`, `mandates.auth_ref`, `sub_invoices.notified_at` (pre-debit notice), `merchants.sub_call_value_limit` (the value above which RAY may call, playbook), `merchants.sub_pause_days` (how long a pause lasts; Sharma Tutorials: 30, "skip a month"). Columns only, no new table, so the seed test's table list and row counts are untouched.
 8. **Seed**: `src/db/seed.ts` gets one line calling `seedSubscriptions(db)` from `src/db/seed/subscriptions.ts`, which only fills the new columns on rows Step 1 already seeds (no new rows; seed counts unchanged).
-9. **Registry, `src/engine/index.ts`**: one line registering `createSubscriptionsSpecialist()`.
+9. **Registry, `src/engine/index.ts`**: one line registering `createSubscriptionsSpecialist()` (plus its import).
+10. **Dev panel**: a new route `src/app/api/dev/subscription-sweep/route.ts` and one "Check … for unfinished sign-ups" button block in `src/app/(sim)/dev/controls.tsx`, inside a Simulated box, calling `handleEvent` through the sweep like the connector sweep does. The new webhook events appear in the existing generic emitter on their own.
+11. **Fixtures**: new files only: `fixtures/ai/sources/subscriptions.json` (10 entries, "recorded in Claude Code") and the keyed fixtures it writes under `fixtures/ai/{understand,decide,write}/`. `fixtures/ai/sources/claude-code.json` is untouched, so the shared replay test is unchanged.
+
+No existing test was edited, deleted or weakened. `npm test` passes with the same 27 skips as main (Razorpay test-mode contract tests that need keys).
 
 ## Plan: every rule from Step 9
 
@@ -47,3 +51,31 @@ Every change outside `src/flows/subscriptions/` and `src/db/seed/subscriptions.t
 ## Decisions
 
 (Each: what, why, the alternative not taken.)
+
+1. **Runs alone needed an engine path.** What: optional `Decision.alone` + `Specialist.onRunAlone`. Why: the state machine only reaches verifying (and so a saved close) through acting, and acting only accepted a tap or a rule; A, B, C and F "run alone" in the guide. The orchestrator checks in code that every proposal runs alone (`runsAlone`), so a flow can't use it to skip a tap. Not taken: a seeded "send recovery links" rule per merchant (the guide says these need no rule), or new state-machine transitions such as waiting_customer → closed (changes the shared table and its tests).
+2. **Grouping by subscription.** What: a `subscriptionId` key on events and a same-subscription join. Why: subscription and token webhooks carry no payment, email or phone, so a follow-up (halted after pending, charged after the link) would open a new case. Not taken: putting the subscription id in `paymentId` (breaks the "different payment never joins" rule).
+3. **A uses the subscription's own first invoice, not a fresh link.** What: the finish-setup link is the created subscription's first invoice, shared through `pay_pending_invoice`; paying it authorises the AutoPay (`subscription.activated`). Why: same "never a fresh link" safety as B, and no new act tool (the shared tool list is pinned at 18 by a test). Not taken: a new `subscription_auth_link` act tool or `short_url` on the Subscription type.
+4. **B variants share the same pending-invoice link.** No funds, needs PIN / bank paused, and card replaced each get their own steps, but every link is the pending invoice's (paying it with the new card updates the card). The "over ₹15,000 needs PIN" wording drops the number, because ₹15,000 isn't case data (rule 6). Not taken: a card-update payment link (a fresh link).
+5. **The call needs the merchant's tap.** `place_call`'s `subscription_save` kind is "required" in the shared table, so a day after the link, if still unpaid, above `sub_call_value_limit` and opted in to calls, RAY offers "Call Karan" (calling hours and every call rule are checked by the guard at call time). The post-call summary goes to the decide job (with ids aliased so the fixture key is stable), and its proposal leads the next card. Not taken: calling without a tap (would change the shared call table).
+6. **Save offers: pause and another way to pay; no discount.** Razorpay can't put a discount on a live subscription through the API and there's no act tool for one; adding one changes the pinned tool list. Discount is documented as a gap. A plan change is never offered (none on domestic-card subscriptions).
+7. **A save-offer rule approves one tool.** The approval guard matches `rule_json.tool` exactly, so a pause rule covers `pause_subscription` only. Under a tap, the pause and its scheduled resume are one proposal (resume is a listed follow-up) and the resume runs alone on the day. Under a rule, RAY schedules the resume and asks "Resume Karan's plan" on the day. A refused offer cancels with the merchant's tap, or alone if they approved a cancel rule. Not taken: rules with no `tool` (they would approve every subscription tool, including refunds).
+8. **The merchant's pick becomes a proposed rule.** Any option tapped on a no-rule D card (offer pause, offer another way to pay, cancel) is written as a `proposed` rule with the reason it came from; nothing applies until Approve rule. `other_method` rules also carry `kind: "question"` so they can't approve other messages.
+9. **Reasons and yes/no are code.** understand gives intent and mood (fixtures), but the reason table, "didn't authorise" detection and the yes/no answer are regex tables in `offers.ts`, like Step 8's error_reason table. Not taken: adding a reason field to understand's shared schema (changes every understand fixture key).
+10. **Channel choice: email by default.** WhatsApp only with consent and inside the 24-hour window (outside it only templates go, and none carry a link); B2B always email to the billing contact. **SMS isn't built**: the messaging adapter has no SMS channel, and adding one changes the shared channel enum and consent table. Not taken: a WhatsApp template with a link parameter.
+11. **Playbook values as merchant columns.** `sub_call_value_limit` and `sub_pause_days` live on `merchants`, following migration 0008's calling hours. Why: playbook_rules rows would change the seed test's exact row counts. Sharma Tutorials' 30 days reads as "skip a month"; FitLoop uses the default month's pause.
+12. **Proof dates are case data.** Mandate approval time and reference, and the pre-debit notice time, are new columns that `caseFacts` formats, so the "didn't authorise" reply can quote them and pass grounding. Strong proof (approval + reference + notice) offers the reply; weak proof (or a refund rule) adds the refund, first when proof is weak.
+13. **Collect hand-off is an event only.** After 7 days unpaid, a `collect.handoff` note goes on the subscription case with the invoice (id, amount, period, link, attempts) and the buyer; `listCollectHandoffs(db)` reads them for Step 11. The subscription case closes `handed_to_collect`, not saved.
+14. **Duplicate charge.** A second `subscription.charged` for an already-paid cycle opens its own case with "Refund ₹499" (tap, 10-minute hold with Undo). Not saved.
+15. **No response = lost after 7 days** (A, B), also when a call card is open; the subscription stays halted at Razorpay. C's lost timer runs from the next due date.
+16. **Webhook sim:** `subscription.charged` with nothing pending records a second payment on the latest paid invoice (that's what the duplicate path needs); `subscription.pending` issues the next cycle's invoice only when none is pending.
+
+## Gaps left on purpose
+
+- Discount save offer (see 6) and SMS (see 10).
+- Subscribers' voice notes go through the existing `receiveVoiceNote` and are read like text; no Step 9-specific voice test.
+- `onChange` (redraft) isn't implemented for this flow; Change is still recorded by the engine.
+
+## What was run
+
+- `npm test`: 27 files passed, 1 skipped; 352 tests passed, 27 skipped (the same Razorpay test-mode skips as main). Step 9: 20 tests in `src/flows/subscriptions/subscriptions.test.ts`, every AI call served from replay, no fallbacks.
+- `npm run lint`: clean. `npm run typecheck`: clean.
