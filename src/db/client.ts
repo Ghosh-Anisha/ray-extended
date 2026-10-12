@@ -2,9 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import * as schema from "./schema";
 
-export const DEFAULT_DB_PATH = path.join(process.cwd(), "data", "ray.db");
+export const DEFAULT_DB_PATH = process.env.RAY_DB_PATH || path.join(process.cwd(), "data", "ray.db");
+export const MIGRATIONS_DIR = path.join(process.cwd(), "src", "db", "migrations");
 
 export function openDb(file: string = DEFAULT_DB_PATH) {
   if (file !== ":memory:") {
@@ -17,3 +19,12 @@ export function openDb(file: string = DEFAULT_DB_PATH) {
 }
 
 export type Db = ReturnType<typeof openDb>;
+
+export function migrateDb(db: Db) {
+  migrate(db, { migrationsFolder: MIGRATIONS_DIR });
+  return db;
+}
+
+export function openMigratedDb(file: string = DEFAULT_DB_PATH) {
+  return migrateDb(openDb(file));
+}
