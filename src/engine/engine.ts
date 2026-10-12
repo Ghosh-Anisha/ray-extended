@@ -21,7 +21,7 @@ import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEven
 import { findCase } from "./grouping";
 import { orchestrate } from "./orchestrator";
 import type { EngineContext, Registry } from "./specialist";
-import type { Case } from "./state-machine";
+import { isFinal, type Case } from "./state-machine";
 
 export type HandleResult =
   | { outcome: "unmatched" }
@@ -74,6 +74,17 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     }
   }
 
+  async function claimed(e: EngineEvent): Promise<Case | null> {
+    for (const spec of registry.all()) {
+      const id = spec.claim ? await spec.claim(ctx, e) : null;
+      if (!id) continue;
+      const kase = repo.cases.get(id);
+      // Only an open case of the claiming flow, for the same merchant.
+      if (kase && kase.merchant_id === e.merchantId && kase.moment === spec.moment && !isFinal(kase.state)) return kase;
+    }
+    return null;
+  }
+
   async function handle(raw: EngineEventInput): Promise<HandleResult> {
     const e = engineEvent.parse(raw);
     const type = CASE_EVENT_TYPE[e.kind];
@@ -85,6 +96,8 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     if (seen) return { outcome: "duplicate", caseId: seen.caseId };
 
     let kase = findCase(db, e);
+    // A flow may claim an event for one of its own open cases (Specialist.claim).
+    if (!kase && !e.newQuery) kase = await claimed(e);
     let alertText: string | null = null;
     if (!kase) {
       let detection = null;
