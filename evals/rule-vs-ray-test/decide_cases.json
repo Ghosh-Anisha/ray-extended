@@ -1,0 +1,500 @@
+[
+  {
+    "id": "d01",
+    "context": {
+      "amount": 850,
+      "item": "Chocolate truffle cake 500g",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-11 evening",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T18:12:00+05:30",
+          "text": "Hi, I paid 850 for the chocolate truffle cake but the site still says payment pending??"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T18:20:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 850 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T18:24:00+05:30",
+          "text": "Yes please, tomorrow evening delivery is fine. Thanks!"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d02",
+    "context": {
+      "amount": 1200,
+      "item": "Blueberry cheesecake 1kg",
+      "stock_available": false,
+      "delivery_slot_requested": null,
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T11:02:00+05:30",
+          "text": "Payment ho gaya hai but order confirm nahi hua"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T11:10:00+05:30",
+          "text": "Hi, Ray from Leafy Bakes. We got your Rs 1200, sorry for the mix-up. Unfortunately the blueberry cheesecake is sold out this week. We can refund you in full."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T11:15:00+05:30",
+          "text": "Ok theek hai, refund kar do please"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d03",
+    "context": {
+      "amount": 650,
+      "item": "Almond biscotti box",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-12",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": {
+        "amount": 650,
+        "status": "captured",
+        "minutes_after": 6
+      },
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T09:40:00+05:30",
+          "text": "Pehli payment pending dikha raha tha toh GPay se dobara kar diya. Ab dono kat gaye 🙄"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T09:45:00+05:30",
+          "text": "Hi, Ray from Leafy Bakes. We can see two payments of Rs 650 from your number. Did you want one box or two?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T09:47:00+05:30",
+          "text": "Ek hi box chahiye. Doosra paisa wapas kar do"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d04",
+    "context": {
+      "amount": 7200,
+      "item": "3-tier custom wedding cake",
+      "stock_available": false,
+      "delivery_slot_requested": "2026-10-09",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T08:30:00+05:30",
+          "text": "Paid 7200 advance for the 3 tier cake, nobody confirmed anything. Wedding is TODAY."
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T08:41:00+05:30",
+          "text": "Hi, Ray from Leafy Bakes. We're very sorry, we have your payment of Rs 7200. We aren't able to make the 3-tier cake in time today."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T08:45:00+05:30",
+          "text": "Then return my money. Full amount."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d05",
+    "context": {
+      "amount": 950,
+      "item": "Red velvet cake 1kg",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-08 evening",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-08T13:05:00+05:30",
+          "text": "Hi I paid for the red velvet cake for my daughter's birthday tonight, order still shows unpaid"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-08T19:30:00+05:30",
+          "text": "Hello?? Anyone??"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T10:02:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 950 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T10:20:00+05:30",
+          "text": "Birthday was last night. We cut a store bought cake. What will I do with it now, just refund."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d06",
+    "context": {
+      "amount": 720,
+      "item": "Eggless pineapple cake 500g",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-10 afternoon",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T16:44:00+05:30",
+          "text": "Bhaiya payment ho gaya tha, order kahan hai?"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T09:15:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 720 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T09:31:00+05:30",
+          "text": "Kal raat tak koi reply nahi aaya toh maine Theobroma se le liya. Ab nahi chahiye, paise wapas bhej do."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d07",
+    "context": {
+      "amount": 480,
+      "item": "Assorted cookie jar",
+      "stock_available": true,
+      "delivery_slot_requested": null,
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T12:10:00+05:30",
+          "text": "Money got deducted but no order confirmation email."
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T12:14:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 480 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order? The cookie jar is in stock and can go out today."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T12:20:00+05:30",
+          "text": "No thanks. Just refund it."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d08",
+    "context": {
+      "amount": 1100,
+      "item": "Hazelnut praline cake 1kg",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-11",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": {
+        "amount": 1100,
+        "status": "failed",
+        "minutes_after": 14
+      },
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T17:02:00+05:30",
+          "text": "Pehle wala payment pending tha toh GPay se try kiya, woh fail ho gaya. Ab confuse hoon kaunsa gaya"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T17:10:00+05:30",
+          "text": "Hi, Ray from Leafy Bakes. Your first payment of Rs 1100 went through. The second GPay attempt failed, so you haven't been charged twice."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T17:12:00+05:30",
+          "text": "Phew ok. Toh cake kal bhej dena please, 11 baje tak"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d09",
+    "context": {
+      "amount": 6500,
+      "item": "Anniversary dessert hamper (large)",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-12",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T10:00:00+05:30",
+          "text": "Hello, paid Rs 6500 for the large hamper yesterday, status still shows unpaid."
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T10:06:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 6500 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T10:09:00+05:30",
+          "text": "Yes of course! It's for our anniversary on the 12th. Please deliver that morning."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d10",
+    "context": {
+      "amount": 890,
+      "item": "Dark chocolate ganache cake 500g",
+      "stock_available": false,
+      "delivery_slot_requested": "2026-10-11",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T14:20:00+05:30",
+          "text": "Paid for the ganache cake but order not confirmed"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T14:25:00+05:30",
+          "text": "Hi, Ray from Leafy Bakes. We received Rs 890, sorry for the delay. The dark chocolate ganache is out of stock right now. We can refund you."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T14:31:00+05:30",
+          "text": "Arre nahi refund nahi. Koi aur flavour chalega, same price mein jo bhi achha ho. Coffee walnut hai kya?"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d11",
+    "context": {
+      "amount": 1350,
+      "item": "Lotus Biscoff cheesecake",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-09",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-08T20:10:00+05:30",
+          "text": "I paid 1350 and you people did nothing. This is fraud."
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T09:30:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 1350 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T09:41:00+05:30",
+          "text": "Don't 'sorry' me. I have screenshots of everything. I'm filing a complaint in consumer court and posting this on every review site. Your manager should call me today."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d12",
+    "context": {
+      "amount": 1000,
+      "item": "Fruit cake 1kg",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-09",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-07T15:00:00+05:30",
+          "text": "Payment done for fruit cake, Nani ka 80th birthday on 9th. Please confirm"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T08:50:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 1000 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T09:05:00+05:30",
+          "text": "Wow, three days to reply. Amazing service. Sure, send it now, Nani will love blowing candles a day late. Just give my money back yaar."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d13",
+    "context": {
+      "amount": 560,
+      "item": "Banana walnut loaf x2",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-11",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T19:00:00+05:30",
+          "text": "Loaf ka order paid hai but shows pending"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-09T19:08:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 560 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-09T19:15:00+05:30",
+          "text": "Haan bhej do, Saturday ko"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T11:40:00+05:30",
+          "text": "Sorry change of plans, hum bahar ja rahe hain weekend pe. Cancel karke refund kar do please"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d14",
+    "context": {
+      "amount": 1150,
+      "item": "Mango mousse cake 1kg (incl. Rs 150 delivery)",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-11 evening",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-10T13:00:00+05:30",
+          "text": "Hi, paid 1150 but order status is still unpaid."
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T13:06:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 1150 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T13:12:00+05:30",
+          "text": "Yes send it tomorrow evening. But since I had to chase you for 2 days, please refund the 150 delivery charge at least."
+        }
+      ]
+    }
+  },
+  {
+    "id": "d15",
+    "context": {
+      "amount": 1600,
+      "item": "Custom photo cake 1kg",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-12",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T21:00:00+05:30",
+          "text": "Photo cake ka payment ho gaya, website pe unpaid dikha raha"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T09:00:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 1600 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order? For the photo cake we also need the photo and the name to write on it."
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T09:20:00+05:30",
+          "text": "Haan chahiye. Photo aur naam main baad mein bhejti hoon, abhi decide nahi kiya kaunsi photo"
+        }
+      ]
+    }
+  },
+  {
+    "id": "d16",
+    "context": {
+      "amount": 780,
+      "item": "Tiramisu jar pack of 4",
+      "stock_available": true,
+      "delivery_slot_requested": "2026-10-11",
+      "today": "2026-10-10",
+      "newer_payment_same_contact": null,
+      "open_dispute": false,
+      "merchant_refund_limit": 5000,
+      "conversation": [
+        {
+          "from": "customer",
+          "at": "2026-10-09T18:30:00+05:30",
+          "text": "Paid for tiramisu jars, no confirmation"
+        },
+        {
+          "from": "ray",
+          "at": "2026-10-10T10:00:00+05:30",
+          "text": "Hi, this is Ray from Leafy Bakes. We received your payment of Rs 780 but your order wasn't marked paid on our side. Sorry about that. Would you like us to go ahead with the order?"
+        },
+        {
+          "from": "customer",
+          "at": "2026-10-10T10:35:00+05:30",
+          "text": "पता नहीं अभी। पार्टी शायद कैंसिल हो जाए, शाम तक पता चलेगा। देखते हैं"
+        }
+      ]
+    }
+  }
+]

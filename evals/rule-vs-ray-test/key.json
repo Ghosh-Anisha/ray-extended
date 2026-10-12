@@ -1,0 +1,242 @@
+[
+ {
+  "id": "m01",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0162152",
+  "why": "phone + 2499 same evening"
+ },
+ {
+  "id": "m02",
+  "intent": "other",
+  "expected": "none",
+  "why": "spam"
+ },
+ {
+  "id": "m03",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0318905",
+  "why": "email + exact UTR"
+ },
+ {
+  "id": "m04",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0531263",
+  "why": "phone + 2499 UPI 17:12"
+ },
+ {
+  "id": "m05",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0335057",
+  "why": "phone uniquely maps to the 16:09 card payment"
+ },
+ {
+  "id": "m06",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0421707",
+  "why": "phone matches; pay_id has one-digit typo"
+ },
+ {
+  "id": "m07",
+  "intent": "refund_or_cancel",
+  "expected": "none",
+  "why": "delivered order, damage refund"
+ },
+ {
+  "id": "m08",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "email has two 1299 payments on 7 Oct (one no_order, one order_paid); can't tell which"
+ },
+ {
+  "id": "m09",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0252391",
+  "why": "email + 1299 previous night"
+ },
+ {
+  "id": "m10",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0318905",
+  "why": "phone + 1299 UPI morning 8 Oct"
+ },
+ {
+  "id": "m11",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "delivery issue on paid order"
+ },
+ {
+  "id": "m12",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0049133",
+  "why": "phone + 1299 netbanking same morning"
+ },
+ {
+  "id": "m13",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "matching payment status is refunded"
+ },
+ {
+  "id": "m14",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0322038",
+  "why": "follow-up, same phone"
+ },
+ {
+  "id": "m15",
+  "intent": "refund_or_cancel",
+  "expected": "none",
+  "why": "refund status on already refunded payment"
+ },
+ {
+  "id": "m16",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0519670",
+  "why": "email + exact UTR"
+ },
+ {
+  "id": "m17",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "unknown phone; two Siddharth 1299 captured_no_order payments that night"
+ },
+ {
+  "id": "m18",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "order exists, delivery status"
+ },
+ {
+  "id": "m19",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "phone's payment was early 10 Oct, not Wednesday (day off)"
+ },
+ {
+  "id": "m20",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "matching payment (UTR one digit off) is failed"
+ },
+ {
+  "id": "m21",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0519670",
+  "why": "phone + 1299 netbanking 13:46"
+ },
+ {
+  "id": "m22",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "product question"
+ },
+ {
+  "id": "m23",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0252391",
+  "why": "phone + 1299 UPI last night"
+ },
+ {
+  "id": "m24",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "unknown phone, no ID; several 1299 payments on 8 Oct"
+ },
+ {
+  "id": "m25",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "bulk enquiry"
+ },
+ {
+  "id": "m26",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0322038",
+  "why": "phone + 2150 minutes earlier"
+ },
+ {
+  "id": "m27",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0113243",
+  "why": "phone + 1299 card early 10 Oct"
+ },
+ {
+  "id": "m28",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0049133",
+  "why": "email + exact pay_id"
+ },
+ {
+  "id": "m29",
+  "intent": "refund_or_cancel",
+  "expected": "none",
+  "why": "cancel request for a paid order"
+ },
+ {
+  "id": "m30",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0477240",
+  "why": "phone + 650 early 9 Oct"
+ },
+ {
+  "id": "m31",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "phone's only payment is failed"
+ },
+ {
+  "id": "m32",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "delivery question"
+ },
+ {
+  "id": "m33",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "phone's payment is 1299 not 1499 (near-match amount)"
+ },
+ {
+  "id": "m34",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0162152",
+  "why": "email + exact UTR"
+ },
+ {
+  "id": "m35",
+  "intent": "other",
+  "expected": "none",
+  "why": "discount code complaint, order placed"
+ },
+ {
+  "id": "m36",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0521717",
+  "why": "email + 1299 netbanking ~00:14"
+ },
+ {
+  "id": "m37",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0113243",
+  "why": "follow-up from same phone, only one captured_no_order on it"
+ },
+ {
+  "id": "m38",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "payment is captured_order_paid; order exists"
+ },
+ {
+  "id": "m39",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0421707",
+  "why": "email + 1850 evening of 7 Oct"
+ },
+ {
+  "id": "m40",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0531263",
+  "why": "email matches; UTR one digit off"
+ }
+]

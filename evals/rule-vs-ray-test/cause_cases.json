@@ -1,0 +1,1081 @@
+[
+  {
+    "id": "c01",
+    "evidence": {
+      "payment": {
+        "id": "pay_PkR2v8aLm3QxTe",
+        "status": "captured",
+        "captured_at": "2026-09-14T19:42:11+05:30",
+        "method": "upi",
+        "order_id": "order_PkR2nB1yHc7ZqW",
+        "receipt": "10482"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-09-14T19:42:13+05:30",
+          "http_status": 200,
+          "response_ms": 212,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-14T19:42:14+05:30",
+          "http_status": 200,
+          "response_ms": 188,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-09-14T19:42:14+05:30",
+          "http_status": 200,
+          "response_ms": 194,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.2",
+        "events": [
+          {
+            "ts": "2026-09-14T19:42:13+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "event=payment.authorized"
+          },
+          {
+            "ts": "2026-09-14T19:42:13+05:30",
+            "event": "razorpay.webhook.ignored",
+            "message": "Razorpay Webhook verify signature failed"
+          },
+          {
+            "ts": "2026-09-14T19:42:14+05:30",
+            "event": "razorpay.webhook.ignored",
+            "message": "Razorpay Webhook verify signature failed"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "10482",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-14T19:40:52+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "We set up a staging copy last week and created a new webhook for it in the dashboard. Live site was working fine before that."
+    }
+  },
+  {
+    "id": "c02",
+    "evidence": {
+      "payment": {
+        "id": "pay_PmA91kQcVb2sLe",
+        "status": "captured",
+        "captured_at": "2026-09-18T11:27:40+05:30",
+        "method": "netbanking",
+        "order_id": "order_PmA7xZ0rTq4kNd",
+        "receipt": "7731"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-18T11:27:43+05:30",
+          "http_status": 200,
+          "response_ms": 341,
+          "response_body_snippet": "{\"success\":true}"
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-09-18T11:27:43+05:30",
+          "http_status": 200,
+          "response_ms": 297,
+          "response_body_snippet": "{\"success\":true}"
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.5.9",
+        "events": [
+          {
+            "ts": "2026-09-18T11:29:02+05:30",
+            "event": "razorpay.cron.process",
+            "message": "order 7731 current status: cancelled, skipping update"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "7731",
+        "status": "cancelled",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-18T11:12:05+05:30",
+            "note": "Order created via checkout."
+          },
+          {
+            "ts": "2026-09-18T11:22:07+05:30",
+            "note": "Unpaid order cancelled - time limit reached. Order status changed from Pending payment to Cancelled."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 10,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Customer says the bank OTP page was really slow. Money is gone from her account. Stock for the item went back up too."
+    }
+  },
+  {
+    "id": "c03",
+    "evidence": {
+      "payment": {
+        "id": "pay_PnX0aE4hYw7JkR",
+        "status": "captured",
+        "captured_at": "2026-09-21T15:03:19+05:30",
+        "method": "card",
+        "order_id": "order_PnWzr8MbQs1uYc",
+        "receipt": "22019"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-09-21T15:03:21+05:30",
+          "http_status": 200,
+          "response_ms": 402,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-09-21T15:03:22+05:30",
+          "http_status": 200,
+          "response_ms": 377,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.5.6",
+        "events": [
+          {
+            "ts": "2026-09-21T15:03:21+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "queued payment.authorized for order 22019"
+          },
+          {
+            "ts": "2026-09-21T15:08:00+05:30",
+            "event": "razorpay.update.order.failed",
+            "message": "WordPress database error Unknown column 'rzp_update_order_cron_status' in 'where clause' for query SELECT * FROM wp_rzp_webhook_requests WHERE integration='woocommerce' AND rzp_update_order_cron_status=0"
+          },
+          {
+            "ts": "2026-09-21T15:13:00+05:30",
+            "event": "razorpay.update.order.failed",
+            "message": "WordPress database error Unknown column 'rzp_update_order_cron_status' in 'where clause'"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "22019",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-21T15:01:48+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 60,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce",
+        "recent_changes": "Razorpay plugin auto-updated 4.5.4 -> 4.5.6 on 2026-09-20"
+      }
+    }
+  },
+  {
+    "id": "c04",
+    "evidence": {
+      "payment": {
+        "id": "pay_PoB3kd9QzLm1Vu",
+        "status": "captured",
+        "captured_at": "2026-09-23T21:15:02+05:30",
+        "method": "upi",
+        "order_id": "order_PoB2wQ7cXn5aRf",
+        "receipt": "4410"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-23T21:15:05+05:30",
+          "http_status": 403,
+          "response_ms": 61,
+          "response_body_snippet": "<!DOCTYPE html><html><head><title>Access Denied</title></head><body><h1>Your access to this site has been limited by the site owner</h1><p>If you think you have been blocked in error, contact the owner of this site..."
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-23T21:20:05+05:30",
+          "http_status": 403,
+          "response_ms": 58,
+          "response_body_snippet": "<!DOCTYPE html><html><head><title>Access Denied</title>..."
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-23T21:50:06+05:30",
+          "http_status": 403,
+          "response_ms": 64,
+          "response_body_snippet": "<!DOCTYPE html><html><head><title>Access Denied</title>..."
+        }
+      ],
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "4410",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-23T21:13:30+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [
+          "Wordfence Security 7.11 (rate limiting: block crawlers exceeding 30 req/min; country blocking enabled)"
+        ],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Customer closed the payment page right after the UPI approval because it was taking long to redirect."
+    }
+  },
+  {
+    "id": "c05",
+    "evidence": {
+      "payment": {
+        "id": "pay_PpC5mN2rWs8KxB",
+        "status": "authorized",
+        "captured_at": null,
+        "authorized_at": "2026-09-25T13:44:10+05:30",
+        "method": "card",
+        "order_id": "order_PpC4uH6dLy0TmQ",
+        "receipt": "3308",
+        "notes": "Dashboard banner: payment will be auto-refunded if not captured by 2026-09-28"
+      },
+      "razorpay_order": {
+        "status": "attempted",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-09-25T13:44:12+05:30",
+          "http_status": 200,
+          "response_ms": 266,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.0",
+        "events": [
+          {
+            "ts": "2026-09-25T13:44:12+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "event=payment.authorized order=3308"
+          },
+          {
+            "ts": "2026-09-25T13:45:00+05:30",
+            "event": "razorpay.update.order",
+            "message": "order 3308 payment state authorized; no capture performed"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "3308",
+        "status": "failed",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-25T13:43:02+05:30",
+            "note": "Order created via checkout."
+          },
+          {
+            "ts": "2026-09-25T13:44:15+05:30",
+            "note": "Order status changed from Pending payment to Failed."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 60,
+        "payment_action": "authorize",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Customer has a debit SMS. We switched some settings when we started doing pre-orders."
+    }
+  },
+  {
+    "id": "c06",
+    "evidence": {
+      "payment": {
+        "id": "pay_PqD8tR1eUa4ZcH",
+        "status": "captured",
+        "captured_at": "2026-09-27T02:11:47+05:30",
+        "method": "upi",
+        "order_id": "order_PqD7oK3pVf9BnL",
+        "receipt": "512"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-09-27T02:11:49+05:30",
+          "http_status": 200,
+          "response_ms": 233,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-09-27T02:11:50+05:30",
+          "http_status": 200,
+          "response_ms": 219,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.1",
+        "events": [
+          {
+            "ts": "2026-09-27T02:11:49+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "queued payment.authorized for order 512"
+          },
+          {
+            "ts": "2026-09-27T02:11:50+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "queued order.paid for order 512"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "512",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-27T02:09:31+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "DISABLE_WP_CRON set to true in wp-config.php by host's speed optimiser; no system crontab found. Tools > Scheduled Actions: 214 past-due.",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Small handmade store, maybe 5 orders a week. This was a late-night order and it's still unpaid two days later."
+    }
+  },
+  {
+    "id": "c07",
+    "evidence": {
+      "payment": {
+        "id": "pay_PrE1gW5kNd3XyT",
+        "status": "captured",
+        "captured_at": "2026-09-29T18:30:22+05:30",
+        "method": "card",
+        "order_id": "order_PrE0bS8jMh2VrP",
+        "receipt": "88213"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-29T18:30:25+05:30",
+          "http_status": null,
+          "response_ms": 5000,
+          "response_body_snippet": "request timed out"
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-29T18:35:26+05:30",
+          "http_status": null,
+          "response_ms": 5000,
+          "response_body_snippet": "request timed out"
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-09-29T19:05:27+05:30",
+          "http_status": 504,
+          "response_ms": 5000,
+          "response_body_snippet": "<html><body><h1>504 Gateway Time-out</h1>The server didn't respond in time.</body></html>"
+        }
+      ],
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "88213",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-09-29T18:28:40+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce",
+        "hosting": "shared plan, 1 PHP worker; TTFB on /wp-admin ~7s during sale",
+        "active_plugins_count": 61
+      },
+      "merchant_note": "We were running a Navratri flash sale that evening, site was sluggish."
+    }
+  },
+  {
+    "id": "c08",
+    "evidence": {
+      "payment": {
+        "id": "pay_PsF6hY0aQc9LwD",
+        "status": "captured",
+        "captured_at": "2026-10-01T12:19:55+05:30",
+        "method": "upi",
+        "order_id": "order_PsF5zT2nBg7KuM",
+        "receipt": "6670"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1,
+        "related": [
+          {
+            "id": "order_PsF2cV4mXe1HpJ",
+            "receipt": "6670",
+            "status": "attempted",
+            "attempts": 1,
+            "last_payment": {
+              "id": "pay_PsF3qL8sDu5GnZ",
+              "status": "failed",
+              "method": "card",
+              "error": "BAD_REQUEST_ERROR: Payment declined by issuer"
+            }
+          }
+        ]
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.failed",
+          "attempted_at": "2026-10-01T12:16:40+05:30",
+          "http_status": 200,
+          "response_ms": 251,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "payment.captured",
+          "attempted_at": "2026-10-01T12:19:58+05:30",
+          "http_status": 200,
+          "response_ms": 239,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.5.9",
+        "events": [
+          {
+            "ts": "2026-10-01T12:20:00+05:30",
+            "event": "razorpay.update.order.failed",
+            "message": "razorpay order_id order_PsF5zT2nBg7KuM does not match stored order meta for woocommerce order 6670"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "6670",
+        "status": "failed",
+        "payment_method": "Razorpay",
+        "meta": {
+          "_razorpay_order_id": "order_PsF2cV4mXe1HpJ"
+        },
+        "status_history": [
+          {
+            "ts": "2026-10-01T12:15:12+05:30",
+            "note": "Order created via checkout."
+          },
+          {
+            "ts": "2026-10-01T12:16:41+05:30",
+            "note": "Payment failed. Order status changed from Pending payment to Failed."
+          },
+          {
+            "ts": "2026-10-01T12:18:30+05:30",
+            "note": "Customer clicked Pay from My Account > Orders."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 60,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      }
+    }
+  },
+  {
+    "id": "c09",
+    "evidence": {
+      "payment": {
+        "id": "pay_PtG2jZ7bRf4MxC",
+        "status": "captured",
+        "captured_at": "2026-10-02T16:05:33+05:30",
+        "method": "wallet",
+        "order_id": "order_PtG1dX3oWk6NsE",
+        "receipt": "15502"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-02T16:05:35+05:30",
+          "http_status": 500,
+          "response_ms": 812,
+          "response_body_snippet": "<!DOCTYPE html><html dir='ltr' lang='en-US'><head><title>WordPress &rsaquo; Error</title></head><body id=\"error-page\"><p>There has been a critical error on this website.</p>..."
+        },
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-02T16:10:36+05:30",
+          "http_status": 500,
+          "response_ms": 790,
+          "response_body_snippet": "<!DOCTYPE html>...There has been a critical error on this website..."
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-02T16:05:36+05:30",
+          "http_status": 200,
+          "response_ms": 205,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.4.3",
+        "events": [
+          {
+            "ts": "2026-10-02T16:05:35+05:30",
+            "event": "php.fatal",
+            "message": "PHP Fatal error: Uncaught Error: Call to a member function get_status() on bool in /wp-content/plugins/woo-razorpay/includes/razorpay-webhook.php:268 Stack trace: #0 RZP_Webhook->paymentAuthorized()"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "15502",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-02T16:04:10+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce",
+        "hpos": "High-Performance Order Storage enabled 2026-09-30"
+      }
+    }
+  },
+  {
+    "id": "c10",
+    "evidence": {
+      "payment": {
+        "id": "pay_PuH4kA1cSg5NyF",
+        "status": "captured",
+        "captured_at": "2026-10-03T09:51:18+05:30",
+        "method": "upi",
+        "order_id": "order_PuH3eB9pXl2OtG",
+        "receipt": "2981"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": "No webhook URL configured on this Razorpay account (Settings > Webhooks is empty).",
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "2981",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-03T09:49:57+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "n",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Most orders come through fine. Customer said she paid on GPay from her phone and then her browser crashed."
+    }
+  },
+  {
+    "id": "c11",
+    "evidence": {
+      "payment": {
+        "id": "pay_PvJ7mC3dTh8PzK",
+        "status": "captured",
+        "captured_at": "2026-10-05T14:22:09+05:30",
+        "method": "card",
+        "order_id": "order_PvJ6fD0qYm4QuL",
+        "receipt": "9120"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_config": {
+        "url": "https://shop.example-crafts.in/?wc-api=razorpay_webhook",
+        "status": "disabled",
+        "disabled_at": "2026-10-04T11:02:00+05:30",
+        "events": [
+          "payment.authorized",
+          "order.paid"
+        ]
+      },
+      "webhook_deliveries": [
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-03T10:58:12+05:30",
+          "http_status": 502,
+          "response_ms": 120,
+          "response_body_snippet": "<html><head><title>502 Bad Gateway</title></head><body><center><h1>502 Bad Gateway</h1></center><hr><center>nginx</center>"
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-04T10:59:47+05:30",
+          "http_status": 502,
+          "response_ms": 118,
+          "response_body_snippet": "<html><head><title>502 Bad Gateway</title>..."
+        }
+      ],
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "9120",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-05T14:20:51+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "We moved hosting providers over the weekend (Oct 3-4). Site has been up fine since Sunday. Several orders since then are stuck."
+    }
+  },
+  {
+    "id": "c12",
+    "evidence": {
+      "payment": {
+        "id": "pay_PwK9nE5fVj0RaM",
+        "status": "captured",
+        "captured_at": "2026-10-06T20:40:44+05:30",
+        "method": "upi",
+        "order_id": "order_PwK8gF2rZn6SvN",
+        "receipt": "1177"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-06T20:40:46+05:30",
+          "http_status": 500,
+          "response_ms": 344,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-06T20:40:47+05:30",
+          "http_status": 200,
+          "response_ms": 361,
+          "response_body_snippet": "<br />\n<b>Fatal error</b>: Cannot redeclare shopzen_cart_badge() (previously declared in /wp-content/themes/shopzen-child/functions.php:212) in <b>/wp-content/plugins/woo-cart-badges/cart-badges.php</b> on line <b>48</b><br />"
+        }
+      ],
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "1177",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-06T20:39:20+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce",
+        "recent_changes": "Installed 'Woo Cart Badges' 1.2 on 2026-10-06 afternoon; child theme edited same day"
+      },
+      "merchant_note": "Customer sent a screenshot of a blank white page after paying. Home page looks normal to me."
+    }
+  },
+  {
+    "id": "c13",
+    "evidence": {
+      "payment": {
+        "id": "pay_PxL1pG7hWk2TbQ",
+        "status": "captured",
+        "captured_at": "2026-10-07T10:12:30+05:30",
+        "method": "card",
+        "order_id": "order_PxL0hH4sAo8UwR",
+        "receipt": "30447"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-07T10:12:32+05:30",
+          "http_status": 200,
+          "response_ms": 198,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-07T10:12:33+05:30",
+          "http_status": 200,
+          "response_ms": 207,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.0",
+        "events": [
+          {
+            "ts": "2026-10-07T10:12:32+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "queued payment.authorized for order 30447"
+          },
+          {
+            "ts": "2026-10-07T10:17:01+05:30",
+            "event": "razorpay.update.order.failed",
+            "message": "order 30447: Deadlock found when trying to get lock; try restarting transaction"
+          },
+          {
+            "ts": "2026-10-07T10:17:01+05:30",
+            "event": "razorpay.cron.process",
+            "message": "processed 2 webhook rows, set rzp_update_order_cron_status=1"
+          },
+          {
+            "ts": "2026-10-07T10:22:00+05:30",
+            "event": "razorpay.cron.process",
+            "message": "processed 0 webhook rows"
+          },
+          {
+            "ts": "2026-10-07T10:27:00+05:30",
+            "event": "razorpay.cron.process",
+            "message": "processed 0 webhook rows"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "30447",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-07T10:11:05+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "Server cron runs wp-cron.php every 5 min; Scheduled Actions healthy",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      }
+    }
+  },
+  {
+    "id": "c14",
+    "evidence": {
+      "payment": {
+        "id": "pay_PyM3rJ9iXl4VcS",
+        "status": "captured",
+        "captured_at": "2026-10-08T11:34:02+05:30",
+        "method": "upi",
+        "order_id": "order_PyM2kK6tBp0XyT",
+        "receipt": "5193"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-08T14:02:51+05:30",
+          "http_status": 200,
+          "response_ms": 221,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-08T14:02:53+05:30",
+          "http_status": 200,
+          "response_ms": 230,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.2",
+        "events": [
+          {
+            "ts": "2026-10-08T14:02:51+05:30",
+            "event": "razorpay.webhook.received",
+            "message": "queued payment.authorized for order 5193"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "5193",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-08T11:32:44+05:30",
+            "note": "Order created via checkout."
+          }
+        ],
+        "snapshot_taken_at": "2026-10-08T14:03:30+05:30"
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "Server cron every 5 min; Scheduled Actions healthy",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Three other orders from this morning were also stuck for 2+ hours. A friend on Shopify with Razorpay said the same. status.razorpay.com showed something around midday."
+    }
+  },
+  {
+    "id": "c15",
+    "evidence": {
+      "payment": {
+        "id": "pay_PzN5sL2jYm6WdU",
+        "status": "captured",
+        "captured_at": "2026-10-09T17:48:15+05:30",
+        "method": "upi (collect request)",
+        "order_id": "order_PzN4mM8uCq2ZaV",
+        "receipt": "64021"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-09T17:48:17+05:30",
+          "http_status": 200,
+          "response_ms": 284,
+          "response_body_snippet": ""
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-09T17:48:18+05:30",
+          "http_status": 200,
+          "response_ms": 266,
+          "response_body_snippet": ""
+        }
+      ],
+      "plugin_telemetry": {
+        "plugin": "razorpay-woocommerce",
+        "version": "4.6.2",
+        "events": [
+          {
+            "ts": "2026-10-09T17:53:00+05:30",
+            "event": "razorpay.update.order.failed",
+            "message": "order 64021 not in pending/failed state (cancelled); will re-check"
+          },
+          {
+            "ts": "2026-10-09T19:23:00+05:30",
+            "event": "razorpay.update.order",
+            "message": "order 64021 restored from cancelled"
+          }
+        ]
+      },
+      "store_order": {
+        "number": "64021",
+        "status": "cancelled",
+        "payment_method": "Razorpay",
+        "snapshot_taken_at": "2026-10-09T18:40:00+05:30",
+        "status_history": [
+          {
+            "ts": "2026-10-09T17:30:11+05:30",
+            "note": "Order created via checkout."
+          },
+          {
+            "ts": "2026-10-09T17:45:14+05:30",
+            "note": "Unpaid order cancelled - time limit reached. Order status changed from Pending payment to Cancelled."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 15,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce"
+      },
+      "merchant_note": "Customer approved the UPI request late, she was in a meeting. Support ticket raised at 18:40."
+    }
+  },
+  {
+    "id": "c16",
+    "evidence": {
+      "payment": {
+        "id": "pay_PaP8uN4kZo0XeW",
+        "status": "captured",
+        "captured_at": "2026-10-10T08:05:40+05:30",
+        "method": "card",
+        "order_id": "order_PaP7oP1vDr5BcX",
+        "receipt": "1903"
+      },
+      "razorpay_order": {
+        "status": "paid",
+        "attempts": 1
+      },
+      "webhook_deliveries": [
+        {
+          "event": "payment.authorized",
+          "attempted_at": "2026-10-10T08:05:42+05:30",
+          "http_status": 200,
+          "response_ms": 455,
+          "response_body_snippet": "<br />\n<b>Fatal error</b>:  Uncaught TypeError: number_format(): Argument #1 ($num) must be of type float, string given in /wp-content/plugins/woo-razorpay/woo-razorpay.php:1388\nStack trace:\n#0 ... WC_Razorpay->updateOrder()"
+        },
+        {
+          "event": "order.paid",
+          "attempted_at": "2026-10-10T08:05:43+05:30",
+          "http_status": 200,
+          "response_ms": 431,
+          "response_body_snippet": "<br />\n<b>Fatal error</b>:  Uncaught TypeError: number_format(): Argument #1 ($num) must be of type float..."
+        }
+      ],
+      "plugin_telemetry": null,
+      "store_order": {
+        "number": "1903",
+        "status": "pending",
+        "payment_method": "Razorpay",
+        "status_history": [
+          {
+            "ts": "2026-10-10T08:04:22+05:30",
+            "note": "Order created via checkout."
+          }
+        ]
+      },
+      "store_settings": {
+        "hold_stock_minutes": 0,
+        "payment_action": "capture",
+        "webhook_secret_set": "y",
+        "wp_cron": "WP-Cron default (loopback), no server cron",
+        "security_plugins": [],
+        "platform": "WooCommerce",
+        "php_version": "8.2 (upgraded from 7.4 on 2026-10-08)",
+        "display_errors": "on"
+      }
+    }
+  }
+]

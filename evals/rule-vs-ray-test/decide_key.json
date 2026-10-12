@@ -1,0 +1,82 @@
+[
+  {
+    "id": "d01",
+    "action": "mark_paid",
+    "why": "Stock available and customer confirms she wants the cake."
+  },
+  {
+    "id": "d02",
+    "action": "refund",
+    "why": "Out of stock and customer accepts a refund."
+  },
+  {
+    "id": "d03",
+    "action": "mark_paid_and_refund_duplicate",
+    "why": "Two captured payments, customer wants one box and the other refunded."
+  },
+  {
+    "id": "d04",
+    "action": "escalate_to_merchant",
+    "why": "Refund of 7200 is above the merchant's 5000 refund limit."
+  },
+  {
+    "id": "d05",
+    "action": "refund",
+    "why": "Stock exists but the birthday has passed and she asked for a refund."
+  },
+  {
+    "id": "d06",
+    "action": "refund",
+    "why": "Customer already bought elsewhere and wants money back."
+  },
+  {
+    "id": "d07",
+    "action": "refund",
+    "why": "Stock exists but customer explicitly wants a refund."
+  },
+  {
+    "id": "d08",
+    "action": "mark_paid",
+    "why": "Second payment failed, so no duplicate; customer wants delivery tomorrow."
+  },
+  {
+    "id": "d09",
+    "action": "mark_paid",
+    "why": "Amount is above the refund limit but nothing is being refunded; customer wants the hamper."
+  },
+  {
+    "id": "d10",
+    "action": "ask_customer",
+    "why": "Out of stock but customer is open to another flavour; confirm which one before doing anything."
+  },
+  {
+    "id": "d11",
+    "action": "escalate_to_merchant",
+    "why": "Legal threat and very angry customer; needs a human."
+  },
+  {
+    "id": "d12",
+    "action": "refund",
+    "why": "Sarcastic 'send it now'; the event passed and she asks for the money back."
+  },
+  {
+    "id": "d13",
+    "action": "refund",
+    "why": "Latest message cancels the earlier yes; refund."
+  },
+  {
+    "id": "d14",
+    "action": "escalate_to_merchant",
+    "why": "Wants the cake plus a partial refund of the fee; that's a goodwill call for the merchant, not one of the standard actions."
+  },
+  {
+    "id": "d15",
+    "action": "escalate_to_merchant",
+    "why": "Customer wants it but custom details (photo, name) are missing; merchant must decide before production."
+  },
+  {
+    "id": "d16",
+    "action": "ask_customer",
+    "why": "Customer hasn't decided whether she still wants it; ask once later."
+  }
+]

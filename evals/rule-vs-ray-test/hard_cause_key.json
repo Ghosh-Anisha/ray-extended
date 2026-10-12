@@ -1,0 +1,26 @@
+[
+ {
+  "id": "x01",
+  "cause": "hold_stock_autocancel",
+  "fault": "merchant_config",
+  "why": "Order was auto-cancelled by the 60-min hold-stock timer at 14:13:00, 41s BEFORE the payment was captured at 14:13:41. The 504s at 14:13:43 are real but irrelevant: even an instant webhook would have hit an already-cancelled order, which is exactly what the 14:15 retry shows (200, plugin skips because cancelled). Merchant note pushes endpoint_timeout; ordering rules it out."
+ },
+ {
+  "id": "x02",
+  "cause": "firewall_blocked",
+  "fault": "merchant_site_or_hosting",
+  "why": "Every delivery from 10:02 onward got a ~40ms 403 HTML page and the plugin never logged a single webhook.received, so requests were stopped before WordPress/plugin code (security layer: Wordfence rate-limit/UA blocking). The Razorpay-mentioning PHP fatal is at 12:47, nearly 3h after the first failed delivery, in the child theme's thank-you hook, and deliveries after it are still 403 not 500. Cron logs 'no pending webhook requests' because nothing was ever received, so not cron. Merchant note is a red herring."
+ },
+ {
+  "id": "x03",
+  "cause": "endpoint_timeout",
+  "fault": "merchant_site_or_hosting",
+  "why": "Razorpay attempted delivery 2s after capture (14:10:07); the merchant endpoint hit 30s 504s at 14:10 and 14:15 while a 1-PHP-worker shared host was under a flash sale. The 14:50 arrival is Razorpay's backoff retry succeeding, not platform delay. Merchant's 'nothing changed, Razorpay is late' note is misleading."
+ },
+ {
+  "id": "x04",
+  "cause": "cannot_tell_ask_merchant",
+  "fault": "unknown",
+  "why": "Razorpay delivered both events with fast 200s, but there is no plugin telemetry, wp_cron status is unreported, and the site just moved hosts and added a page cache. 200-but-not-updated fits a cache serving the webhook URL (theme_plugin_conflict), a queued webhook never processed (wp_cron_not_running), or the webhook URL still pointing at the old host/another install. Nothing in the evidence separates these; need plugin debug log, cron status and confirmation of which server answered the webhook URL."
+ }
+]

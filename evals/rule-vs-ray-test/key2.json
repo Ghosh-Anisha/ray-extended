@@ -1,0 +1,122 @@
+[
+ {
+  "id": "h01",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0162152",
+  "why": "Divya Menon's phone; 2499 netbanking on 10-09 16:54 is captured_no_order. Sender, amount, method and time all line up."
+ },
+ {
+  "id": "h02",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0252391",
+  "why": "Very short. Sender phone has exactly one payment (1299 UPI 10-09 21:31, captured_no_order)."
+ },
+ {
+  "id": "h03",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0049133",
+  "why": "harsh88 email, 1299 netbanking 10-07 07:24, captured_no_order."
+ },
+ {
+  "id": "h04",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "Siddharth Jain (9820418044) 1850 card on 10-09 08:18 is status failed, not captured. Paid-no-order complaint that can't be matched; ask/check with bank reversal."
+ },
+ {
+  "id": "h05",
+  "intent": "refund_or_cancel",
+  "expected": "none",
+  "why": "Order #1017 exists and is paid; customer wants cancel/refund. Not a paid-no-order complaint despite payment words."
+ },
+ {
+  "id": "h06",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0286341",
+  "why": "Tamil-English. kavya34 email, 1299 netbanking 10-10 01:47, captured_no_order."
+ },
+ {
+  "id": "h07",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0318905",
+  "why": "Voice-note style, amount in words (1299). Vikram Singh 9879571586, UPI 10-08 08:40, captured_no_order."
+ },
+ {
+  "id": "h08",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "Vikram Singh (9888248519) 1299 UPI 10-09 13:20 is already refunded. Not captured_no_order; ask/tell them about the refund."
+ },
+ {
+  "id": "h09",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0322038",
+  "why": "Bengali-English. Sneha Patil 9870690025, 2150 UPI 10-10 06:28, captured_no_order. 'bank says success, site says try again'."
+ },
+ {
+  "id": "h10",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0421707",
+  "why": "Long rambling, amount in words. pooja68 email, 1850 UPI 10-07 20:01, captured_no_order."
+ },
+ {
+  "id": "h11",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0477240",
+  "why": "Angry, short. Sneha Patil 9821339367, 650 card 10-09 04:57, captured_no_order."
+ },
+ {
+  "id": "h12",
+  "intent": "other",
+  "expected": "none",
+  "why": "Pre-sale payment question from an unknown number. No complaint."
+ },
+ {
+  "id": "h13",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0519670",
+  "why": "Unknown sender but UTR pins pay_T0519670 (Aditya Rao, 1299 netbanking 10-08 13:46), captured_no_order."
+ },
+ {
+  "id": "h14",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "Unknown email, no ID. Several 1299 captured_no_order payments around last night (pay_T0252391, pay_T0286341, pay_T0521717, pay_T0113243); can't pin one."
+ },
+ {
+  "id": "h15",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0113243",
+  "why": "Siddharth Jain 9863907779, 1299 card 10-10 04:32, captured_no_order."
+ },
+ {
+  "id": "h16",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "Order #1045 delivered; product quality complaint, not paid-no-order."
+ },
+ {
+  "id": "h17",
+  "intent": "paid_no_order",
+  "expected": "match:pay_T0531263",
+  "why": "Sender email not in ledger, but pay_ id pins Meera Pillai's 2499 UPI 10-09 17:12, captured_no_order."
+ },
+ {
+  "id": "h18",
+  "intent": "paid_no_order",
+  "expected": "ask",
+  "why": "Rahul Verma 9871493326 has one captured_no_order payment but it is 1299 on 10-06, not 2499 today. Amount and day don't match; ask."
+ },
+ {
+  "id": "h19",
+  "intent": "refund_or_cancel",
+  "expected": "none",
+  "why": "Paid on delivery, partial refund request. Not a paid-no-order complaint."
+ },
+ {
+  "id": "h20",
+  "intent": "delivery_or_product",
+  "expected": "none",
+  "why": "Order #1010 exists and is paid (captured_order_paid); a delivery-time question with payment words."
+ }
+]

@@ -1,0 +1,98 @@
+[
+  {
+    "id": "c01",
+    "cause": "signature_mismatch",
+    "fault": "merchant_config",
+    "fix": "Copy the live webhook's secret from the Razorpay dashboard into the plugin's Webhook Secret field (or regenerate both together) so signatures verify."
+  },
+  {
+    "id": "c02",
+    "cause": "hold_stock_autocancel",
+    "fault": "merchant_config",
+    "fix": "Raise or clear WooCommerce 'Hold stock (minutes)' so unpaid Razorpay orders are not cancelled before payment completes; restore and fulfil this order manually."
+  },
+  {
+    "id": "c03",
+    "cause": "sql_error_in_handler",
+    "fault": "razorpay_plugin",
+    "fix": "Run the plugin's DB migration (deactivate/reactivate or update to the patched release) so the webhook table has the missing column, then reprocess queued events."
+  },
+  {
+    "id": "c04",
+    "cause": "firewall_blocked",
+    "fault": "merchant_site_or_hosting",
+    "fix": "Allowlist Razorpay's webhook IPs / the webhook endpoint path in Wordfence so POSTs to the callback URL are not blocked."
+  },
+  {
+    "id": "c05",
+    "cause": "authorize_mode_not_captured",
+    "fault": "merchant_config",
+    "fix": "Switch the plugin's Payment Action to 'Authorize and Capture' (or capture this payment manually in the dashboard before the 3-day auto-refund)."
+  },
+  {
+    "id": "c06",
+    "cause": "wp_cron_not_running",
+    "fault": "merchant_site_or_hosting",
+    "fix": "Add a real server cron hitting wp-cron.php every 5 minutes (or re-enable WP-Cron) so the queued Razorpay webhook jobs run."
+  },
+  {
+    "id": "c07",
+    "cause": "endpoint_timeout",
+    "fault": "merchant_site_or_hosting",
+    "fix": "Make the webhook endpoint respond within 5s (more PHP workers/caching exclusion, fewer heavy plugins on that route) and replay the missed event."
+  },
+  {
+    "id": "c08",
+    "cause": "retry_on_new_order_not_linked",
+    "fault": "razorpay_plugin",
+    "fix": "Mark order 6670 paid against pay_PsF6hY0aQc9LwD and update the plugin so a retry's new Razorpay order id is saved to the store order meta."
+  },
+  {
+    "id": "c09",
+    "cause": "fatal_error_in_handler",
+    "fault": "razorpay_plugin",
+    "fix": "Update the Razorpay plugin to a release whose payment.authorized handler loads orders HPOS-safely, then replay the event or mark the order paid."
+  },
+  {
+    "id": "c10",
+    "cause": "no_webhook_and_tab_closed",
+    "fault": "merchant_config",
+    "fix": "Configure a webhook (payment.authorized, order.paid) pointing at the plugin's endpoint with a secret, and mark this order paid manually."
+  },
+  {
+    "id": "c11",
+    "cause": "webhook_disabled",
+    "fault": "merchant_site_or_hosting",
+    "fix": "Re-enable the webhook in the Razorpay dashboard now that the endpoint is healthy, and reconcile orders paid since it was disabled."
+  },
+  {
+    "id": "c12",
+    "cause": "theme_plugin_conflict",
+    "fault": "merchant_site_or_hosting",
+    "fix": "Deactivate the conflicting cart-badge plugin or remove the duplicate function from the child theme, then replay the webhook or mark the order paid."
+  },
+  {
+    "id": "c13",
+    "cause": "cron_not_retrying",
+    "fault": "razorpay_plugin",
+    "fix": "Reset the webhook row's cron status to 0 (or mark the order paid) and upgrade the plugin so failed updates stay queued for retry."
+  },
+  {
+    "id": "c14",
+    "cause": "razorpay_platform_delay",
+    "fault": "razorpay_platform",
+    "fix": "No merchant change needed; wait for the queued job to run (or mark paid manually) and confirm against Razorpay's status page incident."
+  },
+  {
+    "id": "c15",
+    "cause": "hold_stock_autocancel",
+    "fault": "merchant_config",
+    "fix": "Increase hold-stock minutes beyond the longest UPI collect window (or disable it for Razorpay) so late approvals don't hit a cancelled order."
+  },
+  {
+    "id": "c16",
+    "cause": "fatal_error_in_handler",
+    "fault": "razorpay_plugin",
+    "fix": "Update the Razorpay plugin to a PHP 8-compatible release (or pin PHP 7.4 temporarily) and replay the webhook for affected orders."
+  }
+]

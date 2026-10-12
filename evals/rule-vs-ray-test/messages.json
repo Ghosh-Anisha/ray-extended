@@ -1,0 +1,322 @@
+[
+ {
+  "id": "m01",
+  "channel": "whatsapp",
+  "sender_phone": "9858802897",
+  "sender_email": null,
+  "received_at": "2026-10-09T18:02",
+  "text": "Hello money gone 2499 but page said payment could not be completed. Is my order placed or not"
+ },
+ {
+  "id": "m02",
+  "channel": "whatsapp",
+  "sender_phone": "9000011111",
+  "sender_email": null,
+  "received_at": "2026-10-08T13:00",
+  "text": "Grow your bakery page!! Get 10K real followers in 24 hrs only ₹499. Reply YES"
+ },
+ {
+  "id": "m03",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "vikram14@gmail.com",
+  "received_at": "2026-10-09T09:30",
+  "text": "Dear team, payment of 1299 on Thursday morning, UTR no 452606882553. Order not created. Please resolve asap."
+ },
+ {
+  "id": "m04",
+  "channel": "whatsapp",
+  "sender_phone": "9877695536",
+  "sender_email": null,
+  "received_at": "2026-10-09T17:40",
+  "text": "amount deducted via UPI 2499 but never went to the success page. order placed or not?"
+ },
+ {
+  "id": "m05",
+  "channel": "whatsapp",
+  "sender_phone": "9874160948",
+  "sender_email": null,
+  "received_at": "2026-10-07T17:00",
+  "text": "hi I just paid 1299 by card and it said order failed?? but bank sms says debited"
+ },
+ {
+  "id": "m06",
+  "channel": "whatsapp",
+  "sender_phone": "9845951526",
+  "sender_email": null,
+  "received_at": "2026-10-08T16:45",
+  "text": "Hello pls check pay_T0421701 , 1850 paid yesterday. no update from your side"
+ },
+ {
+  "id": "m07",
+  "channel": "whatsapp",
+  "sender_phone": "9875202710",
+  "sender_email": null,
+  "received_at": "2026-10-10T10:30",
+  "text": "cake arrived squashed on one side. I paid 1299 for this, want a refund"
+ },
+ {
+  "id": "m08",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "ritu90@gmail.com",
+  "received_at": "2026-10-08T09:00",
+  "text": "Hi I paid 1299 on 7th but I don't see my order. pls check"
+ },
+ {
+  "id": "m09",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "pooja93@gmail.com",
+  "received_at": "2026-10-10T12:20",
+  "text": "why is my order still pending payment?? I paid ₹1299 last night, money is already debited"
+ },
+ {
+  "id": "m10",
+  "channel": "whatsapp",
+  "sender_phone": "9879571586",
+  "sender_email": null,
+  "received_at": "2026-10-08T12:00",
+  "text": "aaj subah 1299 ka payment kiya UPI se, it threw me back to checkout. paise to gaye hain"
+ },
+ {
+  "id": "m11",
+  "channel": "whatsapp",
+  "sender_phone": "9886626738",
+  "sender_email": null,
+  "received_at": "2026-10-10T14:15",
+  "text": "delivery boy ne galat address pe de diya, mera order abhi tak nahi mila"
+ },
+ {
+  "id": "m12",
+  "channel": "whatsapp",
+  "sender_phone": "9817999533",
+  "sender_email": null,
+  "received_at": "2026-10-07T09:10",
+  "text": "Hi aaj subah 1299 diye netbanking se, paise kat gaye but order nahi aaya. No confirmation mail also"
+ },
+ {
+  "id": "m13",
+  "channel": "whatsapp",
+  "sender_phone": "9888248519",
+  "sender_email": null,
+  "received_at": "2026-10-09T15:00",
+  "text": "1299 paid at lunch, order failed msg aaya. paisa kahan gaya?"
+ },
+ {
+  "id": "m14",
+  "channel": "whatsapp",
+  "sender_phone": "9870690025",
+  "sender_email": null,
+  "received_at": "2026-10-10T13:40",
+  "text": "still no reply. ₹2150/- debited in the morning. need the cake by tomorrow"
+ },
+ {
+  "id": "m15",
+  "channel": "whatsapp",
+  "sender_phone": "9822562241",
+  "sender_email": null,
+  "received_at": "2026-10-10T09:45",
+  "text": "refund kab tak aayega account mein? 650 wala"
+ },
+ {
+  "id": "m16",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "aditya97@gmail.com",
+  "received_at": "2026-10-09T10:15",
+  "text": "Hello, on Thursday afternoon I paid Rs 1299, bank ref 489182038153. No order confirmation received till now. Pls do the needful."
+ },
+ {
+  "id": "m17",
+  "channel": "whatsapp",
+  "sender_phone": "9990012345",
+  "sender_email": null,
+  "received_at": "2026-10-10T12:30",
+  "text": "Siddharth here, paid 1299 last night for the choco box, no confirmation came. abhi tak kuch nahi"
+ },
+ {
+  "id": "m18",
+  "channel": "whatsapp",
+  "sender_phone": "9831143713",
+  "sender_email": null,
+  "received_at": "2026-10-10T12:00",
+  "text": "order kab aayega? confirmation aa gaya tha kal"
+ },
+ {
+  "id": "m19",
+  "channel": "whatsapp",
+  "sender_phone": "9849321318",
+  "sender_email": null,
+  "received_at": "2026-10-10T15:00",
+  "text": "Hi paid 1299 on Wednesday afternoon, order not showing"
+ },
+ {
+  "id": "m20",
+  "channel": "whatsapp",
+  "sender_phone": "9872590981",
+  "sender_email": null,
+  "received_at": "2026-10-08T20:10",
+  "text": "paise kat gaye 1499, page said payment could not be completed. UTR 532870200655"
+ },
+ {
+  "id": "m21",
+  "channel": "whatsapp",
+  "sender_phone": "9821339077",
+  "sender_email": null,
+  "received_at": "2026-10-08T14:30",
+  "text": "Hi, paid thirteen hundred (1299) via netbanking just now, page went blank and no order no email"
+ },
+ {
+  "id": "m22",
+  "channel": "whatsapp",
+  "sender_phone": "9812345670",
+  "sender_email": null,
+  "received_at": "2026-10-09T16:20",
+  "text": "Hi do you have eggless options in the brownie box?"
+ },
+ {
+  "id": "m23",
+  "channel": "whatsapp",
+  "sender_phone": "9863873226",
+  "sender_email": null,
+  "received_at": "2026-10-10T08:15",
+  "text": "kal raat 1299 UPI se pay kiya tha, gpay mein success dikha raha hai but website pe order hi nahi hai"
+ },
+ {
+  "id": "m24",
+  "channel": "whatsapp",
+  "sender_phone": "9811122233",
+  "sender_email": null,
+  "received_at": "2026-10-10T11:00",
+  "text": "paid 1299 day before yesterday, no order. pls check"
+ },
+ {
+  "id": "m25",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "events.priya@gmail.com",
+  "received_at": "2026-10-08T17:30",
+  "text": "Hi, looking for 60 cupcakes for an office event on the 20th. Can you share pricing?"
+ },
+ {
+  "id": "m26",
+  "channel": "whatsapp",
+  "sender_phone": "9870690025",
+  "sender_email": null,
+  "received_at": "2026-10-10T07:05",
+  "text": "Just paid 2150 and it threw me back to checkout page. Amt deducted. Did the order go through?"
+ },
+ {
+  "id": "m27",
+  "channel": "whatsapp",
+  "sender_phone": "9863907779",
+  "sender_email": null,
+  "received_at": "2026-10-10T10:05",
+  "text": "paid 1299 by card early morning, after paying it showed blank white screen. no order mail. what to do??"
+ },
+ {
+  "id": "m28",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "harsh88@gmail.com",
+  "received_at": "2026-10-08T11:42",
+  "text": "Subject: Payment done, no order\n\nHello, I paid Rs.1,299 on Wednesday morning through netbanking (pay_T0049133) but my order is not showing in my account. Please check."
+ },
+ {
+  "id": "m29",
+  "channel": "whatsapp",
+  "sender_phone": "9838019720",
+  "sender_email": null,
+  "received_at": "2026-10-10T08:00",
+  "text": "pls cancel my order, plans changed. refund to same UPI"
+ },
+ {
+  "id": "m30",
+  "channel": "whatsapp",
+  "sender_phone": "9821339367",
+  "sender_email": null,
+  "received_at": "2026-10-09T09:20",
+  "text": "सुबह 650 रुपये कटे लेकिन ऑर्डर कन्फर्म नहीं हुआ। कृपया देखें"
+ },
+ {
+  "id": "m31",
+  "channel": "whatsapp",
+  "sender_phone": "9882687908",
+  "sender_email": null,
+  "received_at": "2026-10-09T09:00",
+  "text": "card fail hua toh UPI se dobara pay kiya 1299, ab order says failed. paise kat gaye"
+ },
+ {
+  "id": "m32",
+  "channel": "whatsapp",
+  "sender_phone": "9700022222",
+  "sender_email": null,
+  "received_at": "2026-10-09T11:00",
+  "text": "क्या आप रविवार को भी डिलीवरी करते हैं?"
+ },
+ {
+  "id": "m33",
+  "channel": "whatsapp",
+  "sender_phone": "9871493326",
+  "sender_email": null,
+  "received_at": "2026-10-07T10:00",
+  "text": "Rs 1499 paid on Tuesday night, order nahi dikh raha"
+ },
+ {
+  "id": "m34",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "divya27@gmail.com",
+  "received_at": "2026-10-10T09:05",
+  "text": "Following up on my whatsapp msg. UTR 572436711325, amount 2499, paid yesterday evening. Still no order confirmation. Please either confirm the order or refund."
+ },
+ {
+  "id": "m35",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "sneha9@gmail.com",
+  "received_at": "2026-10-09T15:10",
+  "text": "Coupon LEAFY10 didn't apply at checkout and I ended up paying full Rs.1499. Please refund the 150 difference."
+ },
+ {
+  "id": "m36",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "siddharth92@gmail.com",
+  "received_at": "2026-10-10T11:30",
+  "text": "Hi Leafy Bakes, I placed an order around midnight and paid 1299 via net banking. Amount debited from HDFC but I got an order cancelled SMS. Kindly look into it."
+ },
+ {
+  "id": "m37",
+  "channel": "whatsapp",
+  "sender_phone": "9863907779",
+  "sender_email": null,
+  "received_at": "2026-10-10T18:30",
+  "text": "bhai reply karo, paise kat gaye abhi tak confirm nahi hua"
+ },
+ {
+  "id": "m38",
+  "channel": "whatsapp",
+  "sender_phone": "9895359381",
+  "sender_email": null,
+  "received_at": "2026-10-09T09:00",
+  "text": "I paid 1299, UTR 572102444006, but no order confirmation"
+ },
+ {
+  "id": "m39",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "pooja68@gmail.com",
+  "received_at": "2026-10-08T10:00",
+  "text": "Hi, yesterday evening I paid 1850 for the hamper box. The order page still says pending payment. Amount has left my account. Please help"
+ },
+ {
+  "id": "m40",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "meera88@gmail.com",
+  "received_at": "2026-10-10T10:10",
+  "text": "Hi, re yesterday's payment of 2499, UTR 404660433401. still nothing. Either send the order or refund pls"
+ }
+]

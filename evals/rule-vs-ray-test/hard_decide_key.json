@@ -1,0 +1,22 @@
+[
+ {
+  "id": "y01",
+  "action": "ask_customer",
+  "why": "'cancel mat karo' (don't cancel) pulls toward going ahead, but 'ab kya hi fayda, birthday toh kal tha' (what's the point now) pulls toward a refund, and 'jo theek lage' hands the choice back to Ray. Ray shouldn't pick either for them; ask plainly: deliver today or full refund?"
+ },
+ {
+  "id": "y02",
+  "action": "escalate_to_merchant",
+  "why": "Merchant's earlier message sets the policy for this exact order: no refunds once production starts, offer reschedule, and route any insistence on money back to the merchant. Ray offered reschedule; customer still insists on refund. Amount being under the refund limit doesn't override the explicit instruction."
+ },
+ {
+  "id": "y03",
+  "action": "mark_paid_and_refund_duplicate",
+  "why": "The 'never confirmed' 650 payment and a second 650 payment for the same item 6 minutes later come from the same contact; the second order was delivered on the 8th. The stuck payment is a duplicate of a fulfilled purchase, so reconcile it (mark paid) and refund it as the duplicate, rather than treating it as a cancelled undelivered order."
+ },
+ {
+  "id": "y04",
+  "action": "escalate_to_merchant",
+  "why": "Polite tone, but the customer has opened a card dispute/chargeback case that will auto-reverse the money. open_dispute=false only means it hasn't reached the dashboard yet. Shipping (mark_paid) risks losing goods and money; refunding risks a double refund. Merchant must handle the dispute (ask customer to withdraw it, respond to the bank) before anything ships."
+ }
+]

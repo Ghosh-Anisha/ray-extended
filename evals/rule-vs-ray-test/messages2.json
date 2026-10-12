@@ -1,0 +1,162 @@
+[
+ {
+  "id": "h01",
+  "channel": "whatsapp",
+  "sender_phone": "9858802897",
+  "sender_email": null,
+  "received_at": "2026-10-09T19:40",
+  "text": "भैया मैंने आज शाम 5 बजे केक के लिए 2499 दे दिए थे, नेट बैंकिंग से पैसे कट गए। अभी तक कोई मैसेज नहीं आया, कुछ नहीं। पैसे गए कहाँ??"
+ },
+ {
+  "id": "h02",
+  "channel": "whatsapp",
+  "sender_phone": "9863873226",
+  "sender_email": null,
+  "received_at": "2026-10-10T08:12",
+  "text": "??? my order"
+ },
+ {
+  "id": "h03",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "harsh88@gmail.com",
+  "received_at": "2026-10-07T10:05",
+  "text": "Subject: Re: nothing\n\nHi, I tried to order the red velvet this morning around 7. The bank page went through, I got the debit SMS from my bank for 1299, but your website just took me back to the cart. No email from you, nothing. Can you check please? Not sure if I should try again or not."
+ },
+ {
+  "id": "h04",
+  "channel": "whatsapp",
+  "sender_phone": "9820418044",
+  "sender_email": null,
+  "received_at": "2026-10-09T09:30",
+  "text": "Hello I paid 1850 by card this morning for the anniversary cake, money got deducted from my account. Your site showed some error. Please confirm my order is placed!!"
+ },
+ {
+  "id": "h05",
+  "channel": "whatsapp",
+  "sender_phone": "9873639532",
+  "sender_email": null,
+  "received_at": "2026-10-09T11:20",
+  "text": "Hi, I paid for order #1017 yesterday, nine ninety nine. Plans changed, I won't be home on Saturday. Can you cancel it and refund to the same account?"
+ },
+ {
+  "id": "h06",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "kavya34@gmail.com",
+  "received_at": "2026-10-10T09:15",
+  "text": "Hello team, naan last night around 1:45 order panna try panninen, netbanking la amount poyiduchu, 1299. Confirmation mail onnum varala, order history la kooda kaanom. Enna aachu? Pls check and revert, it was for my amma's birthday today."
+ },
+ {
+  "id": "h07",
+  "channel": "whatsapp",
+  "sender_phone": "9879571586",
+  "sender_email": null,
+  "received_at": "2026-10-08T12:02",
+  "text": "[Voice note transcript] haan hello, ji main Vikram bol raha hoon, woh subah maine UPI se payment kiya tha na, barah sau ninyanve, toh woh GPay mein success dikha raha hai, lekin aapki taraf se koi message nahi aaya, aur woh, matlab order bana ki nahi pata nahi chal raha, thoda dekh lijiye please, haan, thank you"
+ },
+ {
+  "id": "h08",
+  "channel": "whatsapp",
+  "sender_phone": "9888248519",
+  "sender_email": null,
+  "received_at": "2026-10-09T18:30",
+  "text": "I paid twelve ninety nine this afternoon and still no cake and no confirmation. what is going on"
+ },
+ {
+  "id": "h09",
+  "channel": "whatsapp",
+  "sender_phone": "9870690025",
+  "sender_email": null,
+  "received_at": "2026-10-10T07:50",
+  "text": "Didi ami aaj shokale 2150 pathiyechi UPI te, bank bolche success, kintu tomader site bolche 'payment failed try again'. Abar pay korbo? Dubar taka katbe na toh?"
+ },
+ {
+  "id": "h10",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "pooja68@gmail.com",
+  "received_at": "2026-10-08T14:40",
+  "text": "Hi,\n\nThis is a bit long, sorry. Yesterday evening (around 8) I was ordering the hamper for my sister's housewarming. First the coupon didn't apply, then I removed it, then the page took forever, and finally I paid eighteen hundred and fifty rupees through PhonePe. PhonePe says it's done. I waited for an email, thought maybe it'll come in the morning, but nothing. I also checked spam. My sister's thing is on Sunday so I really need to know if this is happening or if I need to go somewhere else. Please don't make me pay again.\n\nThanks,\nPooja"
+ },
+ {
+  "id": "h11",
+  "channel": "whatsapp",
+  "sender_phone": "9821339367",
+  "sender_email": null,
+  "received_at": "2026-10-09T15:10",
+  "text": "you took my money and nothing came. 650. no reply from anyone since morning. very bad"
+ },
+ {
+  "id": "h12",
+  "channel": "whatsapp",
+  "sender_phone": "9988776655",
+  "sender_email": null,
+  "received_at": "2026-10-09T10:00",
+  "text": "Hi, can I pay by UPI for a custom photo cake or is it only COD for custom orders? Need it by Sunday."
+ },
+ {
+  "id": "h13",
+  "channel": "whatsapp",
+  "sender_phone": "9876543210",
+  "sender_email": null,
+  "received_at": "2026-10-08T16:25",
+  "text": "Hello, this is for my husband's payment, Aditya. Money went from his account but no order. UTR 489182038153. Please help."
+ },
+ {
+  "id": "h14",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "tanya.kohli@outlook.com",
+  "received_at": "2026-10-10T10:30",
+  "text": "Paid 1299 for the cheesecake last night, nothing in my inbox from you. Where is my order?"
+ },
+ {
+  "id": "h15",
+  "channel": "whatsapp",
+  "sender_phone": "9863907779",
+  "sender_email": null,
+  "received_at": "2026-10-10T09:05",
+  "text": "where is my cake I already paid. early morning order. card se kiya tha"
+ },
+ {
+  "id": "h16",
+  "channel": "whatsapp",
+  "sender_phone": "9897255749",
+  "sender_email": null,
+  "received_at": "2026-10-09T17:45",
+  "text": "Got the cupcakes today, but 2 of them were totally squashed and the frosting was all over the box. I paid full 349 for this. Sending photos."
+ },
+ {
+  "id": "h17",
+  "channel": "email",
+  "sender_phone": null,
+  "sender_email": "meera.p.work@gmail.com",
+  "received_at": "2026-10-09T20:15",
+  "text": "Hi, writing from my office id. I paid 2499 around 5pm for the Belgian chocolate cake. Razorpay id pay_T0531263. Haven't got any confirmation. Can you check?"
+ },
+ {
+  "id": "h18",
+  "channel": "whatsapp",
+  "sender_phone": "9871493326",
+  "sender_email": null,
+  "received_at": "2026-10-10T11:30",
+  "text": "Hello I paid 2499 this morning for truffle cake, money gone but no confirmation SMS. Pls check"
+ },
+ {
+  "id": "h19",
+  "channel": "whatsapp",
+  "sender_phone": "9817246803",
+  "sender_email": null,
+  "received_at": "2026-10-08T10:00",
+  "text": "Hi, I had paid on delivery for the brownies yesterday, cash. But one box was missing. Want refund for that box please."
+ },
+ {
+  "id": "h20",
+  "channel": "whatsapp",
+  "sender_phone": "9876262352",
+  "sender_email": null,
+  "received_at": "2026-10-10T12:00",
+  "text": "payment done yesterday, order number 1010. kab tak aayega Sector 70 mein? kal subah tak chahiye"
+ }
+]

@@ -1,0 +1,6 @@
+[
+ {"id":"y01","action":"ask_customer","why":"The cake was for yesterday's birthday. The customer says 'don't cancel' and then 'what's the point now' and leaves it to us, so neither refund nor late delivery is clearly what they want. Ask directly: full refund, or bake and deliver today anyway."},
+ {"id":"y02","action":"escalate_to_merchant","why":"Customer's latest message firmly asks for a refund, but the merchant said personalised items in production are non-refundable and any money-back request must be passed to them, not refunded by Ray."},
+ {"id":"y03","action":"refund","why":"Customer paid twice six minutes apart; the second payment's order was delivered on the 8th. They want the Rs 650 for the unconfirmed order back, which is the duplicate, within the refund limit."},
+ {"id":"y04","action":"escalate_to_merchant","why":"Customer wants delivery on the 13th, but has opened a dispute with their card issuer that may auto-reverse the payment. With a chargeback in play the merchant should decide before shipping or marking paid."}
+]

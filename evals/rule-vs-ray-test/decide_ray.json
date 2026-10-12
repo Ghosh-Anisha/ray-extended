@@ -1,0 +1,18 @@
+[
+  {"id": "d01", "action": "mark_paid", "why": "Customer confirmed the order, in stock, tomorrow evening slot is still ahead."},
+  {"id": "d02", "action": "refund", "why": "Item sold out and customer agreed to a full refund of Rs 1200."},
+  {"id": "d03", "action": "mark_paid_and_refund_duplicate", "why": "Two captured Rs 650 payments, customer wants one box and the extra money back."},
+  {"id": "d04", "action": "escalate_to_merchant", "why": "Full refund needed but Rs 7200 is above the Rs 5000 refund limit; wedding cake missed."},
+  {"id": "d05", "action": "refund", "why": "Birthday slot has passed and customer asked for a refund."},
+  {"id": "d06", "action": "refund", "why": "Customer bought elsewhere and asked for the money back."},
+  {"id": "d07", "action": "refund", "why": "Customer declined the in-stock order and asked for a refund."},
+  {"id": "d08", "action": "mark_paid", "why": "Second attempt failed so no duplicate; customer wants delivery tomorrow by 11."},
+  {"id": "d09", "action": "mark_paid", "why": "Customer confirmed the order for the 12th; no refund needed so the limit doesn't apply."},
+  {"id": "d10", "action": "ask_customer", "why": "Ganache is out of stock and customer wants a substitute (coffee walnut?), so the flavour needs confirming first."},
+  {"id": "d11", "action": "escalate_to_merchant", "why": "Customer threatens consumer court and wants a manager call."},
+  {"id": "d12", "action": "refund", "why": "Event date passed and despite the sarcasm the customer clearly wants the money back."},
+  {"id": "d13", "action": "refund", "why": "Customer first confirmed but later cancelled and asked for a refund; latest message wins."},
+  {"id": "d14", "action": "escalate_to_merchant", "why": "Customer wants the order plus a goodwill Rs 150 delivery refund, which is the merchant's call."},
+  {"id": "d15", "action": "escalate_to_merchant", "why": "Custom photo cake still needs the photo and name, which the customer hasn't sent yet."},
+  {"id": "d16", "action": "ask_customer", "why": "Customer is unsure if the party is on and will know by evening, so check back with them."}
+]
