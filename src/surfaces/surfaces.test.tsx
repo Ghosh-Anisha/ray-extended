@@ -123,7 +123,7 @@ function simScreens() {
     customers: <PeopleInbox title="Customer inbox" kind="customer" people={customerInbox(ad)} />,
     buyers: <PeopleInbox title="Buyer inbox" kind="buyer" people={buyerInbox(ad)} />,
     store: <StoreAdmin stores={storeAdmin(ad)} failures={[...s.STORE_FAILURE_MODES]} />,
-    calls: <CallScreen calls={callScreen()} />,
+    calls: <CallScreen v={callScreen(ad)} />,
   };
 }
 
@@ -357,5 +357,40 @@ describe("interaction rules", () => {
     expect(nextDigestAt(at("2026-10-12T09:00:00+05:30"))).toBe(at("2026-10-12T10:00:00+05:30"));
     expect(nextDigestAt(at("2026-10-12T10:00:00+05:30"))).toBe(at("2026-10-12T18:00:00+05:30"));
     expect(nextDigestAt(at("2026-10-12T19:00:00+05:30"))).toBe(at("2026-10-13T10:00:00+05:30"));
+  });
+});
+
+describe("voice on the screens (Step 5b)", () => {
+  it("shows the voice note bubble, the Call card and the pre-call notice, Simulated, with no banned words", async () => {
+    const { a: ad, engine: eng, repo, caseId } = await dummyCase();
+    await eng.receiveVoiceNote({ merchantId: LEAFY, from: PRIYA, sampleId: "priya_hinglish" });
+    await ad.messaging.send({ merchantId: LEAFY, caseId, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", body: "We can see your payment. You'll hear from us soon." });
+    ad.voice.setCallSim(PRIYA, { outcome: "busy" });
+    const call = await guardedCall(
+      "place_call",
+      { kind: "paid_no_order_follow_up", to: PRIYA, opening: "Hi Priya, this is Leafy Bakes about your ₹1,299 payment this morning." },
+      { adapters: ad, caseId },
+    );
+    expect(call.status).toBe("done");
+    repo.timers.insert({ id: "tmr_call_ui", case_id: caseId, kind: "call", due_at: ad.clock.now() + 60 * MIN });
+
+    for (const view of ["phone", "desktop"] as const) {
+      const casePage = textOf(render(view, <CasePage v={caseView(ad, caseId)} />));
+      expect(casePage).toContain("paisa kat gaya");
+      expect(casePage).toContain("WhatsApp voice note");
+      expect(casePage).toMatch(/Call to Priya · \d+ s Simulated Busy/);
+      expect(casePage).toContain("RAY will call Priya at");
+      expect(casePage).toContain("Cancel call");
+      const inbox = textOf(render(view, <PeopleInbox title="Customer inbox" kind="customer" people={customerInbox(ad)} voiceSamples={[{ id: "priya_hinglish", label: "Priya" }]} />));
+      expect(inbox).toContain("paisa kat gaya");
+      expect(inbox).toMatch(/Call to Priya · \d+ s Simulated Busy/);
+      const calls = textOf(render(view, <CallScreen v={callScreen(ad)} />));
+      expect(calls).toContain("Simulated");
+      expect(calls).toContain("Busy");
+      for (const page of [casePage, inbox, calls]) {
+        expect(bannedWordsIn(page)).toEqual([]);
+        expect(hasEmDash(page)).toBe(false);
+      }
+    }
   });
 });

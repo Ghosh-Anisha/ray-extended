@@ -7,15 +7,34 @@ import type { ApprovalCard as Card, DigestView } from "@/surfaces/views";
 import { EMPTY } from "@/surfaces/words";
 import { SimulatedTag } from "../bits";
 import { useView } from "../view";
+import { VoiceCompose } from "../voice-compose";
 import { ApprovalCard } from "./approval-card";
 import { DigestMessage } from "./digest";
 
-export function WhatsAppThread({ cards, digest, merchantId, killSwitch }: { cards: Card[]; digest: DigestView; merchantId: string; killSwitch: boolean }) {
+export function WhatsAppThread({
+  cards,
+  digest,
+  merchantId,
+  killSwitch,
+  voiceSamples = [],
+  voiceLive = false,
+}: {
+  cards: Card[];
+  digest: DigestView;
+  merchantId: string;
+  killSwitch: boolean;
+  voiceSamples?: { id: string; label: string }[];
+  voiceLive?: boolean;
+}) {
   const { view } = useView();
   const body = (
     <div className="wa">
       {killSwitch ? null : cards.length === 0 ? <div className="bubble">{EMPTY.cards}</div> : cards.map((c) => <ApprovalCard key={c.caseId} card={c} merchantId={merchantId} />)}
       <DigestMessage d={digest} merchantId={merchantId} />
+      {/* Reply to RAY by voice: RAY sends back the card. You still tap. */}
+      {!killSwitch && cards.length > 0 && voiceSamples.length > 0 && (
+        <VoiceCompose url="/api/merchant/voice-note" fields={{ merchantId }} samples={voiceSamples} live={voiceLive} sendLabel="Send voice note" />
+      )}
     </div>
   );
   return view === "phone" ? (

@@ -8,6 +8,7 @@ import { fakeClock, lockedRealClock, type FakeClock } from "./clock";
 import { createMessagingSim, type MessagingSim } from "./messaging";
 import { createRazorpay, loadRazorpayConfig, type RazorpayAdapter } from "./razorpay";
 import { createStoreSim, type StoreSim } from "./store";
+import { createVoice, loadVoiceConfig, type VoiceAdapter } from "./voice";
 import { createWebhookSim, type WebhookSim } from "./webhooks";
 
 export type Adapters = {
@@ -18,6 +19,7 @@ export type Adapters = {
   store: StoreSim;
   messaging: MessagingSim;
   webhooks: WebhookSim;
+  voice: VoiceAdapter;
 };
 
 export function createAdapters(
@@ -36,6 +38,7 @@ export function createAdapters(
     store,
     messaging: createMessagingSim(db, clock),
     webhooks: createWebhookSim(db, clock, store),
+    voice: createVoice(db, clock, loadVoiceConfig(env)),
   };
 }
 

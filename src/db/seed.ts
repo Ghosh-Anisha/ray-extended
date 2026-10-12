@@ -30,6 +30,8 @@ const MERCHANTS: NewMerchant[] = [
     id: "m_leafy_bakes", name: "Leafy Bakes", business_type: "home bakery", store_platform: "woocommerce",
     gmv_band: "small", risk_band: "low", failure_history: "high", wave: 1, ray_on: true, connector_on: true,
     whatsapp_on: true, banking_plus: false, udyam: false, approval_limit: rupees(2_000),
+    // Opted in to the urgent call before a chargeback deadline (Step 10).
+    urgent_call_opt_in: true,
   }),
   merchant({
     id: "m_notenest", name: "NoteNest", business_type: "saas_b2c", store_platform: "custom",
@@ -381,6 +383,17 @@ export function seed(db: Db, now: number = SEED_NOW) {
             : { id: `cons_${c.id}_wa`, customer_id: c.id, channel: "whatsapp" as const, status: "opted_in" as const, source: "checkout", updated_at: ago(30 * DAY) },
         ),
     );
+
+    // Call opt-ins (Step 5b): calls only go to customers who said yes.
+    // Deepa asked not to be called; everyone else has no call consent.
+    const call = (customer_id: string, status: "opted_in" | "opted_out", source: string) =>
+      ({ id: `cons_${customer_id}_call`, customer_id, channel: "call" as const, status, source, updated_at: ago(30 * DAY) });
+    repo.messagingConsents.insertMany([
+      call("cus_priya", "opted_in", "checkout"),
+      call("cus_rahul", "opted_in", "checkout"),
+      call("cus_karan", "opted_in", "checkout"),
+      call("cus_deepa", "opted_out", "asked not to be called"),
+    ]);
   });
 }
 

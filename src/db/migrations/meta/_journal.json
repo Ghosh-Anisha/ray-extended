@@ -57,6 +57,13 @@
       "when": 1791806691877,
       "tag": "0007_global_kill_switch",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791818292007,
+      "tag": "0008_voice",
+      "breakpoints": true
     }
   ]
 }

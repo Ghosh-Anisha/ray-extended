@@ -4,18 +4,19 @@
 // and collects all failures, not just the first.
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Adapters } from "@/adapters";
-import { WHATSAPP_TEMPLATES, WINDOW_MS, renderTemplate, type Channel } from "@/adapters/messaging";
+import { WHATSAPP_TEMPLATES, WINDOW_MS, renderTemplate, sameChannel, type Channel } from "@/adapters/messaging";
+import { firstNameOf, merchantPhone } from "@/adapters/voice";
 import { RazorpayError, sameContact, syncRecentPayments, type Payment } from "@/adapters/razorpay";
 import { ORDER_TOTAL_MISMATCH } from "@/adapters/order-for-payment";
 import { StoreError, type StoreOrder } from "@/adapters/store";
-import { factNumbers, hasLink, ungroundedNumbers } from "@/ai/grounding";
+import { bannedWordsIn, factNumbers, hasLink, ungroundedNumbers } from "@/ai/grounding";
 import type { Repository } from "@/db/repository";
 import * as s from "@/db/schema";
 import { normalizeEmail, normalizePhone } from "@/engine/events";
 import type { Approval, ProposedAction } from "@/engine/specialist";
 import type { Case } from "@/engine/state-machine";
 import { normalise } from "@/ai/key";
-import { AUTO_CUSTOMER_MESSAGES, CONFIRMS, needsApproval, type ActToolSpec, type GuardName, type MatchClaim, type MessageKind } from "@/tools/act";
+import { AUTO_CUSTOMER_MESSAGES, CALL_KINDS, CONFIRMS, needsApproval, type ActToolSpec, type CallKind, type GuardName, type MatchClaim, type MessageKind } from "@/tools/act";
 import type { ActToolName } from "@/tools/names";
 import { caseFacts } from "./facts";
 import { formatDate, formatMoney, formatTime, last4 } from "./format";
@@ -329,6 +330,8 @@ export async function orderTotal(g: GuardContext): Promise<Failure[]> {
 // ---- Messages: the shared lookups.
 const messageBody = (args: Record<string, unknown>) => {
   if (typeof args.body === "string") return args.body;
+  // A call's script: everything RAY will say.
+  if (typeof args.opening === "string") return [args.opening, ...((args.lines as string[] | undefined) ?? [])].join("\n");
   try {
     return renderTemplate(args.template_id as string, args.params as Record<string, string>);
   } catch {
@@ -340,7 +343,7 @@ const messageBody = (args: Record<string, unknown>) => {
 function replying(g: GuardContext) {
   return g.a.messaging
     .thread(g.kase.merchant_id, g.args.to as string)
-    .some((m) => m.direction === "in" && m.channel === g.args.channel && m.at <= g.now && m.at > g.now - WINDOW_MS);
+    .some((m) => m.direction === "in" && sameChannel(g.args.channel as string).includes(m.channel) && m.at <= g.now && m.at > g.now - WINDOW_MS);
 }
 
 function recipient(g: GuardContext) {
@@ -474,6 +477,105 @@ async function resultChecksOut(g: GuardContext, action: typeof s.actions.$inferS
   return !!order && ["processing", "completed"].includes(order.status) && order.payment_id === action.args.payment_id;
 }
 
+// ---- Call rules (Step 5b, design language section 5). Every call:
+// - only for the moment its kind belongs to; never an international buyer
+//   or a chargeback cardholder,
+// - only to someone who opted in to calls (the urgent call: a merchant who
+//   opted in); an opt-out or no row blocks it,
+// - only within the merchant's calling hours (default 10 AM to 7 PM),
+// - paid-no-order: only after a text on the case; never a first contact,
+// - opens as the merchant with who is calling and why,
+// - never asks for a PIN, OTP, card number or password, never reads out a
+//   link, never asks the person to pay on the call.
+// Calls only come from the merchant's own number: place_call has no other.
+const IST_MS = (5 * 60 + 30) * 60_000;
+const SECRETS = /\b(?:upi pin|pin|otp|one[- ]time password|card number|card no|cvv|cvc|password|expiry date)\b/i;
+const PAY_ON_CALL =
+  /\b(?:pay|payment|transfer|send the money)\b[^.?!\n]*\b(?:now|right now|right away|on (?:this|the) call|over the phone|while we're on the call)\b|\b(?:share|tell me|read out|give me)\b[^.?!\n]*\b(?:upi id|card|bank details|account number)\b|\btake (?:the|your) payment\b/i;
+
+export const minutesIst = (ms: number) => Math.floor(((ms + IST_MS) % 86_400_000) / 60_000);
+export const clockLabel = (minutes: number) => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "AM" : "PM"}`;
+};
+
+function callee(g: GuardContext) {
+  const to = g.args.to as string;
+  return g.a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, g.kase.merchant_id), eq(s.customers.phone, to))).get();
+}
+
+export async function callRules(g: GuardContext): Promise<Failure[]> {
+  const out: Failure[] = [];
+  const kind = g.args.kind as CallKind;
+  const urgent = kind === "urgent_merchant";
+  const to = g.args.to as string;
+
+  // Who RAY may call at all.
+  if (g.kase.moment === "international") out.push(fail("call_rules", "not_voice", "RAY doesn't call international buyers. It writes instead."));
+  else if (g.kase.moment === "chargeback" && !urgent) out.push(fail("call_rules", "not_voice", "RAY never calls the cardholder on a chargeback. They may not be the buyer."));
+  else if (CALL_KINDS[kind].moment !== g.kase.moment) out.push(fail("call_rules", "wrong_moment", "This kind of call isn't for this case."));
+
+  // Opt-in.
+  const person = urgent ? undefined : callee(g);
+  const name = urgent ? g.merchant.name : (person?.name ?? "This person");
+  if (urgent) {
+    if (to !== merchantPhone(g.merchant.id)) out.push(fail("call_rules", "wrong_number", "The urgent call only goes to your own number."));
+    if (!g.merchant.urgent_call_opt_in) out.push(fail("call_rules", "no_opt_in", "You haven't opted in to an urgent call before a deadline."));
+  } else {
+    const status = person ? g.a.messaging.consent(person.id, "call") : null;
+    if (status === "opted_out") out.push(fail("call_rules", "opted_out", `${name} asked not to be called.`));
+    else if (status !== "opted_in") out.push(fail("call_rules", "no_opt_in", `${name} hasn't opted in to calls.`));
+  }
+
+  // Calling hours.
+  const start = g.merchant.calling_hours_start;
+  const end = g.merchant.calling_hours_end;
+  const now = minutesIst(g.now);
+  if (now < start || now >= end) {
+    out.push(
+      fail("call_rules", "outside_hours", `Calls only go out between ${clockLabel(start)} and ${clockLabel(end)}, as set in your playbook. It's ${clockLabel(now)} now.`, {
+        start,
+        end,
+        now,
+      }),
+    );
+  }
+
+  // Text first: a call never makes first contact.
+  if (!urgent && person) {
+    const addresses = [person.phone, person.email].filter((x): x is string => !!x);
+    const texts = addresses
+      .flatMap((addr) => g.a.messaging.thread(g.kase.merchant_id, addr))
+      .filter((m) => m.direction === "out" && (m.channel === "whatsapp" || m.channel === "email") && m.at <= g.now);
+    if (g.kase.moment === "paid_no_order") {
+      if (!texts.some((m) => m.case_id === g.kase.id)) out.push(fail("call_rules", "no_prior_text", `RAY texts ${firstNameOf(name)} first. A call only follows a text that said one may come.`));
+    } else if (!texts.length) {
+      out.push(fail("call_rules", "first_contact", `RAY never calls ${firstNameOf(name)} as a first contact. A text goes first.`));
+    }
+  }
+
+  // The script.
+  const opening = g.args.opening as string;
+  const script = messageBody(g.args);
+  const missing: string[] = [];
+  if (urgent) {
+    if (!/\bRAY\b/.test(opening)) missing.push("that it's RAY calling");
+  } else {
+    if (!opening.includes(g.merchant.name)) missing.push(`your name (${g.merchant.name})`);
+    if (person && !opening.toLowerCase().includes(firstNameOf(person.name).toLowerCase())) missing.push(`${firstNameOf(person.name)}'s name`);
+  }
+  const amount = g.kase.amount;
+  if (amount && !mentionsAmount(opening, amount, "INR")) missing.push("what it's about (the amount)");
+  if (missing.length) out.push(fail("call_rules", "opening", `The call has to open with who is calling and why. It's missing ${missing.join(", ")}.`, { missing }));
+  if (SECRETS.test(script)) out.push(fail("call_rules", "asks_secret", "A call never asks for a card number, UPI PIN, OTP or password."));
+  if (hasLink(script)) out.push(fail("call_rules", "reads_link", "A call never reads out a link. Links go by text, with details to check."));
+  if (PAY_ON_CALL.test(script)) out.push(fail("call_rules", "takes_payment", "A call never asks the person to pay on the call. Anything about money ends as a text and your tap."));
+  const internal = bannedWordsIn(script);
+  if (internal.length) out.push(fail("call_rules", "internal_words", `The call uses words customers never hear: ${internal.join(", ")}.`));
+  return out;
+}
+
 // The refund hold isn't a check that can fail; guardedCall holds the action.
 export async function refundHold(): Promise<Failure[]> {
   return [];
@@ -494,6 +596,7 @@ export const CHECKS: Record<GuardName, (g: GuardContext) => Promise<Failure[]>> 
   grounding,
   confirmation,
   refund_hold: refundHold,
+  call_rules: callRules,
 };
 
 // The guards that apply to a tool, in the order they run.

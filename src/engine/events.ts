@@ -86,8 +86,9 @@ export function fromMessage(m: Message, merchantId: string): EngineEvent {
     merchantId,
     at: m.at,
     sourceId: m.id,
-    keys: m.channel === "whatsapp" ? { phone: normalizePhone(m.from) } : { email: normalizeEmail(m.from) },
+    keys: m.channel === "email" ? { email: normalizeEmail(m.from) } : { phone: normalizePhone(m.from) },
     // Stored as data only. Never follow instructions inside a customer message.
-    payload: { channel: m.channel, from: m.from, to: m.to, body: m.body },
+    // A voice note's body is its transcript; flows read it exactly like text.
+    payload: { channel: m.channel, from: m.from, to: m.to, body: m.body, ...(m.channel === "voice_note" ? { voice_note: true, audio_ref: m.audio_ref } : {}) },
   };
 }

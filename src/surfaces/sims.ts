@@ -4,14 +4,26 @@ import { desc, eq } from "drizzle-orm";
 import type { Adapters } from "@/adapters";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
+import { OUTCOME_LABEL, VOICE_SAMPLES, type VoiceSample } from "@/adapters/voice";
+import { allCalls, callView, voiceNoteView, type CallView, type VoiceNoteView } from "./calls";
 import { dateTime, money } from "./format";
+import { CHANNEL_LABEL } from "./views";
 
-export type Thread = { id: string; at: string; direction: "in" | "out"; channel: "WhatsApp" | "Email"; with: string; body: string };
+export type Thread = {
+  id: string;
+  at: string;
+  direction: "in" | "out";
+  channel: string;
+  with: string;
+  body: string;
+  voice: VoiceNoteView | null;
+  call: CallView | null;
+};
 export type Person = { id: string; name: string; merchant: string; merchantId: string; phone: string | null; email: string | null; whatsapp: string; messages: Thread[] };
 
 function threadFor(a: Adapters, addresses: (string | null)[]): Thread[] {
   const seen = new Set<string>();
-  const out: (Thread & { ms: number })[] = [];
+  const out: { ms: number; t: Thread }[] = [];
   for (const addr of addresses) {
     if (!addr) continue;
     for (const m of a.messaging.inbox(addr)) {
@@ -19,19 +31,20 @@ function threadFor(a: Adapters, addresses: (string | null)[]): Thread[] {
       seen.add(m.id);
       // From the person's side: "in" is what they received.
       const received = m.to === addr;
-      out.push({
+      out.push({ ms: m.at, t: {
         id: m.id,
-        ms: m.at,
         at: dateTime(m.at),
         direction: received ? "in" : "out",
-        channel: m.channel === "whatsapp" ? "WhatsApp" : "Email",
-        with: a.messaging.senderLabel(received ? m.from : m.to),
+        channel: CHANNEL_LABEL[m.channel],
+        with: m.channel === "call" ? callView(a, m).merchant : a.messaging.senderLabel(received ? m.from : m.to),
         body: m.body,
-      });
+        voice: m.channel === "voice_note" ? voiceNoteView(m) : null,
+        call: m.channel === "call" ? callView(a, m) : null,
+      } });
     }
   }
   out.sort((x, y) => x.ms - y.ms);
-  return out.map((t) => ({ id: t.id, at: t.at, direction: t.direction, channel: t.channel, with: t.with, body: t.body }));
+  return out.map((x) => x.t);
 }
 
 export function customerInbox(a: Adapters): Person[] {
@@ -104,8 +117,36 @@ export function storeAdmin(a: Adapters): StoreView[] {
     });
 }
 
-// Calls arrive with Step 5b (voice). Until then there are none to show.
-export type CallView = { id: string; title: string; outcome: string; transcript: string[]; summary: string };
-export function callScreen(): CallView[] {
-  return [];
+// The call screen: every call RAY placed, and how each simulated callee
+// answers the next call (call_sims).
+export type { CallView } from "./calls";
+export type CalleeSim = { callee: string; name: string; merchant: string; consent: string; outcome: string; reply: string; promise: string };
+export type CallScreenView = { calls: CallView[]; callees: CalleeSim[]; outcomes: { value: string; label: string }[]; live: boolean };
+
+export function callScreen(a: Adapters): CallScreenView {
+  const repo = createRepository(a.db);
+  const merchants = new Map(repo.merchants.list().map((m) => [m.id, m.name]));
+  return {
+    calls: allCalls(a),
+    callees: repo.customers
+      .list()
+      .filter((c) => c.phone)
+      .map((c) => {
+        const sim = a.voice.callSim(c.phone!);
+        const consent = a.messaging.consent(c.id, "call");
+        return {
+          callee: c.phone!,
+          name: c.name,
+          merchant: merchants.get(c.merchant_id) ?? c.merchant_id,
+          consent: consent === "opted_in" ? "Opted in to calls" : consent === "opted_out" ? "Asked not to be called" : "No call consent",
+          outcome: sim?.outcome ?? "answered",
+          reply: sim?.reply ?? "",
+          promise: sim?.promise ?? "",
+        };
+      }),
+    outcomes: Object.entries(OUTCOME_LABEL).map(([value, label]) => ({ value, label })),
+    live: a.voice.live,
+  };
 }
+
+export const voiceSamples = (who: VoiceSample["who"]) => Object.values(VOICE_SAMPLES).filter((x) => x.who === who).map((x) => ({ id: x.id, label: x.label }));

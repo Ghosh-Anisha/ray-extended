@@ -1,13 +1,15 @@
 // The act tools. Each one is a typed args schema, the guards it needs and
 // the adapter call that does it. Only src/guards imports this file: every
 // act goes through guardedCall, never straight here (a test checks).
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import type { Adapters } from "@/adapters";
 import { CHANNELS, SENDER_MODES } from "@/db/schema";
 import * as s from "@/db/schema";
 import { createRepository } from "@/db/repository";
 import { contestInput, EVIDENCE_TYPES } from "@/adapters/razorpay";
+import { merchantCallNumber, OUTCOME_LABEL } from "@/adapters/voice";
+import { newId } from "@/adapters/ids";
 import type { Case } from "@/engine/state-machine";
 import type { ActToolName } from "./names";
 
@@ -28,6 +30,7 @@ export const GUARDS = [
   "grounding",
   "confirmation",
   "refund_hold",
+  "call_rules",
 ] as const;
 export type GuardName = (typeof GUARDS)[number];
 
@@ -108,6 +111,21 @@ export const CONFIRMS: Partial<Record<MessageKind, readonly string[]>> = {
   refund_confirmation: ["refund"],
   fulfil_confirmation: ["mark_paid", "restore_order", "create_order_for_payment"],
 };
+
+// Every call says what kind it is (design language section 5). The kind
+// decides the moment it belongs to and whether it needs a tap or a rule.
+export const CALL_KINDS = {
+  // Paid, no order: text first; a call only if no reply by the promised time.
+  paid_no_order_follow_up: { moment: "paid_no_order", approval: "none" },
+  // Subscription stopped: one call with the playbook's save offer.
+  subscription_save: { moment: "subscription", approval: "required" },
+  // Invoice overdue, the Call stage: after the merchant's tap.
+  collect_call: { moment: "collect", approval: "required" },
+  // The day before a chargeback deadline, to the merchant who opted in.
+  urgent_merchant: { moment: "chargeback", approval: "none" },
+} as const satisfies Record<string, { moment: s.Moment; approval: ApprovalNeed }>;
+export type CallKind = keyof typeof CALL_KINDS;
+export const CALL_KIND_NAMES = Object.keys(CALL_KINDS) as CallKind[];
 
 // The playbook setting automatic customer messages need.
 export const AUTO_CUSTOMER_MESSAGES = "auto_customer_messages";
@@ -436,6 +454,71 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
 
   // A drafted request (limit, currency or details change) recorded on the
   // case for the merchant to approve and send. Nothing is filed.
+  // A Simulated call (ElevenLabs) from the merchant's own number. The
+  // call_rules guard checks every call rule first. The post-call summary
+  // goes on the case for decide to read; "don't call" records an opt-out.
+  place_call: def({
+    args: z.object({
+      kind: z.enum(CALL_KIND_NAMES as [CallKind, ...CallKind[]]),
+      // The number called. The urgent call goes to the merchant's own phone.
+      to: z.string().min(3),
+      // Opens as the merchant: who is calling and why.
+      opening: z.string().min(1).max(300),
+      lines: z.array(z.string().min(1).max(300)).max(6).default([]),
+    }),
+    label: "the call",
+    approval: (x) => CALL_KINDS[x.kind].approval,
+    guards: ["call_rules", "grounding"],
+    async run({ a, kase }, x) {
+      const repo = createRepository(a.db);
+      const merchant = repo.merchants.get(kase.merchant_id)!;
+      const urgent = x.kind === "urgent_merchant";
+      const customer = urgent
+        ? undefined
+        : a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, kase.merchant_id), eq(s.customers.phone, x.to))).get();
+      const call = await a.voice.call({
+        merchantId: kase.merchant_id,
+        caseId: kase.id,
+        to: x.to,
+        calleeName: urgent ? merchant.name : (customer?.name ?? x.to),
+        from: merchantCallNumber(kase.merchant_id),
+        callerName: urgent ? "RAY" : merchant.name,
+        opening: x.opening,
+        lines: x.lines,
+      });
+      // "Don't call": stop and record the opt-out.
+      let optedOut = false;
+      if (call.outcome === "asked_not_to_call") {
+        if (customer) a.messaging.setConsent(customer.id, "call", "opted_out", "asked not to be called on a call");
+        if (urgent) repo.merchants.update(merchant.id, { urgent_call_opt_in: false });
+        optedOut = true;
+      }
+      repo.caseEvents.insert({
+        id: newId("cev"),
+        case_id: kase.id,
+        at: a.clock.now(),
+        type: "note",
+        payload: {
+          kind: "call_summary",
+          call_kind: x.kind,
+          simulated: true,
+          message_id: call.messageId,
+          outcome: call.outcome,
+          outcome_label: OUTCOME_LABEL[call.outcome],
+          duration_s: call.durationS,
+          promise: call.promise,
+          summary: call.summary,
+          transcript: call.transcript,
+          audio: call.audio,
+          audio_error: call.audioError,
+          opted_out: optedOut,
+        },
+        evidence_ref: call.messageId,
+      });
+      return { message_id: call.messageId, outcome: call.outcome, duration_s: call.durationS, promise: call.promise, summary: call.summary, opted_out: optedOut };
+    },
+  }),
+
   draft_request: def({
     args: z.object({
       request: z.enum(["international_limit", "currency_enable", "network_enable", "billing_details", "other"]),

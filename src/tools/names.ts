@@ -37,6 +37,7 @@ export const ACT_TOOLS = [
   "cancel_subscription",
   "post_match",
   "draft_request",
+  "place_call",
 ] as const;
 export type ActToolName = (typeof ACT_TOOLS)[number];
 

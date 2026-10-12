@@ -12,6 +12,7 @@ import type { Case } from "@/engine/state-machine";
 import { actLabel } from "@/guards";
 import { killSwitchOn } from "@/guards/kill-switch";
 import type { ActToolName } from "@/tools/names";
+import { callView, preCallNotice, voiceNoteView, type CallView, type PreCallNotice, type VoiceNoteView } from "./calls";
 import { age, countdown, dateTime, firstName, formatTime, money, shortId } from "./format";
 import { isSettingRow, readSettings } from "./playbook";
 import {
@@ -223,13 +224,25 @@ export function alertsView(a: Adapters, merchantId: string): { merchant: Merchan
 export type Finding = { id: string; ok: boolean; text: string; source: FindingSource; evidenceRef: string | null };
 export type TimelineStep = { label: string; failed: boolean };
 export type TimelineEvent = { id: string; at: string; what: string; who: string; evidenceRef: string | null; details: Record<string, unknown> };
-export type ConversationItem = { id: string; at: string; direction: "in" | "out"; channel: string; from: string; body: string };
+export type ConversationItem = {
+  id: string;
+  at: string;
+  direction: "in" | "out";
+  channel: string;
+  from: string;
+  body: string;
+  // A voice note: ▶ · duration · transcript. A call: the Call card.
+  voice: VoiceNoteView | null;
+  call: CallView | null;
+};
 export type Proposal = { id: string; label: string; covered: boolean; draft: string | null };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
   primary: Proposal;
   changeAsked: string | null;
+  // The merchant's voice note this card answers, if any. It never approves.
+  voiceNote: VoiceNoteView | null;
 };
 
 export type YourCall = {
@@ -268,6 +281,7 @@ export type CaseView = {
   underRule: { ruleId: string; text: string }[];
   results: string[];
   card: ApprovalCard | null;
+  preCall: PreCallNotice | null;
 };
 
 const FINAL: CaseState[] = ["closed", "fixed_itself"];
@@ -308,7 +322,7 @@ function stepOf(e: CaseEvent): TimelineStep | null {
     if (delivery && delivery.processed === false) return { label: `${label}, then dropped`, failed: true };
     return { label, failed: false };
   }
-  if (e.type === "message_in") return { label: "Customer wrote", failed: false };
+  if (e.type === "message_in") return { label: p.voice_note ? "Customer sent a voice note" : "Customer wrote", failed: false };
   if (e.type === "message_out") return { label: "Message sent", failed: false };
   if (e.type === "approval") return { label: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no" : "You took over", failed: false };
   if (e.type === "tool_call") {
@@ -330,7 +344,7 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
     case "webhook":
       return { what: `Razorpay: ${EVENT_STEP[String(p.event)] ?? "update"}`, who: "Razorpay" };
     case "message_in":
-      return { what: `Customer wrote: ${String(p.body ?? "")}`, who: "Customer" };
+      return { what: p.voice_note ? `Customer sent a voice note: ${String(p.body ?? "")}` : `Customer wrote: ${String(p.body ?? "")}`, who: "Customer" };
     case "message_out":
       return { what: `Sent: ${String(p.body ?? "")}`, who: "RAY" };
     case "approval":
@@ -363,6 +377,9 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
       if (p.kind === "timer_set") return { what: `RAY will follow up at ${formatTime(Number(p.due_at))}`, who: "RAY" };
       if (p.kind === "proposal_declined") return { what: "You said no to this option", who: "You (tap)" };
       if (p.kind === "takeover_cancelled") return { what: "RAY called off what it had planned", who: "RAY" };
+      if (p.kind === "call_summary") return { what: String(p.summary ?? "Call ended"), who: "RAY (Simulated call)" };
+      if (p.kind === "merchant_voice_note") return { what: `You sent a voice note: ${String(p.transcript ?? "")}`, who: "You (voice note)" };
+      if (p.kind === "call_cancelled") return { what: "You cancelled the call", who: "You" };
       if (p.kind === "verified") return { what: `Checked it worked: ${String(p.reason ?? "")}`, who: "RAY" };
       if (p.kind === "approval_handled") return { what: String(p.reason ?? "Done"), who: "RAY" };
       if (p.kind === "tap_ignored") return { what: "Your tap came after the case had moved on, so nothing changed", who: "RAY" };
@@ -376,6 +393,9 @@ function proposalOf(p: ProposedAction): Proposal {
   const draft = typeof p.args.draft === "string" ? p.args.draft : p.tool === "send_message" && typeof p.args.body === "string" ? p.args.body : null;
   return { id: p.id, label: p.label, covered: p.covered, draft };
 }
+
+export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };
+const merchantName = (a: Adapters, kase: Case) => createRepository(a.db).merchants.get(kase.merchant_id)?.name ?? "";
 
 function conversationOf(a: Adapters, kase: Case, customerName: string): ConversationItem[] {
   const repo = createRepository(a.db);
@@ -394,9 +414,11 @@ function conversationOf(a: Adapters, kase: Case, customerName: string): Conversa
       id: m.id,
       at: dateTime(m.at),
       direction: m.direction,
-      channel: m.channel === "whatsapp" ? "WhatsApp" : "Email",
-      from: m.direction === "in" ? customerName : a.messaging.senderLabel(m.from),
+      channel: CHANNEL_LABEL[m.channel],
+      from: m.direction === "in" ? customerName : m.channel === "call" ? merchantName(a, kase) : a.messaging.senderLabel(m.from),
       body: m.body,
+      voice: m.channel === "voice_note" ? voiceNoteView(m) : null,
+      call: m.channel === "call" ? callView(a, m) : null,
     }));
 }
 
@@ -489,21 +511,37 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     underRule: ruleIds.map((id) => ({ ruleId: id, text: `Under your rule: ${repo.playbookRules.get(id)?.text ?? id}` })),
     results,
     card: null,
+    preCall: FINAL.includes(kase.state) ? null : preCallNotice(a, kase.id, sub.name),
   };
-  view.card = cardOf(view);
+  view.card = cardOf(view, voiceNoteFor(timeline, proposals));
   return view;
 }
 
+// The merchant's latest voice note since RAY last proposed, and the open
+// option it was about. It only picks which option the card shows.
+function voiceNoteFor(timeline: CaseEvent[], proposals: Proposal[]) {
+  const since = timeline.findLastIndex((e) => e.payload.kind === "actions_proposed");
+  const note = timeline.slice(since + 1).findLast((e) => e.payload.kind === "merchant_voice_note");
+  if (!note) return null;
+  const p = note.payload;
+  return {
+    view: voiceNoteView({ transcript: String(p.transcript), body: String(p.transcript), duration_s: Number(p.duration_s ?? 0), audio_ref: (p.audio_ref as string | null) ?? null }),
+    about: proposals.find((x) => x.id === p.points_to) ?? null,
+  };
+}
+
 // The WhatsApp approval card: max 3 lines before the buttons, one ask.
-function cardOf(v: CaseView): ApprovalCard | null {
-  const p = v.yourCall.primary;
-  if (!p || !v.yourCall.canTap) return null;
+function cardOf(v: CaseView, voice: ReturnType<typeof voiceNoteFor> = null): ApprovalCard | null {
+  // Unsure: no action card, voice note or not.
+  if (!v.yourCall.primary || !v.yourCall.canTap) return null;
+  const p = voice?.about ?? v.yourCall.primary;
   const why = v.side ? `${v.side.label}. ${v.side.note}` : v.confidence.reason;
   return {
     caseId: v.id,
     lines: [`${v.name}, ${v.amount}: ${v.moment}${v.orderNumber ? `, order ${v.orderNumber}` : ""}.`, why, v.yourCall.question],
     primary: p,
     changeAsked: v.yourCall.changes.at(-1)?.text ?? null,
+    voiceNote: voice?.view ?? null,
   };
 }
 

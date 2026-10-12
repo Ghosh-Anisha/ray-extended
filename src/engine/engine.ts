@@ -12,6 +12,7 @@ import type { Adapters } from "@/adapters";
 import type { Clock, FakeClock } from "@/adapters/clock";
 import { newId } from "@/adapters/ids";
 import type { ReceiveInput } from "@/adapters/messaging";
+import type { AudioInput } from "@/adapters/voice";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
 import { nextDueAction, releaseHeldAction } from "@/guards";
@@ -36,6 +37,9 @@ export type Engine = {
   handleEvent(event: EngineEventInput): Promise<HandleResult>;
   // Records a customer message, then hands it to handleEvent.
   receiveMessage(input: ReceiveInput): Promise<HandleResult>;
+  // A WhatsApp voice note: transcribed (ElevenLabs, or a recorded sample),
+  // recorded with its audio and transcript, then handled like any message.
+  receiveVoiceNote(input: VoiceNoteInput): Promise<HandleResult & { messageId: string; transcript: string }>;
   // Fires every due timer, earliest first, through handleEvent.
   // Also releases held actions whose hold has ended, in the same due order.
   tick(): Promise<TickResult>;
@@ -44,6 +48,8 @@ export type Engine = {
   advanceBy(ms: number): Promise<TickResult & { now: number }>;
   stop(): void;
 };
+
+export type VoiceNoteInput = { merchantId: string; from: string; to?: string; audio?: AudioInput; sampleId?: string };
 
 export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; adapters?: Adapters }): Engine {
   const { db, clock, registry, adapters } = opts;
@@ -230,6 +236,20 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
       if (!adapters) throw new Error("This engine has no messaging adapter");
       const m = await adapters.messaging.receive(input);
       return engine.handleEvent(fromMessage(m, input.merchantId));
+    },
+    async receiveVoiceNote(input) {
+      if (!adapters) throw new Error("This engine has no voice adapter");
+      const t = await adapters.voice.transcribe({ audio: input.audio, sampleId: input.sampleId });
+      const m = await adapters.messaging.receive({
+        merchantId: input.merchantId,
+        channel: "whatsapp",
+        from: input.from,
+        to: input.to,
+        body: t.transcript,
+        voice: { audioRef: t.audioRef, durationS: t.durationS },
+      });
+      const r = await engine.handleEvent(fromMessage(m, input.merchantId));
+      return { ...r, messageId: m.id, transcript: t.transcript };
     },
     tick: () => serial(tickOnce),
     advanceBy: (ms) => serial(() => advanceBy(ms)),

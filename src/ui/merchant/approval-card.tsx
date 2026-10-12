@@ -7,12 +7,16 @@ import { useState } from "react";
 import type { ApprovalCard as Card } from "@/surfaces/views";
 import { APPROVE, CHANGE, DOING_IT, OPEN_CASE } from "@/surfaces/words";
 import { ApprovalLabel, useAction } from "../bits";
+import { VoiceNoteBubble } from "../voice";
 
 export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card; merchantId: string; showOpen?: boolean }) {
   const { busy, error, run } = useAction();
   const [changing, setChanging] = useState(false);
   const [text, setText] = useState("");
   return (
+    <>
+    {/* The merchant's voice note this card answers. It never approves: the tap does. */}
+    {card.voiceNote && <VoiceNoteBubble note={card.voiceNote} mine meta="You · voice note" />}
     <div className="bubble" style={{ maxWidth: "100%" }} data-testid="approval-card">
       {card.lines.map((l, i) => (
         <div key={i}>{l}</div>
@@ -56,5 +60,6 @@ export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card
       )}
       {error && <div className="error">{error}</div>}
     </div>
+    </>
   );
 }

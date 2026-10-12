@@ -30,7 +30,12 @@ export const CASE_EVENT_TYPES = [
 ] as const;
 // cancelled: a held action that never ran, e.g. when the merchant takes over.
 export const ACTION_STATUSES = ["held", "done", "undone", "failed", "cancelled"] as const;
+// Channels RAY writes on (send_message). Messages also carry voice notes
+// (in, over WhatsApp) and calls; consents also cover calls (Step 5b).
 export const CHANNELS = ["whatsapp", "email"] as const;
+export const MESSAGE_CHANNELS = [...CHANNELS, "voice_note", "call"] as const;
+export const CONSENT_CHANNELS = [...CHANNELS, "call"] as const;
+export const CALL_OUTCOMES = ["answered", "no_answer", "busy", "asked_not_to_call"] as const;
 export const DIRECTIONS = ["in", "out"] as const;
 export const SENDER_MODES = ["merchant_inbox", "verified_domain", "via_razorpay"] as const;
 export const RULE_SOURCES = ["edit", "merchant", "pattern"] as const;
@@ -82,6 +87,12 @@ export const merchants = sqliteTable("merchants", {
   udyam: bool("udyam").notNull(),
   approval_limit: integer("approval_limit").notNull(),
   kill_switch: bool("kill_switch").notNull().default(false),
+  // Playbook: calls only between these times, minutes after midnight IST
+  // (default 10 AM to 7 PM), and the opt-in for the urgent call the day
+  // before a chargeback deadline (migration 0008).
+  calling_hours_start: integer("calling_hours_start").notNull().default(600),
+  calling_hours_end: integer("calling_hours_end").notNull().default(1140),
+  urgent_call_opt_in: bool("urgent_call_opt_in").notNull().default(false),
 });
 
 // One row, id "global" (migration 0007). The global kill switch: when on,
@@ -165,7 +176,7 @@ export const timers = sqliteTable("timers", {
 export const messages = sqliteTable("messages", {
   id: id(),
   case_id: text("case_id").references(() => cases.id),
-  channel: text("channel", { enum: CHANNELS }).notNull(),
+  channel: text("channel", { enum: MESSAGE_CHANNELS }).notNull(),
   direction: text("direction", { enum: DIRECTIONS }).notNull(),
   from: text("from").notNull(),
   to: text("to").notNull(),
@@ -177,6 +188,11 @@ export const messages = sqliteTable("messages", {
   // Inbound only, set by the engine (migration 0005).
   handled_case_id: text("handled_case_id"),
   unmatched_reason: text("unmatched_reason", { enum: UNMATCHED_REASONS }),
+  // Voice notes and calls (migration 0008): what was said, the audio if
+  // there is any (an id under /api/voice/audio) and how long it ran.
+  transcript: text("transcript"),
+  audio_ref: text("audio_ref"),
+  duration_s: integer("duration_s"),
 });
 
 // One row per customer and channel (migration 0002). An opt-out blocks every
@@ -186,7 +202,7 @@ export const messagingConsents = sqliteTable(
   {
     id: id(),
     customer_id: text("customer_id").notNull().references(() => customers.id),
-    channel: text("channel", { enum: CHANNELS }).notNull(),
+    channel: text("channel", { enum: CONSENT_CHANNELS }).notNull(),
     status: text("status", { enum: CONSENT_STATUSES }).notNull(),
     source: text("source").notNull(),
     updated_at: integer("updated_at").notNull(),
@@ -475,4 +491,15 @@ export const bankCredits = sqliteTable("bank_credits", {
   utr: text("utr").notNull(),
   date: integer("date").notNull(),
   matched_invoices: json<string[]>("matched_invoices").notNull(),
+});
+
+// How a simulated callee answers (Step 5b), one row per number. No row:
+// the callee answers. Set from the call screen.
+export const callSims = sqliteTable("call_sims", {
+  callee: text("callee").primaryKey(),
+  outcome: text("outcome", { enum: CALL_OUTCOMES }).notNull(),
+  // What the callee says when they answer, and a promise or choice from it.
+  reply: text("reply"),
+  promise: text("promise"),
+  updated_at: integer("updated_at").notNull(),
 });

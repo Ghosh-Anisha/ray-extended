@@ -1,15 +1,29 @@
 "use client";
 
-// Customer and buyer inboxes: pick a person, read their WhatsApp and email,
-// and write back as them. Sending goes through the engine like any inbound
-// message.
+// Customer and buyer inboxes: pick a person, read their WhatsApp, email,
+// voice notes and calls, and write back or send a voice note as them.
+// Sending goes through the engine like any inbound message.
 import { Button } from "@razorpay/blade/components";
 import { useState } from "react";
 import type { Person } from "@/surfaces/sims";
 import { useAction } from "../bits";
+import { CallCard, VoiceNoteBubble } from "../voice";
+import { VoiceCompose } from "../voice-compose";
 import { SimTitle } from "./sim-bar";
 
-export function PeopleInbox({ title, people, kind }: { title: string; people: Person[]; kind: "customer" | "buyer" }) {
+export function PeopleInbox({
+  title,
+  people,
+  kind,
+  voiceSamples = [],
+  voiceLive = false,
+}: {
+  title: string;
+  people: Person[];
+  kind: "customer" | "buyer";
+  voiceSamples?: { id: string; label: string }[];
+  voiceLive?: boolean;
+}) {
   const [id, setId] = useState(people.find((p) => p.messages.length > 0)?.id ?? people[0]?.id ?? "");
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
   const [body, setBody] = useState("");
@@ -19,7 +33,6 @@ export function PeopleInbox({ title, people, kind }: { title: string; people: Pe
   return (
     <div className="stack">
       <SimTitle>{title}</SimTitle>
-      <p className="muted">Voice notes arrive with Step 5b (voice); until then, people write text.</p>
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, alignItems: "start" }}>
         <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 8 }}>
           {people.map((x) => (
@@ -46,15 +59,31 @@ export function PeopleInbox({ title, people, kind }: { title: string; people: Pe
             </div>
             <div className="wa" style={{ minHeight: 160 }}>
               {p.messages.length === 0 && <div className="muted">No messages yet.</div>}
-              {p.messages.map((m) => (
-                <div key={m.id} className={`bubble ${m.direction === "out" ? "mine" : ""}`}>
-                  {m.body}
-                  <div className="meta">
-                    {m.direction === "in" ? `From ${m.with}` : `To ${m.with}`} · {m.channel} · {m.at}
+              {p.messages.map((m) => {
+                const meta = `${m.direction === "in" ? `From ${m.with}` : `To ${m.with}`} · ${m.channel} · ${m.at}`;
+                if (m.call) return <CallCard key={m.id} call={m.call} meta={meta} />;
+                if (m.voice) return <VoiceNoteBubble key={m.id} note={m.voice} mine={m.direction === "out"} meta={meta} />;
+                return (
+                  <div key={m.id} className={`bubble ${m.direction === "out" ? "mine" : ""}`}>
+                    {m.body}
+                    <div className="meta">{meta}</div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+            {p.phone && voiceSamples.length > 0 && (
+              <VoiceCompose
+                url="/api/dev/voice-notes"
+                fields={{ [kind === "customer" ? "customerId" : "buyerId"]: p.id }}
+                samples={voiceSamples}
+                live={voiceLive}
+                sendLabel={`Send as ${p.name.split(",")[0]}`}
+                onSent={(res) => {
+                  const r = res as { outcome?: string; caseId?: string };
+                  setStatus(r.outcome === "unmatched" ? "No flow handles this yet" : r.caseId ? `Went to case ${r.caseId}` : "Sent");
+                }}
+              />
+            )}
             <form
               className="stack"
               style={{ gap: 6 }}

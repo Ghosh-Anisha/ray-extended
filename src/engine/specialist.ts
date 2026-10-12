@@ -62,6 +62,11 @@ export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { b
 // onPromisedTime. Setting it also sets cases.promised_by.
 export const PROMISED_TIME_TIMER = "promised_time";
 
+// A flow sets a timer of this kind for a follow-up call (Step 5b); the case
+// shows the Pre-call notice with Cancel call until it fires. Flows wire it
+// in from Step 7.
+export const CALL_TIMER = "call";
+
 export type PromisedTimeResult = { reason: string; to?: CaseState; timers?: TimerRequest[] };
 
 export type ApprovalResult = Step<"verifying" | "waiting_merchant">;

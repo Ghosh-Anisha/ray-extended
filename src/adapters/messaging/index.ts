@@ -7,6 +7,8 @@
 //   message on that channel.
 // - WhatsApp outside the 24-hour window: approved templates only, and only to
 //   customers with an opted_in consent row.
+// - A voice note is a WhatsApp message: it is stored on channel voice_note
+//   with its transcript as the body, and opens the window like text.
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
@@ -18,9 +20,13 @@ import { newId } from "../ids";
 
 export type Message = typeof s.messages.$inferSelect;
 export type Channel = (typeof s.CHANNELS)[number];
+export type ConsentChannel = (typeof s.CONSENT_CHANNELS)[number];
 export type SenderMode = (typeof s.SENDER_MODES)[number];
 
 export const WINDOW_MS = 24 * 60 * 60 * 1000;
+
+// The channels a message on this channel counts as, for the 24-hour window.
+export const sameChannel = (channel: string): string[] => (channel === "whatsapp" ? ["whatsapp", "voice_note"] : [channel]);
 
 type Template = { status: "approved" | "pending" | "rejected"; body: string };
 
@@ -74,7 +80,9 @@ export const receiveInput = z.object({
   // Defaults to the address the customer last heard from, so replies route back.
   to: z.string().optional(),
   body: z.string().min(1),
-});
+  // A voice note (WhatsApp only): the body is its transcript.
+  voice: z.object({ audioRef: z.string().nullable(), durationS: z.number().int().nonnegative() }).optional(),
+}).refine((v) => !v.voice || v.channel === "whatsapp", "Voice notes come in on WhatsApp");
 export type ReceiveInput = z.input<typeof receiveInput>;
 
 export type MessagingErrorCode =
@@ -111,8 +119,8 @@ export interface Messaging {
 export type Consent = (typeof s.CONSENT_STATUSES)[number];
 
 export type MessagingSim = Messaging & {
-  setConsent(customerId: string, channel: Channel, status: Consent, source: string): void;
-  consent(customerId: string, channel: Channel): Consent | null;
+  setConsent(customerId: string, channel: ConsentChannel, status: Consent, source: string): void;
+  consent(customerId: string, channel: ConsentChannel): Consent | null;
 };
 
 // Ties on the fake clock fall back to insert order.
@@ -158,7 +166,7 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       .where(and(eq(s.customers.merchant_id, merchantId), eq(channel === "whatsapp" ? s.customers.phone : s.customers.email, addr)))
       .get();
 
-  const consentRow = (customerId: string, channel: Channel) =>
+  const consentRow = (customerId: string, channel: ConsentChannel) =>
     db
       .select()
       .from(s.messagingConsents)
@@ -187,7 +195,7 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       .from(s.messages)
       .where(
         and(
-          eq(s.messages.channel, channel),
+          inArray(s.messages.channel, sameChannel(channel) as Message["channel"][]),
           eq(s.messages.direction, "in"),
           eq(s.messages.from, customer),
           inArray(s.messages.to, merchantAddresses(merchantId, channel)),
@@ -273,7 +281,10 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       return repo.messages.insert({
         id: newId("msg"),
         case_id: lastOut?.case_id ?? null,
-        channel: input.channel,
+        channel: input.voice ? "voice_note" : input.channel,
+        transcript: input.voice ? input.body : null,
+        audio_ref: input.voice?.audioRef ?? null,
+        duration_s: input.voice?.durationS ?? null,
         direction: "in",
         from: input.from,
         to,

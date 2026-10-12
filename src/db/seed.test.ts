@@ -14,7 +14,8 @@ const EXPECTED_ROWS: Record<string, number> = {
   actions: 0,
   timers: 0,
   messages: 0,
-  messaging_consents: 9,
+  // WhatsApp opt-ins, plus call consents (Step 5b).
+  messaging_consents: 13,
   playbook_rules: 7,
   memory: 0,
   ai_calls: 0,
@@ -38,6 +39,7 @@ const EXPECTED_ROWS: Record<string, number> = {
   promises: 2,
   bank_credits: 3,
   global_settings: 0,
+  call_sims: 0,
 };
 
 const tables = (Object.values(schema) as unknown[]).filter((v): v is SQLiteTable => is(v, SQLiteTable));

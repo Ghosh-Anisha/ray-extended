@@ -10,6 +10,7 @@ import type { CaseView, Finding, Proposal } from "@/surfaces/views";
 import { DOING_IT, EMPTY, HANDLE_MYSELF, SOMETHING_ELSE } from "@/surfaces/words";
 import { ApprovalLabel, Chip, HoldBanner, SimulatedTag, useAction, type PostResult } from "../bits";
 import { useView } from "../view";
+import { CallCard, PreCallNotice, VoiceNoteBubble } from "../voice";
 import { ApprovalCard } from "./approval-card";
 
 export function CasePage({ v }: { v: CaseView }) {
@@ -25,6 +26,7 @@ export function CasePage({ v }: { v: CaseView }) {
         <HoldBanner key={h.actionId} hold={h} merchantId={v.merchant.id} />
       ))}
       {v.promiseLine && <div className="banner promise">{v.promiseLine}</div>}
+      {v.preCall && <PreCallNotice notice={v.preCall} caseId={v.id} />}
       {v.underRule.map((r) => (
         <div key={r.ruleId} className="banner rule">
           <span>{r.text}</span>
@@ -179,14 +181,17 @@ function ConversationPane({ v }: { v: CaseView }) {
         <p className="muted">{EMPTY.conversation}</p>
       ) : (
         <div className="wa">
-          {v.conversation.map((m) => (
-            <div key={m.id} className={`bubble ${m.direction === "out" ? "mine" : ""}`}>
-              {m.body}
-              <div className="meta">
-                {m.from} · {m.channel} · {m.at}
+          {v.conversation.map((m) => {
+            const meta = `${m.from} · ${m.channel} · ${m.at}`;
+            if (m.call) return <CallCard key={m.id} call={m.call} meta={meta} />;
+            if (m.voice) return <VoiceNoteBubble key={m.id} note={m.voice} mine={m.direction === "out"} meta={meta} />;
+            return (
+              <div key={m.id} className={`bubble ${m.direction === "out" ? "mine" : ""}`}>
+                {m.body}
+                <div className="meta">{meta}</div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

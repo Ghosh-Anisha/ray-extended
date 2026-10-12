@@ -118,3 +118,11 @@ button { font: inherit; }
 .pick { width: 100%; text-align: left; background: none; border: 0; padding: 8px; border-radius: 6px; cursor: pointer; }
 .pick[aria-pressed="true"] { background: var(--info-bg); }
 .wa-head .chip.simulated { background: #fff; }
+
+/* Voice (design language section 5): voice note bubble, call card, pre-call notice. */
+.play { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border, #d0d7e2); background: #fff; cursor: pointer; font-size: 12px; line-height: 1; padding: 0; flex: none; }
+.play:disabled { opacity: .5; cursor: not-allowed; }
+.call-card { max-width: 100%; }
+button.link { background: none; border: 0; padding: 0; color: #027eb5; font-weight: 600; cursor: pointer; }
+button.link:disabled { opacity: .6; }
+.voice-compose { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

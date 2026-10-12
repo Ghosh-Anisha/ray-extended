@@ -8,6 +8,7 @@ import * as s from "@/db/schema";
 import type { Engine } from "@/engine/engine";
 import { TAP_CHOICES } from "@/engine/events";
 import { proposeSetupRules } from "@/engine/setup-rules";
+import { CALL_TIMER } from "@/engine/specialist";
 import { isFinal } from "@/engine/state-machine";
 import { undoAction } from "@/guards";
 import { SETTING_KEYS, writeSetting } from "./playbook";
@@ -50,6 +51,27 @@ export function requestChange(a: Adapters, input: z.input<typeof changeInput>) {
     type: "note",
     payload: { kind: "change_requested", text },
     evidence_ref: newId("chg"),
+  });
+}
+
+export const cancelCallInput = z.object({ caseId: z.string().min(1), timerId: z.string().min(1) });
+
+// Pre-call notice: Cancel call. The follow-up call's timer is called off and
+// the case records it. Nothing else changes.
+export function cancelCall(a: Adapters, input: z.input<typeof cancelCallInput>) {
+  const { caseId, timerId } = cancelCallInput.parse(input);
+  const repo = createRepository(a.db);
+  const timer = repo.timers.get(timerId);
+  if (!timer || timer.case_id !== caseId || timer.kind !== CALL_TIMER) throw new Error("That call isn't planned on this case.");
+  if (timer.fired_at !== null || timer.cancelled_at !== null) throw new Error("That call has already happened or was cancelled.");
+  repo.timers.update(timerId, { cancelled_at: a.clock.now() });
+  return repo.caseEvents.insert({
+    id: newId("cev"),
+    case_id: caseId,
+    at: a.clock.now(),
+    type: "note",
+    payload: { kind: "call_cancelled", timer_id: timerId, due_at: timer.due_at },
+    evidence_ref: timerId,
   });
 }
 

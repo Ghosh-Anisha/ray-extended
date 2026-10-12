@@ -86,6 +86,7 @@ export function createRepository(db: Db) {
     invoices: byId(s.invoices),
     promises: byId(s.promises),
     bankCredits: byId(s.bankCredits),
+    callSims: crud(db, s.callSims, s.callSims.callee),
   };
 }
 
