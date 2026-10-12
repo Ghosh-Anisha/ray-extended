@@ -6,6 +6,7 @@
 import { pathToFileURL } from "node:url";
 import { openMigratedDb, type Db } from "./client";
 import { proposeSetupRules } from "@/engine/setup-rules";
+import { seedCollect } from "./seed/collect";
 import { createRepository } from "./repository";
 import type * as s from "./schema";
 
@@ -403,6 +404,7 @@ export function seed(db: Db, now: number = SEED_NOW) {
       call("cus_karan", "opted_in", "checkout"),
       call("cus_deepa", "opted_out", "asked not to be called"),
     ]);
+    seedCollect(db, now);
   });
 }
 

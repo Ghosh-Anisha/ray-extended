@@ -3,6 +3,7 @@
 // it also starts the 30 s timer tick.
 import { getAdapters } from "@/adapters";
 import { createPaidNoOrderSpecialist } from "@/flows/paid-no-order";
+import { createCollectSpecialist } from "@/flows/collect";
 import { createEngine, type Engine } from "./engine";
 import { createRegistry, type Registry } from "./specialist";
 import { startRealClockTicker } from "./ticker";
@@ -13,7 +14,7 @@ export { createRegistry, type Specialist } from "./specialist";
 const holder = globalThis as unknown as { __rayEngine?: Engine };
 
 export function buildRegistry(): Registry {
-  return createRegistry([createPaidNoOrderSpecialist()]);
+  return createRegistry([createPaidNoOrderSpecialist(), createCollectSpecialist()]);
 }
 
 export function getEngine(): Engine {

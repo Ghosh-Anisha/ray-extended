@@ -85,13 +85,19 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
     repo.customers
       .list(eq(s.customers.merchant_id, kase.merchant_id))
       .find((c) => (c.email && emails.has(c.email.toLowerCase())) || (c.phone && phones.has(c.phone)));
+  // Collect (Step 11): the case is about a buyer, named by their business.
+  const buyer = customer
+    ? undefined
+    : repo.buyers
+        .list(eq(s.buyers.merchant_id, kase.merchant_id))
+        .find((b) => (b.email && emails.has(b.email.toLowerCase())) || (b.phone && phones.has(b.phone)));
   const amountMinor = kase.amount ?? payment?.amount ?? order?.total ?? null;
   const currency = kase.amount === null && payment ? payment.currency : "INR";
   let amount = money(amountMinor, currency);
   // Foreign amounts show both: $49 (₹4,100).
   if (amountMinor !== null && currency !== "INR" && payment?.base_amount) amount = `${amount} (${money(payment.base_amount)})`;
   return {
-    name: customer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
+    name: customer?.name ?? buyer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
     amount,
     paymentId: kase.payment_id,
@@ -483,9 +489,13 @@ export function caseView(a: Adapters, caseId: string): CaseView {
   const changes = timeline.filter((e) => e.payload.kind === "change_requested").map((e) => ({ at: dateTime(e.at), text: String(e.payload.text) }));
 
   const primary = proposals[0] ?? null;
-  const question = unsure
-    ? String(lastInvestigated?.payload.reason ?? "RAY needs one answer before it can act.")
-    : String(decided?.payload.summary ?? "What should RAY do?");
+  // Collect (Step 11) writes its one question as a collect_ask note.
+  const asked = kase.moment === "collect" ? timeline.findLast((e) => e.payload.kind === "collect_ask") : undefined;
+  const question = asked
+    ? String(asked.payload.text)
+    : unsure
+      ? String(lastInvestigated?.payload.reason ?? "RAY needs one answer before it can act.")
+      : String(decided?.payload.summary ?? "What should RAY do?");
 
   const view: CaseView = {
     id: kase.id,
