@@ -25,7 +25,8 @@ existing test changes, except one expected seed count (see the last item).
 | `src/engine/index.ts` | One line registering the Collect specialist. | As asked. |
 | `src/db/seed.ts` | One line calling `seedCollect`. | As asked. |
 | `src/db/seed.test.ts` | `messaging_consents` expected count 13 → 23, with a comment. | The 10 buyer consent rows Step 11 seeds. The count is still exact (not weakened). |
-| `src/app/...` | New pages and routes only (`merchant/[id]/collect`, `api/dev/collect`, `api/merchant/collect-note`), a nav link, and a dev panel section. | The morning list and dev controls. |
+| `src/surfaces/views.ts` | `subjectOf`: when no customer matches the case's keys, a buyer's business name is used (Collect cases). `caseView`: on Collect cases only, the question comes from the flow's latest `collect_ask` note. | The case page has to name the buyer and show Collect's one question; other moments are untouched. |
+| `src/app/...`, `src/ui/merchant/top-bar.tsx` | New page `merchant/[id]/collect`, new routes `api/merchant/collect` and `api/dev/collect`, one nav link ("Invoice overdue"), and one dev panel section (two lines in `dev/page.tsx`). | The morning list and dev controls. The components themselves live in `src/flows/collect/`. |
 
 ## Plan
 
@@ -78,6 +79,52 @@ Each: what, why, and the alternative not taken.
 11. **Seeded buyer consents** (10 rows): Gill Agro email, WhatsApp, call; Bansal email, WhatsApp; Sidhu email, WhatsApp opted out; Mehra email, WhatsApp, call; Kohli none.
 12. **Samadhaan** is drafted on request through Change ("Draft a Samadhaan filing") with `draft_request`; the merchant files it. Alternative: a standing button; rejected because the guide says only on request.
 
+13. **Buyers see exact amounts** (₹1,07,600); merchant screens keep the short form (₹1.1 lakh) from design language section 1. An invoice reminder has to match the buyer's books to the rupee. Alternative: the lakh form everywhere; rejected because "₹1.1 lakh" can't be checked against an invoice.
+14. **Climbing the ladder**: one stage at a time per invoice, at least 3 days apart, and never the Call stage before a text (the call guard forbids a first contact anyway). An invoice first seen 36 days overdue starts at Firm, not Call. Two broken promises skip the gap. Alternative: jump straight to the stage the dates say; rejected because it would send gentle, firm and a call on three days running.
+15. **Sure but above the approval limit waits for a tap.** The amount cap guard applies to `post_match`; the card says why ("above your approval limit of ₹50,000") and is labelled Covered. Alternative: post anyway because it's Sure; rejected because the guard is shared and the merchant set the limit.
+16. **A credit from a payer code can't place opens its own case**, Unsure, with the closest open invoices in the question and no button. The merchant answers through Change ("It's Sidhu's, for 2433"); that answer becomes a Likely card, still a tap. Such a case never counts as saved (the buyer's own case does). An unknown payer's credit never posts alone.
+17. **After a tap the case sits in "Checking it worked"** (verifying) while RAY waits for the buyer, because the state machine has no verifying → waiting_customer move and I didn't add one. The morning list still shows "RAY is handling it".
+18. **Consent belongs to the buyer, not the address.** After the merchant approves a new contact ("wrong person"), the buyer's existing opt-ins cover it. Alternative: require new consent for the new address; rejected for now as heavier than the brief asks, and noted here for review.
+19. **The morning run is on demand** (the "Run today's chase" button and the dev panel), through `handleEvent`. After that, each case's own 10:30 AM check timer drives it. The engine has no merchant-level timer, so a buyer with no case yet waits for the next run. Alternative: a new engine-level daily timer; rejected as a bigger shared change.
+20. **Seeded data quirks I kept**: Mehra's 2409 and 2414 are both ₹38,700, and Kohli's 2405, 2410 and 2415 are all ₹58,100, so several sets often fit. RAY offers them as options (Likely) and never guesses. The seeded Kohli credit (₹1,13,876) fits 2% TDS on three pairs, so it's Likely with options.
+
 ## Progress
 
-(updated as milestones land)
+- Plan and decisions: this file.
+- Shared changes: committed separately ("additive shared changes for Collect"), with every existing test passing before the flow was added.
+- Flow: `src/flows/collect/` (stages, dates, reply reader, matcher, remittance reader, data, resolve, messages, Specialist, morning run, morning list, UI, dev controls).
+- Seed: `src/db/seed/collect.ts`, called with one line from `src/db/seed.ts`.
+- Fixtures: `fixtures/ai/sources/collect.json` → 4 understand fixtures labelled "recorded in Claude Code" (`npx tsx src/flows/collect/fixtures.ts`).
+- Registry: one line in `src/engine/index.ts`.
+
+### Tests
+
+`src/flows/collect/units.test.ts` (matcher, reply reader, dates, stages, priority), `collect.test.ts` (the loop through handleEvent), `fixtures.test.ts`, `morning-list.test.tsx` (renders in both views; read-only view; Collect case on the case page). Done when, mapped:
+
+- PackRight's morning list renders with priorities: `morning-list.test.tsx`, `collect.test.ts` "renders PackRight's morning list…".
+- Subset-sum: units, plus "subset-sum with one fit posts alone, and Undo hands it back" and "several fits are only Likely".
+- TDS short-pay: units, plus "TDS short-pay at the buyer's usual rate…" (seeded bc_PR_1) and the Kohli options test.
+- Part payment: units, plus "part payment: oldest invoice first…", "part payment follows the advice…", "part payment reply: match the part, log a promise for the rest".
+- Promise pause and broken promises: "a promise pauses the chase…", "a kept promise…", "two broken promises: the next stage, and flagged".
+- A non-Banking+ merchant sees the read-only view only: `collect.test.ts` and `morning-list.test.tsx`.
+- From the brief: nothing reaches Kohli (no consent rows) on any channel, also checked at the guard and adapter; Sidhu's WhatsApp opt-out; gentle runs alone; firm, Call and MSME need a tap; key accounts get a tap per call; one tap covers a non-key Call stage; "don't call" records the opt-out; call promise goes into the ledger; buyer voice note read like text; every reply type; remittance advice (agrees → Sure; instructions inside → nothing marked paid); collect.handoff fired directly; Samadhaan only on request; every outgoing message grounded, no banned words, no em dashes, links only Razorpay links.
+
+### Final run (after rebasing on main)
+
+See the bottom of this file.
+
+## Notes for review
+
+- **Migration journal**: `1100_collect` is journal idx 10. Step 10's `1000_chargebacks` (in progress on its own branch) also takes idx 10. Whichever merges second needs its entry renumbered to 11, with its `when` after the other's.
+- **Seed count**: `messaging_consents` 13 → 23 in `src/db/seed.test.ts` (exact, not loosened). Any other branch that adds consent rows will conflict on that number.
+- **Worktree**: built in `../ray-extended-step11`, because the main checkout had uncommitted Step 10 work. An early commit picked up the worktree's `node_modules` symlink (`.gitignore` has `node_modules/`, which doesn't match a symlink); I rewrote the branch's commits to drop it and force-pushed with lease. No commit on the branch contains it now.
+- **Not built**: a real Samadhaan submission (it's a draft for the merchant to file), real attachments (the document and corrected-invoice replies say "attached"; Simulated), and new consent for a changed contact (decision 18).
+
+## Final run
+
+On `step-11-collect`, rebased on `origin/main` (4924e1a; no new commits on main since the branch was cut), 13 Oct 2026:
+
+- `npm test`: 30 files passed, 1 skipped; 414 tests passed, 27 skipped (the same 27 were skipped before this step: live Razorpay test-mode tests that need keys).
+- `npm run lint`: clean.
+- `npm run typecheck`: clean.
+- `npx next build`: compiles, including `/merchant/[merchantId]/collect`, `/api/merchant/collect` and `/api/dev/collect`.
