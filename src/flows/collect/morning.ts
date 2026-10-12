@@ -55,14 +55,13 @@ export type MorningList = {
   total: string;
   rows: MorningRow[];
   // Non-Banking+ only.
-  offer: { title: string; text: string; button: string } | null;
+  offer: { title: string; text: string } | null;
   empty: string;
 };
 
 export const BANKING_PLUS_OFFER = {
   title: "Let RAY chase these for you",
-  text: "With Banking+, RAY reminds your buyers on time, reads their replies, matches every payment to its invoice and tells you only when it needs your tap.",
-  button: "See Banking+",
+  text: "With Banking+, RAY reminds your buyers on time, reads their replies, matches every payment to its invoice and tells you only when it needs your tap. Until then, this list is read only.",
 };
 
 export function morningList(a: Adapters, merchantId: string): MorningList {
