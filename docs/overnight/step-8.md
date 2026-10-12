@@ -14,8 +14,9 @@ added as they are made. Status at the bottom.
 | `src/engine/state-machine.ts` | One new allowed move: `waiting_customer -> verifying` | Recovery emails run alone (no tap, no rule), so the case never passes through `acting`. When the buyer then pays, the case must reach `verifying` so `verify()` closes it with `counts_as_saved` through the orchestrator. No existing move is removed; the takeover-only rule for closing from `waiting_customer` is untouched |
 | `src/guards/facts.ts` | New hook `registerFactSource(name, fn)`: extra display-ready rows a flow adds to `caseFacts` for its own cases | Grounding (rule 6) must see the MoneySaver bank details and the account's international limit, which live in this flow's tables |
 | `src/tools/act.ts` | `draft_request.request` gains `risk_review` and `invoice_attach`; the result's `status` says `filed` / `attached` for those two, `drafted` as before for the rest | The risk ticket (E) and the invoice attach (transfers) must go through `guardedCall` (rule 1), and the act-tool list is pinned at 18 by existing tests, so no new tool |
-| `src/ui/sim/sim-bar.tsx` | One nav entry: "International" | Reach the simulated checkout |
-| `src/app/(sim)/sim/international/page.tsx`, `src/app/api/dev/international/route.ts` | New files, thin: render the flow's simulator and call its sim functions | The simulated checkout page |
+| `src/surfaces/views.ts` | (1) The Your call question uses a `merchant_question` note when it is newer than the last decision. (2) A case with no payment yet shows the amount of the link or order it cites. Both only apply when those notes/records exist, so paid-no-order screens are unchanged | A near-match transfer, a buyer's reply or a blocked email hands the case back after `decide`, and the merchant must see that question, not the old one. An F case (expired link, abandoned checkout) has no payment, so screens said "Amount not known yet" |
+| `src/ui/sim/sim-bar.tsx` | One nav entry: "Checkout abroad" | Reach the simulated checkout |
+| `src/app/(sim)/sim/international/page.tsx`, `src/app/api/dev/international/route.ts` | New files, thin: render the flow's simulator (`ui/international-sim.tsx`) and call `runSimAction` | The simulated checkout page |
 
 Nothing else in shared code changes. No existing test is edited.
 
@@ -87,6 +88,25 @@ Never-bend rules touched: 1 (all acts via guardedCall), 2 (only the refund moves
 9. **Seeded error codes**: Emma's seeded failed payment is `international_transaction_not_allowed` from `business`, which the lookup reads as D (the account doesn't take that card from abroad). Scenario tests create their own failures (Emma's B is a 3DS failure) and leave the seed untouched.
 10. **Fixtures** live in their own sources file, `fixtures/ai/sources/international.json`, so parallel steps don't collide in `claude-code.json`.
 
+11. **A paid case waits 30 min in "Checking it worked" before it closes** (`DUPLICATE_WINDOW_MS`). Without it, card and PayPal both paying could never be seen: the first payment would close the case and the second would have nowhere to go. A transfer or a review outcome closes at once. Not taken: reopening a closed case (final states never move) or handing the second payment to the paid-no-order flow (it has no international context).
+12. **Questions after `decide`**: every hand-back to Needs you writes a `merchant_question` note (one wrapper around `investigate`, `verify`, `onApproval`), and the case view shows the newer of that and the decision. Not taken: routing every question back through `confirmed -> decide` (not allowed from `verifying`).
+13. **F cases have no payment of their own.** The engine sets `payment_id` from the first payment that joins, so the flow reads the buyer's later payment as a payment, never as the case's failed one.
+14. **Fixtures**: `book.ts` holds the drafts I wrote as the model for each write call; the scenario tests were run once with it in record mode and `record-fixtures.ts` turned the 14 captured calls into `fixtures/ai/sources/international.json` and keyed fixtures labelled "recorded in Claude Code" (through the existing `writeClaudeCodeFixtures`, which re-checks schema and guard). Replay runs with `noFallbacks()` asserting no call missed.
+15. **The checkout simulator writes Razorpay mock records directly** (failed card payments with error_reason, PayPal captures), then emits the webhook through the webhook sim. Razorpay test mode can't produce these failures, so this stays Simulated in mock mode.
+16. **The dev server in a worktree** needs `next dev --webpack`: Turbopack refuses a symlinked `node_modules`. Only affects running from this worktree.
+
 ## Status
 
-- [ ] Plan (this file)
+- [x] Plan (this file)
+- [x] Shared hooks: `claim`, `waiting_customer -> verifying`, `registerFactSource`, `draft_request` values, view tweaks
+- [x] Flow: lookup table, buyer type, sims, Specialist A to F, D request, E ticket, pattern insight, invoice attach, duplicate refund
+- [x] Seed (`src/db/seed/international.ts`, own tables only), migration 0800
+- [x] Scenario tests (`international.test.ts`, 27) and unit tests (`errors.test.ts`, 25), all served from replay fixtures
+- [x] Simulator page `/sim/international` (Checkout abroad), checked in the running app: the B checkout message shows and the engine opens a Card declined abroad case
+- [x] `npm test`, `npm run lint`, `npm run typecheck`
+
+## Not done / follow-ups
+
+- Rule 12 for email: buyers abroad have no email consent rows; an opt-out blocks (tested), no row allows, as the existing guard does. If buyers should need an explicit email opt-in, that is a guard change for its own step.
+- The merchant can't yet tell RAY the buyer type from the playbook screen; `intl_settings.buyer_type` is read but only set in data.
+- A late payment after "Closed, no reply" is not picked up (unconfirmed can only go back to Likely).
