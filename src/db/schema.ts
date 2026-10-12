@@ -121,7 +121,7 @@ export const caseEvents = sqliteTable("case_events", {
   id: id(),
   seq: integer("seq").unique(),
   case_id: text("case_id").notNull().references(() => cases.id),
-  at: integer("at").notNull(),
+  at: integer("at").notNull(), // when it happened at the source (webhook time, store history time), else clock.now()
   type: text("type", { enum: CASE_EVENT_TYPES }).notNull(),
   payload: json<Record<string, unknown>>("payload").notNull(),
   evidence_ref: text("evidence_ref"),

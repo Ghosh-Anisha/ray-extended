@@ -40,7 +40,7 @@ export async function createOrderForCasePayment(
     repo.caseEvents.insert({
       id: newId("cev"),
       case_id: kase.id,
-      at: a.clock.now(),
+      at: a.clock.now(), // RAY found the mismatch itself; there is no source time
       type: "note",
       payload: {
         kind: ORDER_TOTAL_MISMATCH,

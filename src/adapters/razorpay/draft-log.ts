@@ -40,10 +40,13 @@ export function withDraftLog(rzp: RazorpayAdapter, db: Db, clock: Clock, merchan
           : before.evidence
             ? "dispute_draft_changed"
             : "dispute_draft_created";
+        // A submit has Razorpay's own submitted_at. A draft change has no
+        // source time, so it falls back to the clock.
+        const at = (submitted ? after.evidence?.submitted_at : null) ?? clock.now();
         repo.caseEvents.insert({
           id: newId("cev"),
           case_id: kase.id,
-          at: clock.now(),
+          at,
           type: "note",
           payload: {
             kind,
