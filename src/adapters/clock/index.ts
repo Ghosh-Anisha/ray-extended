@@ -28,3 +28,17 @@ export function fakeClock(start: number): FakeClock {
     },
   };
 }
+
+// The real clock behind the FakeClock shape, for code that takes one. It
+// refuses to move: only the fake clock can be moved forward.
+export function lockedRealClock(): FakeClock {
+  return {
+    now: () => Date.now(),
+    advance() {
+      throw new Error("The real clock cannot be moved forward");
+    },
+    set() {
+      throw new Error("The real clock cannot be moved forward");
+    },
+  };
+}

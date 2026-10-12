@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { webhookDeliveries, messages } from "@/db/schema";
+import { CLOCK_PRESETS } from "./clock-presets";
 
 export type DevData = {
   now: number;
+  clockMode: "fake" | "real";
+  cases: { id: string; merchant: string; moment: string; state: string; openedAt: number }[];
   merchants: { id: string; name: string }[];
   customers: { id: string; label: string; hasPhone: boolean; hasEmail: boolean }[];
   stores: { id: string; name: string; failure: string }[];
@@ -84,6 +87,30 @@ export function DevControls({ data }: { data: DevData }) {
     <div>
       <p>Clock: {time(data.now)}</p>
       {status && <p role="status">{status}</p>}
+
+      <Simulated title="Move clock forward">
+        {data.clockMode === "fake" ? (
+          <p>Moves the clock, then fires any timers that are now due, earliest first.</p>
+        ) : (
+          <p>The app is on the real clock, so it can&apos;t be moved.</p>
+        )}
+        <div style={row}>
+          {CLOCK_PRESETS.map((p) => (
+            <button
+              key={p.label}
+              type="button"
+              disabled={data.clockMode !== "fake"}
+              onClick={async () => {
+                setStatus("Moving...");
+                setStatus(await post("/api/dev/clock", { ms: p.ms }));
+                router.refresh();
+              }}
+            >
+              Move forward {p.label}
+            </button>
+          ))}
+        </div>
+      </Simulated>
 
       <Simulated title="Fire a Razorpay webhook">
         <form onSubmit={(e) => run(e, "/api/dev/webhooks", webhookPayload())}>
@@ -171,6 +198,21 @@ export function DevControls({ data }: { data: DevData }) {
           </div>
         ))}
       </Simulated>
+
+      <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "12px 16px", margin: "16px 0", maxWidth: 720 }}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Latest cases</h2>
+        {data.cases.length === 0 ? (
+          <p>No cases yet.</p>
+        ) : (
+          <ul>
+            {data.cases.map((c) => (
+              <li key={c.id}>
+                {time(c.openedAt)} · {c.merchant} · {c.moment} · {c.state} · {c.id}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <Simulated title="Latest webhook deliveries">
         <ul>

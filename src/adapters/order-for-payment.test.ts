@@ -40,11 +40,17 @@ describe("creating a store order for a case's payment", () => {
     expect(a.store.stock(LEAFY, "Banana bread loaf")).toBe(7);
 
     const events = repo.caseEvents.listByCase("case_priya");
-    expect(events).toHaveLength(1);
+    // The mismatch, then the state change it caused (citing the mismatch).
+    expect(events).toHaveLength(2);
     expect(events[0]).toMatchObject({
       type: "note",
       evidence_ref: "pay_LB1234PRIYA",
       payload: { kind: ORDER_TOTAL_MISMATCH, payment_amount: 129_900, line_items_total: 179_800 },
+    });
+    expect(events[1]).toMatchObject({
+      type: "note",
+      evidence_ref: events[0].id,
+      payload: { kind: "state_changed", from: "acting", to: "waiting_merchant" },
     });
     expect(repo.cases.get("case_priya")?.state).toBe("waiting_merchant");
   });

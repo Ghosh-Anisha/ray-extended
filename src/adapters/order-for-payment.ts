@@ -3,6 +3,7 @@
 // fill in what was bought. If they don't add up, nothing is created: the
 // mismatch goes on the case timeline and the case waits for the merchant.
 import { createRepository } from "@/db/repository";
+import { transition } from "@/engine/state-machine";
 import type { Adapters } from ".";
 import { newId } from "./ids";
 import { StoreError, type OrderTotalMismatch, type StoreOrder } from "./store";
@@ -37,7 +38,7 @@ export async function createOrderForCasePayment(
     return { created: true, order };
   } catch (e) {
     if (!(e instanceof StoreError) || !e.mismatch) throw e;
-    repo.caseEvents.insert({
+    const event = repo.caseEvents.insert({
       id: newId("cev"),
       case_id: kase.id,
       at: a.clock.now(), // RAY found the mismatch itself; there is no source time
@@ -52,8 +53,10 @@ export async function createOrderForCasePayment(
       },
       evidence_ref: payment.id,
     });
-    // Direct update for now; Step 3's case state machine takes over transitions.
-    repo.cases.update(kase.id, { state: "waiting_merchant" });
+    transition(a.db, a.clock, kase.id, "waiting_merchant", {
+      reason: "Line items don't add up to the payment",
+      evidenceRef: event.id,
+    });
     return { created: false, mismatch: e.mismatch };
   }
 }

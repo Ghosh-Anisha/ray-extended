@@ -1,9 +1,10 @@
 // One set of adapters per server process. Flows, tools and API routes get
-// them from here and only call the interfaces. The clock is fake, starting at
-// the seed time, so the dev panel can move it forward.
+// them from here and only call the interfaces. The clock is fake by default,
+// starting at the seed time, so the dev panel can move it forward.
+// CLOCK_MODE=real uses the real clock, which cannot be moved.
 import { openMigratedDb, type Db } from "@/db/client";
 import { SEED_NOW } from "@/db/seed";
-import { fakeClock, type FakeClock } from "./clock";
+import { fakeClock, lockedRealClock, type FakeClock } from "./clock";
 import { createMessagingSim, type MessagingSim } from "./messaging";
 import { createRazorpay, loadRazorpayConfig, type RazorpayAdapter } from "./razorpay";
 import { createStoreSim, type StoreSim } from "./store";
@@ -12,18 +13,25 @@ import { createWebhookSim, type WebhookSim } from "./webhooks";
 export type Adapters = {
   db: Db;
   clock: FakeClock;
+  clockMode: "fake" | "real";
   razorpay(merchantId: string): RazorpayAdapter;
   store: StoreSim;
   messaging: MessagingSim;
   webhooks: WebhookSim;
 };
 
-export function createAdapters(db: Db, clock: FakeClock, env: Record<string, string | undefined> = process.env): Adapters {
+export function createAdapters(
+  db: Db,
+  clock: FakeClock,
+  env: Record<string, string | undefined> = process.env,
+  clockMode: "fake" | "real" = "fake",
+): Adapters {
   const config = loadRazorpayConfig(env);
   const store = createStoreSim(db, clock);
   return {
     db,
     clock,
+    clockMode,
     razorpay: (merchantId) => createRazorpay(config, db, clock, merchantId),
     store,
     messaging: createMessagingSim(db, clock),
@@ -34,6 +42,10 @@ export function createAdapters(db: Db, clock: FakeClock, env: Record<string, str
 const holder = globalThis as unknown as { __rayAdapters?: Adapters };
 
 export function getAdapters(): Adapters {
-  holder.__rayAdapters ??= createAdapters(openMigratedDb(), fakeClock(SEED_NOW));
+  if (!holder.__rayAdapters) {
+    const real = process.env.CLOCK_MODE === "real";
+    const clock = real ? lockedRealClock() : fakeClock(SEED_NOW);
+    holder.__rayAdapters = createAdapters(openMigratedDb(), clock, process.env, real ? "real" : "fake");
+  }
   return holder.__rayAdapters;
 }

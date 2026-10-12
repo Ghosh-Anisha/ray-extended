@@ -33,6 +33,20 @@ export default async function DevPanelPage() {
 
   const data: DevData = {
     now: a.clock.now(),
+    clockMode: a.clockMode,
+    cases: a.db
+      .select()
+      .from(s.cases)
+      .orderBy(desc(s.cases.opened_at))
+      .limit(8)
+      .all()
+      .map((c) => ({
+        id: c.id,
+        merchant: merchants.find((m) => m.id === c.merchant_id)?.name ?? c.merchant_id,
+        moment: c.moment,
+        state: c.state,
+        openedAt: c.opened_at,
+      })),
     merchants: merchants.map((m) => ({ id: m.id, name: m.name })),
     customers: repo.customers.list().map((c) => ({
       id: c.id,
