@@ -1,0 +1,36 @@
+{
+  "job": "converse",
+  "key": "2623fd90b623f6c72775998d",
+  "label": "recorded in Claude Code",
+  "prompt_version": "converse.v1",
+  "model": null,
+  "input": {
+    "thread": [
+      {
+        "from": "customer",
+        "text": "I paid 1299 yesterday evening, where is my order?"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "pay_Fx11",
+        "amount": 1299,
+        "time": "6:10 PM",
+        "utr_last4": "4821"
+      },
+      {
+        "id": "pay_Fx12",
+        "amount": 1299,
+        "time": "7:52 PM",
+        "utr_last4": "3307"
+      }
+    ]
+  },
+  "output": {
+    "kind": "question",
+    "question": "Thanks for writing. Could you check your UPI app and tell us the last 4 digits of the UTR for this payment?",
+    "read": null,
+    "points_to": null,
+    "confidence": "sure"
+  }
+}

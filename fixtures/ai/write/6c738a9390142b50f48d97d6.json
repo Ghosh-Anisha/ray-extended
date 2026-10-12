@@ -1,0 +1,27 @@
+{
+  "job": "write",
+  "key": "6c738a9390142b50f48d97d6",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "merchant",
+    "kind": "merchant_card",
+    "first_customer_message": false,
+    "facts": {
+      "customer_name": "Priya Sharma",
+      "amount": "₹1,299",
+      "item": "Chocolate box",
+      "order_number": "#1234",
+      "order_state": "Pending",
+      "stock": 12,
+      "side": "Razorpay's plugin"
+    },
+    "tone": "plain",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Priya Sharma paid ₹1,299 for a Chocolate box last night, but order #1234 is still Pending. Razorpay's plugin got the payment and dropped it. 12 in stock. Want me to mark #1234 paid and tell Priya it's confirmed?",
+    "confidence": "sure"
+  }
+}

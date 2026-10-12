@@ -1,0 +1,14 @@
+{
+  "job": "verify",
+  "key": "96d9449794c4f74a5593df3b",
+  "label": "recorded in Claude Code",
+  "prompt_version": "verify.v1",
+  "model": null,
+  "input": {
+    "reply": "ok thanks"
+  },
+  "output": {
+    "status": "unclear",
+    "confidence": "likely"
+  }
+}

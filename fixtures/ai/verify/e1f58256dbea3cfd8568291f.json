@@ -1,0 +1,14 @@
+{
+  "job": "verify",
+  "key": "e1f58256dbea3cfd8568291f",
+  "label": "recorded in Claude Code",
+  "prompt_version": "verify.v1",
+  "model": null,
+  "input": {
+    "reply": "Got the cake today, it's lovely. Thank you!"
+  },
+  "output": {
+    "status": "arrived",
+    "confidence": "sure"
+  }
+}

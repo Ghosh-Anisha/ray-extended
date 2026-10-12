@@ -1,0 +1,93 @@
+{
+  "job": "investigate",
+  "key": "65c23d3348f9e4cd2f8ccdb5",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "id": "case_Fx01",
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_Fx01",
+      "store_order_id": "ord_Fx01"
+    },
+    "evidence": [
+      {
+        "id": "ce_Fx01",
+        "type": "webhook",
+        "summary": "payment.captured for pay_Fx01 delivered to the store"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_payment",
+        "id": "pay_Fx01",
+        "result": {
+          "evidence_ids": [
+            "pay_Fx01"
+          ],
+          "data": {
+            "id": "pay_Fx01",
+            "status": "captured",
+            "amount": 129900,
+            "method": "upi",
+            "receipt": "1234"
+          }
+        }
+      },
+      {
+        "tool": "get_webhook_deliveries",
+        "id": "pay_Fx01",
+        "result": {
+          "evidence_ids": [
+            "evt_Fx01"
+          ],
+          "data": [
+            {
+              "event_id": "evt_Fx01",
+              "event": "payment.captured",
+              "http_status": 200,
+              "processed": false,
+              "plugin": "razorpay-woocommerce",
+              "plugin_version": "4.6.2"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "The store answered 200 to payment.captured but did not process it (Razorpay plugin 4.6.2).",
+        "evidence_id": "evt_Fx01",
+        "supports": "plugin_dropped_capture"
+      }
+    ],
+    "next": {
+      "tool": "get_store_order",
+      "id": "ord_Fx01"
+    },
+    "cause": "Razorpay's plugin got the payment message and dropped it",
+    "side": "razorpay",
+    "situation": "B",
+    "confidence": "likely"
+  }
+}

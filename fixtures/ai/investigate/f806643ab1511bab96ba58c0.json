@@ -1,0 +1,51 @@
+{
+  "job": "investigate",
+  "key": "f806643ab1511bab96ba58c0",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "id": "case_Fx01",
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_Fx01",
+      "store_order_id": "ord_Fx01"
+    },
+    "evidence": [
+      {
+        "id": "ce_Fx01",
+        "type": "webhook",
+        "summary": "payment.captured for pay_Fx01 delivered to the store"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": []
+  },
+  "output": {
+    "findings": [],
+    "next": {
+      "tool": "get_payment",
+      "id": "pay_Fx01"
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "unsure"
+  }
+}

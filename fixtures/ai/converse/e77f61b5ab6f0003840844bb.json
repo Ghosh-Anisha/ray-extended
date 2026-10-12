@@ -1,0 +1,48 @@
+{
+  "job": "converse",
+  "key": "e77f61b5ab6f0003840844bb",
+  "label": "recorded in Claude Code",
+  "prompt_version": "converse.v1",
+  "model": null,
+  "input": {
+    "thread": [
+      {
+        "from": "customer",
+        "text": "I paid 1299 yesterday evening, where is my order?"
+      },
+      {
+        "from": "business",
+        "text": "Thanks for writing. Could you check your UPI app and tell us the last 4 digits of the UTR for this payment?"
+      },
+      {
+        "from": "customer",
+        "text": "it ends with 4821"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "pay_Fx11",
+        "amount": 1299,
+        "time": "6:10 PM",
+        "utr_last4": "4821"
+      },
+      {
+        "id": "pay_Fx12",
+        "amount": 1299,
+        "time": "7:52 PM",
+        "utr_last4": "3307"
+      }
+    ]
+  },
+  "output": {
+    "kind": "read",
+    "question": null,
+    "read": {
+      "amount": null,
+      "utr_last4": "4821",
+      "rough_time": null
+    },
+    "points_to": "pay_Fx11",
+    "confidence": "sure"
+  }
+}

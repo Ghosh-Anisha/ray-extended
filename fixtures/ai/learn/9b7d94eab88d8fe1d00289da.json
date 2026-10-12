@@ -1,0 +1,42 @@
+{
+  "job": "learn",
+  "key": "9b7d94eab88d8fe1d00289da",
+  "label": "recorded in Claude Code",
+  "prompt_version": "learn.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "approval_limit_rupees": 2000,
+    "choices": [
+      {
+        "id": "ch_Fx01",
+        "text": "Tapped Mark paid & ship on ₹850, in stock, customer confirmed"
+      },
+      {
+        "id": "ch_Fx02",
+        "text": "Tapped Mark paid & ship on ₹1,299, in stock, customer confirmed"
+      },
+      {
+        "id": "ch_Fx03",
+        "text": "Tapped Mark paid & ship on ₹1,450, in stock, customer confirmed"
+      }
+    ]
+  },
+  "output": {
+    "rule": {
+      "text": "When a paid order up to ₹1,500 is in stock and the customer confirms, mark it paid and ship.",
+      "when": {
+        "max_amount": 1500,
+        "in_stock": true,
+        "customer_confirmed": true
+      },
+      "then": "mark_paid_and_ship"
+    },
+    "evidence": [
+      "ch_Fx01",
+      "ch_Fx02",
+      "ch_Fx03"
+    ],
+    "confidence": "likely"
+  }
+}

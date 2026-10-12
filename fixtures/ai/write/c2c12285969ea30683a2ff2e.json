@@ -1,0 +1,28 @@
+{
+  "job": "write",
+  "key": "c2c12285969ea30683a2ff2e",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "customer_first",
+    "first_customer_message": true,
+    "facts": {
+      "customer_first_name": "Priya",
+      "amount": "₹1,299",
+      "paid_at": "7:52 PM",
+      "paid_on": "6 Oct",
+      "utr_last4": "4821",
+      "order_number": "#1234",
+      "reply_by": "8:30 PM",
+      "sign_off": "Team Leafy Bakes"
+    },
+    "tone": "warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Priya, we can see your payment of ₹1,299 at 7:52 PM on 6 Oct (UTR ending 4821). Please check this in your UPI app. Our system missed your order #1234 and we're fixing it now. You'll hear from us by 8:30 PM.\nTeam Leafy Bakes",
+    "confidence": "sure"
+  }
+}

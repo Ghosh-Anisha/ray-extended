@@ -1,0 +1,49 @@
+{
+  "job": "decide",
+  "key": "4aaadb82cbdc4310230df825",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "case": {
+      "id": "case_Fx01",
+      "amount": "₹1,299",
+      "confidence": "sure",
+      "side": "razorpay",
+      "in_stock": true,
+      "customer_said": "Please send it, tomorrow is fine"
+    },
+    "findings": [
+      {
+        "text": "The store answered 200 to payment.captured but did not process it (Razorpay plugin 4.6.2).",
+        "evidenceRef": "evt_Fx01"
+      },
+      {
+        "text": "Order #1234 is still Pending with no payment on it.",
+        "evidenceRef": "ord_Fx01"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_Fx01",
+        "moment": "paid_no_order",
+        "text": "When a paid order is in stock and the customer still wants it, mark it paid and ship.",
+        "status": "approved"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "fulfil",
+      "refund",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "fulfil",
+    "reason": "It's in stock and the customer still wants it, so your rule says mark it paid and ship.",
+    "rule_id": "rule_Fx01",
+    "confidence": "sure"
+  }
+}

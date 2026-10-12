@@ -1,0 +1,23 @@
+{
+  "job": "understand",
+  "key": "2cde820771cd3a58ddf11d04",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Bhaiya maine kal raat 2499 pay kiya tha, paisa kat gaya par order nahi aaya. Nahi hua toh chargeback kar dungi."
+  },
+  "output": {
+    "amount": 2499,
+    "rough_time": "kal raat",
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "hinglish",
+    "mood": "angry",
+    "legal_or_chargeback_words": [
+      "chargeback"
+    ],
+    "confidence": "sure"
+  }
+}

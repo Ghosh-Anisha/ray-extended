@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "ecb261e47e3894f56f9c9d87",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Dear team, payment of 1299 on Thursday morning, UTR no 452606882553. Order not created. Please resolve asap."
+  },
+  "output": {
+    "amount": 1299,
+    "rough_time": "Thursday morning",
+    "utr": "452606882553",
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

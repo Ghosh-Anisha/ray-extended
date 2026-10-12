@@ -11,9 +11,11 @@
     "typecheck": "tsc --noEmit",
     "db:reset": "tsx src/db/reset.ts",
     "db:seed": "tsx src/db/seed.ts",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "ai:fixtures": "tsx src/ai/record-claude-code.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.133.0",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "next": "^16.4.0",
