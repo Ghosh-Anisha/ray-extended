@@ -6,7 +6,7 @@ describe("real-clock ticker", () => {
   afterEach(() => vi.useRealTimers());
 
   it("ticks every 30 seconds on the real clock", async () => {
-    const engine = { tick: vi.fn(async () => ({ fired: [] })) };
+    const engine = { tick: vi.fn(async () => ({ fired: [], released: [] })) };
     const stop = startRealClockTicker("real", engine)!;
     await vi.advanceTimersByTimeAsync(REAL_CLOCK_TICK_MS - 1);
     expect(engine.tick).toHaveBeenCalledTimes(0);
@@ -20,7 +20,7 @@ describe("real-clock ticker", () => {
   });
 
   it("does nothing on the fake clock", async () => {
-    const engine = { tick: vi.fn(async () => ({ fired: [] })) };
+    const engine = { tick: vi.fn(async () => ({ fired: [], released: [] })) };
     expect(startRealClockTicker("fake", engine)).toBeNull();
     await vi.advanceTimersByTimeAsync(10 * REAL_CLOCK_TICK_MS);
     expect(engine.tick).not.toHaveBeenCalled();
@@ -32,8 +32,8 @@ describe("real-clock ticker", () => {
       tick: vi
         .fn()
         .mockRejectedValueOnce(new Error("db busy"))
-        .mockImplementationOnce(() => new Promise((r) => (release = () => r({ fired: [] }))))
-        .mockResolvedValue({ fired: [] }),
+        .mockImplementationOnce(() => new Promise((r) => (release = () => r({ fired: [], released: [] }))))
+        .mockResolvedValue({ fired: [], released: [] }),
     };
     const err = vi.spyOn(console, "error").mockImplementation(() => {});
     const stop = startRealClockTicker("real", engine)!;

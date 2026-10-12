@@ -11,7 +11,7 @@ import { learn, type LearnInput } from "./jobs/learn";
 import { understand, type UnderstandRequest } from "./jobs/understand";
 import { verify } from "./jobs/verify";
 import { write, type WriteInput } from "./jobs/write";
-import type { ReadToolRunner } from "./read-tools";
+import type { ReadToolRunner } from "@/tools";
 import { AI_RUN_MODES, type AiContext, type AiRunMode, type CallMeta } from "./types";
 
 export { canAct } from "./runner";

@@ -25,11 +25,11 @@ export const WINDOW_MS = 24 * 60 * 60 * 1000;
 type Template = { status: "approved" | "pending" | "rejected"; body: string };
 
 // Pre-approved WhatsApp templates. No links: a first message must carry
-// checkable details only.
+// checkable details only (amount, time, last 4 of the UTR).
 export const WHATSAPP_TEMPLATES: Record<string, Template> = {
   payment_received_check: {
     status: "approved",
-    body: "Hi {{name}}, this is {{merchant}}. We got your payment of {{amount}} on {{date}} for order {{order}}. Reply YES and we will confirm your order.",
+    body: "Hi {{name}}, this is {{merchant}}. We got your payment of {{amount}} at {{time}} on {{date}} for order {{order}}, UTR ending {{utr_last4}}. You can check this in your UPI app. Reply YES and we will confirm your order.",
   },
   order_update: {
     status: "approved",

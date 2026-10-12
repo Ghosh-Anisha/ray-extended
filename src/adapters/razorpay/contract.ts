@@ -66,6 +66,15 @@ export function razorpayContract(name: string, setup: () => RazorpayContext | Pr
       expect(pays[0].created_at).toBeLessThanOrEqual(pays[1].created_at);
     });
 
+    withFx("capturedPayment", "lists payments created inside a time window", async () => {
+      const p = await fx.capturedPayment!();
+      const fetched = await rzp.fetchPayment(p.id);
+      const inside = await rzp.listPayments({ from: fetched.created_at - 1000, to: fetched.created_at + 1000 });
+      expect(inside.map((x) => x.id)).toContain(p.id);
+      const before = await rzp.listPayments({ from: fetched.created_at - 20_000, to: fetched.created_at - 10_000 });
+      expect(before.map((x) => x.id)).not.toContain(p.id);
+    });
+
     withFx("authorizedPayment", "captures an authorized payment for its full amount only", async () => {
       const p = await fx.authorizedPayment!();
       await rejects(rzp.capturePayment(p.id, p.amount - 1, p.currency), "BAD_REQUEST");

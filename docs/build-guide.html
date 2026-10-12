@@ -266,6 +266,19 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
       <tr><td>Step 3</td><td>All state changes go through the state machine (including order-for-payment), with a test that fails on a change without an event.</td></tr>
       <tr><td>Step 3</td><td>Dev webhook and message routes call handleEvent, the same entry point as real events, and still write webhook_deliveries rows.</td></tr>
       <tr><td>Step 3</td><td>Dev panel "Move clock forward" (fake clock only) advances the clock and runs the tick in due order; presets 15 min, 30 min, 2 h, 48 h, 72 h.</td></tr>
+      <tr><td>Step 3 fixes</td><td>A "no" on a proposal keeps the case open in waiting_merchant with the alternatives and Change; the promised-time timer keeps running. Only "I'll handle this myself" closes it, with outcome handled_by_merchant: RAY stops messaging, cancels its held actions, pending timers and calls, and the case counts nowhere in ₹ saved.</td></tr>
+      <tr><td>Step 3 fixes</td><td>"I'll handle this myself" works from every open state. While an action is running, the takeover waits for it to finish, then closes.</td></tr>
+      <tr><td>Step 3 fixes</td><td>When the promised time passes, the engine emits a promised_time_reached event; every Specialist must implement onPromisedTime (holding message to the customer, nudge to the merchant). Flows send the messages from Step 7.</td></tr>
+      <tr><td>Step 3 fixes</td><td>Change is recorded as an option now; from Step 7 each flow sends the merchant's text to the AI layer to redraft.</td></tr>
+      <tr><td>Step 3 fixes</td><td>Unmatched events: webhook_deliveries and messages get handled_case_id and unmatched_reason; the dev panel lists them and says "No flow handles this yet".</td></tr>
+      <tr><td>Step 3 fixes</td><td>CLOCK_MODE: fake (default) or real. Real runs the timer tick every 30 s; Move clock forward is disabled in real mode.</td></tr>
+      <tr><td>Step 5</td><td>Orchestrator move() compares against the case's current state, so a state a guard already set isn't set twice.</td></tr>
+      <tr><td>Step 5</td><td>engine.tick() also releases due held actions (the refund hold), merged with timers in due order.</td></tr>
+      <tr><td>Step 5</td><td>payment_received_check template carries {{time}} and "UTR ending {{utr_last4}}" so the first WhatsApp passes the first-message guard.</td></tr>
+      <tr><td>Step 5</td><td>global_settings table (one row, kill_switch) for the global kill switch; seed test counts include it.</td></tr>
+      <tr><td>Step 5</td><td>Rule 7 scoped: no link in the first message about a payment the customer may think went wrong (paid-no-order, refunds, disputes). Recovery messages (8 F, 9 A/B, 11 reminders) may carry a Razorpay-hosted link in the merchant's name, never alone, always with checkable details.</td></tr>
+      <tr><td>Step 5</td><td>Buyers need consent on every channel (email, WhatsApp, call). Step 11 extends messaging_consents to buyers and seeds PackRight buyers' consents.</td></tr>
+      <tr><td>Step 5</td><td>Newer-payment check: before the pre-check, sync the rzp_payments mirror with Razorpay's payments from the last 72 hours (list by time window, filter by contact and email in code), so a payment on a different order (a pay-again link) is seen in test mode too.</td></tr>
       <tr><td>12 Oct</td><td>Design language added (docs/design-language.md), Razorpay-native with Blade, phone and desktop views with a switch.</td></tr>
       <tr><td>12 Oct</td><td>Voice added with ElevenLabs: Step 5b, and voice rules in Steps 7, 9, 10 and 11.</td></tr>
     </tbody>
@@ -430,7 +443,7 @@ Write the tests under "Done when". Plan first.</pre></div>
       <tr><td>Refund hold</td><td>10-minute hold with Undo before the refund call (refunds can't be cancelled once issued)</td></tr>
       <tr><td>Pre-action check</td><td>Order still unpaid, no newer payment from the same contact, no open dispute or bank complaint</td></tr>
       <tr><td>Grounding</td><td>Every number in a message is in the case data</td></tr>
-      <tr><td>First message</td><td>Has details the customer can check (amount, time, last 4 of the UTR) and no link</td></tr>
+      <tr><td>First message</td><td>About a payment the customer may think went wrong: checkable details (amount, time, last 4 of the UTR) and no link. Recovery messages: a Razorpay-hosted link in the merchant's name is allowed, never alone, always with checkable details</td></tr>
       <tr><td>Channel rules</td><td>WhatsApp template and 24-hour window; opt-in for proactive messages</td></tr>
       <tr><td>Confidence</td><td>Nothing runs on Unsure</td></tr>
       <tr><td>Consent</td><td>messaging_consents checked on every send and call; opted_out or no row blocks proactive messages and calls on that channel</td></tr>
@@ -707,6 +720,7 @@ Add fixtures and the tests under "Done when". Plan first.</pre></div>
   </div>
   <ul>
     <li>Morning priority: amount overdue × days overdue, adjusted by pay history and relationship. Key accounts never get firm messages without a tap.</li>
+    <li>Consent: extend messaging_consents to buyers. Every channel (email, WhatsApp, call) needs a buyer opt-in row; seed PackRight buyers with a mix, including one with none.</li>
     <li>Merchant can log "spoke to them, paying on 20th" on WhatsApp; RAY treats it as a promise.</li>
   </ul>
   <p><b>Counts as saved when</b> the overdue amount is collected.</p>

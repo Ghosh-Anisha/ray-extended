@@ -272,6 +272,16 @@ export function createTestClient(keys: RazorpayKeys, fetchImpl: typeof fetch = f
       const { items } = await call("GET", `/orders/${enc(orderId)}/payments`, list(paymentApi));
       return items.map(toPayment).sort((a, b) => a.created_at - b.created_at);
     },
+    async listPayments({ from, to }) {
+      const out: Payment[] = [];
+      // Razorpay pages at most 100 items per call.
+      for (let skip = 0; ; skip += 100) {
+        const { items } = await call("GET", `/payments?from=${Math.floor(from / 1000)}&to=${Math.ceil(to / 1000)}&count=100&skip=${skip}`, list(paymentApi));
+        out.push(...items.map(toPayment));
+        if (items.length < 100) break;
+      }
+      return out.sort((a, b) => a.created_at - b.created_at);
+    },
     async capturePayment(paymentId, amount, currency) {
       return toPayment(await call("POST", `/payments/${enc(paymentId)}/capture`, paymentApi, { amount, currency }));
     },

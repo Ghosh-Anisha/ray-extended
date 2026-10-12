@@ -8,7 +8,7 @@ import { fixturePath } from "./fixtures";
 import { fixtureKey } from "./key";
 import { canAct } from "./runner";
 import { aiWorld, copyFixtures, tmpDir } from "./test-helpers";
-import type { ReadToolRunner } from "./read-tools";
+import type { ReadToolRunner } from "@/tools";
 import { JOBS } from "./types";
 import { understandSpec } from "./jobs/understand";
 import { investigateStepSpec } from "./jobs/investigate";

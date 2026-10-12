@@ -11,7 +11,7 @@ import { understandOutput } from "./jobs/understand";
 import { verifyOutput } from "./jobs/verify";
 import { writeOutput } from "./jobs/write";
 import { SMALL_MODEL, STRONG_MODEL } from "./models";
-import { READ_TOOLS, type ReadToolRunner } from "./read-tools";
+import { READ_TOOLS, type ReadToolRunner } from "@/tools";
 import { canAct } from "./runner";
 import { aiWorld, scriptedClient, tmpDir } from "./test-helpers";
 

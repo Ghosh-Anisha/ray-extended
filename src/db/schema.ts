@@ -84,6 +84,15 @@ export const merchants = sqliteTable("merchants", {
   kill_switch: bool("kill_switch").notNull().default(false),
 });
 
+// One row, id "global" (migration 0007). The global kill switch: when on,
+// every act tool is blocked for every merchant; reads still work. No row
+// means off.
+export const globalSettings = sqliteTable("global_settings", {
+  id: id(),
+  kill_switch: bool("kill_switch").notNull().default(false),
+  updated_at: integer("updated_at").notNull(),
+});
+
 export const customers = sqliteTable("customers", {
   id: id(),
   merchant_id: text("merchant_id").notNull().references(() => merchants.id),

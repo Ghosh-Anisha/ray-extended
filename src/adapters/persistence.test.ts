@@ -17,7 +17,7 @@ const LEAFY = "m_leafy_bakes";
 const PRIYA = "+919800000101";
 const check = {
   templateId: "payment_received_check",
-  params: { name: "Priya", merchant: "Leafy Bakes", amount: "₹1,299", date: "12 Oct", order: "#1234" },
+  params: { name: "Priya", merchant: "Leafy Bakes", amount: "₹1,299", time: "9:22 AM", date: "12 Oct", order: "#1234", utr_last4: "0021" },
 };
 
 describe("simulated state survives a restart", () => {

@@ -102,6 +102,23 @@ describe("Razorpay test-mode client", () => {
     expect(calls.filter((c) => c.init.method === "POST")).toHaveLength(1);
   });
 
+  it("lists payments in a time window, in seconds, across pages", async () => {
+    const page = (n: number, start: number) =>
+      Array.from({ length: n }, (_, i) => ({ ...payment, id: `pay_W${start + i}`, created_at: payment.created_at + start + i }));
+    const from = payment.created_at * 1000;
+    const to = from + 3_600_000;
+    const base = `GET /payments?from=${sec(from)}&to=${sec(to)}&count=100`;
+    const { impl, calls } = fakeFetch({
+      [`${base}&skip=0`]: () => [200, { items: page(100, 0) }],
+      [`${base}&skip=100`]: () => [200, { items: page(3, 100) }],
+    });
+    const client = createTestClient({ keyId: KEY_ID, keySecret: SECRET }, impl);
+    const all = await client.listPayments({ from, to });
+    expect(all).toHaveLength(103);
+    expect(all[0].created_at).toBeLessThan(all[102].created_at);
+    expect(calls).toHaveLength(2);
+  });
+
   it("sends contest documents as Razorpay evidence fields", async () => {
     const { impl, calls } = fakeFetch({
       "PATCH /disputes/disp_T1/contest": () => [

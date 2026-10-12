@@ -11,7 +11,7 @@ const code = (c: MessagingError["code"]) => (e: unknown) => e instanceof Messagi
 
 const check = {
   templateId: "payment_received_check",
-  params: { name: "Priya", merchant: "Leafy Bakes", amount: "₹1,299", date: "12 Oct", order: "#1234" },
+  params: { name: "Priya", merchant: "Leafy Bakes", amount: "₹1,299", time: "9:22 AM", date: "12 Oct", order: "#1234", utr_last4: "0021" },
 };
 
 describe("Messaging contract: simulated WhatsApp and email", () => {
@@ -47,7 +47,7 @@ describe("Messaging contract: simulated WhatsApp and email", () => {
       msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", templateId: "payment_received_check", params: { name: "Priya" } }),
     ).rejects.toSatisfy(code("TEMPLATE_PARAMS"));
     const m = await msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check });
-    expect(m.body).toBe("Hi Priya, this is Leafy Bakes. We got your payment of ₹1,299 on 12 Oct for order #1234. Reply YES and we will confirm your order.");
+    expect(m.body).toBe("Hi Priya, this is Leafy Bakes. We got your payment of ₹1,299 at 9:22 AM on 12 Oct for order #1234, UTR ending 0021. You can check this in your UPI app. Reply YES and we will confirm your order.");
     expect(m).toMatchObject({ template_id: "payment_received_check", within_24h: false });
   });
 

@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { Finding } from "@/engine/specialist";
 import { SIDES, SITUATIONS } from "@/db/schema";
 import { investigatePrompt } from "../prompts";
-import { isReadTool, READ_TOOLS, type ReadToolResult, type ReadToolRunner } from "../read-tools";
+import { isReadTool, READ_TOOLS, type ReadToolResult, type ReadToolRunner } from "@/tools";
 import { runJob } from "../runner";
 import type { AiContext, CallMeta, Confidence, JobSpec } from "../types";
 import { confidence } from "./shared";

@@ -31,8 +31,12 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
       note(kase, { kind: "timer_set", timer_kind: t.kind, due_at: timer.due_at }, timer.id);
     }
   };
-  const move = (kase: Case, to: CaseState, reason: string, patch?: Parameters<typeof transition>[4]["patch"]) =>
-    to === kase.state ? kase : transition(db, clock, kase.id, to, { reason, evidenceRef, patch });
+  // Compares against the case as it is now: a hook may already have moved it
+  // (a failed guard moves the case to waiting_merchant itself).
+  const move = (kase: Case, to: CaseState, reason: string, patch?: Parameters<typeof transition>[4]["patch"]) => {
+    const current = repo.cases.get(kase.id)!;
+    return to === current.state ? current : transition(db, clock, kase.id, to, { reason, evidenceRef, patch });
+  };
 
   let trigger: EngineEvent | null = event;
   let approval: Approval | null = null;

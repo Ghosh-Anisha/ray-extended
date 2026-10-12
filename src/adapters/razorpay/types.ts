@@ -162,6 +162,9 @@ export interface RazorpayAdapter {
   fetchOrderByReceipt(receipt: string): Promise<Order | null>;
   fetchPayment(paymentId: string): Promise<Payment>;
   listOrderPayments(orderId: string): Promise<Payment[]>;
+  // Every payment created in [from, to] (epoch ms), oldest first. Razorpay
+  // can't filter by contact or email, so callers filter in code.
+  listPayments(window: { from: number; to: number }): Promise<Payment[]>;
   capturePayment(paymentId: string, amount: number, currency: string): Promise<Payment>;
   listRefunds(paymentId: string): Promise<Refund[]>;
   refund(paymentId: string, input: RefundInput): Promise<Refund>;

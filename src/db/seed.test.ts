@@ -37,6 +37,7 @@ const EXPECTED_ROWS: Record<string, number> = {
   invoices: 38,
   promises: 2,
   bank_credits: 3,
+  global_settings: 0,
 };
 
 const tables = (Object.values(schema) as unknown[]).filter((v): v is SQLiteTable => is(v, SQLiteTable));

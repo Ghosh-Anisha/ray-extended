@@ -13,7 +13,7 @@ import { learnSpec } from "./jobs/learn";
 import { understandSpec } from "./jobs/understand";
 import { verifySpec } from "./jobs/verify";
 import { writeSpec } from "./jobs/write";
-import { READ_TOOLS, type ReadToolResult } from "./read-tools";
+import { READ_TOOLS, type ReadToolResult } from "@/tools";
 import { JOBS, type JobSpec } from "./types";
 
 export const CLAUDE_CODE_SOURCES = path.join(DEFAULT_FIXTURES_DIR, "sources", "claude-code.json");

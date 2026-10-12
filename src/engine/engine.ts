@@ -14,6 +14,7 @@ import { newId } from "@/adapters/ids";
 import type { ReceiveInput } from "@/adapters/messaging";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
+import { nextDueAction, releaseHeldAction } from "@/guards";
 import * as s from "@/db/schema";
 import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEvent, type EngineEventInput } from "./events";
 import { findCase } from "./grouping";
@@ -31,7 +32,11 @@ export type Engine = {
   // Records a customer message, then hands it to handleEvent.
   receiveMessage(input: ReceiveInput): Promise<HandleResult>;
   // Fires every due timer, earliest first, through handleEvent.
-  tick(): Promise<{ fired: { timerId: string; caseId: string; kind: string; dueAt: number }[] }>;
+  // Also releases held actions whose hold has ended, in the same due order.
+  tick(): Promise<{
+    fired: { timerId: string; caseId: string; kind: string; dueAt: number }[];
+    released: { actionId: string; caseId: string; status: string; dueAt: number }[];
+  }>;
   stop(): void;
 };
 
@@ -141,7 +146,10 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
 
   async function tickOnce() {
     const fired: { timerId: string; caseId: string; kind: string; dueAt: number }[] = [];
+    const released: { actionId: string; caseId: string; status: string; dueAt: number }[] = [];
     // Timers set while handling a timer can be due already; keep going.
+    // Held actions whose hold has ended (the refund hold) run in the same
+    // due order, an action first when both fall due at once.
     for (;;) {
       const t = db
         .select()
@@ -149,7 +157,13 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
         .where(and(isNull(s.timers.fired_at), isNull(s.timers.cancelled_at), lte(s.timers.due_at, clock.now())))
         .orderBy(asc(s.timers.due_at), sql`rowid`)
         .get();
-      if (!t) return { fired };
+      const held = adapters ? nextDueAction(adapters) : undefined;
+      if (held && (!t || held.run_after! <= t.due_at)) {
+        const r = await releaseHeldAction(adapters!, held.id);
+        released.push({ actionId: held.id, caseId: held.case_id, status: r.status, dueAt: held.run_after! });
+        continue;
+      }
+      if (!t) return { fired, released };
       repo.timers.update(t.id, { fired_at: clock.now() });
       const kase = repo.cases.get(t.case_id)!;
       fired.push({ timerId: t.id, caseId: t.case_id, kind: t.kind, dueAt: t.due_at });

@@ -1,7 +1,7 @@
 // Simulated Razorpay, scoped to one merchant's account and backed by the
 // rzp_* mirror tables plus disputes and subscriptions. Behaves like the REST
 // API for every call in the adapter interface.
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
@@ -217,6 +217,16 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
         .select()
         .from(s.rzpPayments)
         .where(eq(s.rzpPayments.order_id, orderId))
+        .orderBy(s.rzpPayments.created_at)
+        .all()
+        .map(toPayment);
+    },
+
+    async listPayments({ from, to }) {
+      return db
+        .select()
+        .from(s.rzpPayments)
+        .where(and(eq(s.rzpPayments.merchant_id, merchantId), gte(s.rzpPayments.created_at, from), lte(s.rzpPayments.created_at, to)))
         .orderBy(s.rzpPayments.created_at)
         .all()
         .map(toPayment);

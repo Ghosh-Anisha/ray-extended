@@ -67,6 +67,7 @@ export function createRepository(db: Db) {
     memory: byId(s.memory),
     aiCalls: byId(s.aiCalls),
     alerts: byId(s.alerts),
+    globalSettings: byId(s.globalSettings),
     rzpPayments: byId(s.rzpPayments),
     rzpOrders: byId(s.rzpOrders),
     rzpRefunds: byId(s.rzpRefunds),
