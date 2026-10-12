@@ -13,6 +13,7 @@ import { setRuleStatus } from "@/surfaces/actions";
 import { caseView, inboxView } from "@/surfaces/views";
 import { abandonedCheckoutSweep, approveAccountChange, expireLink, landTransfer, openCheckout, payByCard, payLink, payWithPaypal, riskReview } from "./checkout";
 import { N, TIMERS } from ".";
+import { internationalSimView, runSimAction } from "./sim-actions";
 import { EMMA, HOUR, intlWorld, MIN, NOTENEST, OLIVER_PAY, PIXELFORGE, type IntlWorld } from "./test-helpers";
 
 vi.setConfig({ testTimeout: 30_000 });
@@ -341,7 +342,7 @@ describe("F: the buyer left before finishing", () => {
     await expireLink(w.a, { merchantId: NOTENEST, linkId: link.id });
     const k = w.cases()[0];
     expect(w.state(k.id)).toMatchObject({ state: "waiting_customer", situation: "F", cause: "left_checkout" });
-    expect(caseView(w.a, k.id).name).toBe("Emma Clarke");
+    expect(caseView(w.a, k.id)).toMatchObject({ name: "Emma Clarke", amount: "$49", moment: "Card declined abroad" });
     const mails = w.sent(k.id);
     expect(mails).toHaveLength(1);
     expectRecoveryEmail(mails[0].body, { merchant: "NoteNest", amount: "$49", forLabel: "order nn_pro_annual_950" });
@@ -459,5 +460,22 @@ describe("guards and screens", () => {
     expect(pending).toHaveLength(1);
     await w.engine.advanceBy(HOUR);
     expect(w.state(r.kase!.id).state).toBe("closed");
+  });
+});
+
+describe("the Checkout abroad simulator (Simulated)", () => {
+  it("drives a checkout through the same entry points and shows what the buyer saw", async () => {
+    const order = (await runSimAction(w.engine, w.a, {
+      action: "open_checkout", merchantId: NOTENEST, amount: 4_900, currency: "USD", receipt: "nn_pro_annual_990", buyer: EMMA,
+    })) as { id: string };
+    const paid = (await runSimAction(w.engine, w.a, { action: "pay_card", merchantId: NOTENEST, orderId: order.id, outcome: "three_ds_failed" })) as { message: string };
+    expect(paid.message).toBe("Your bank's security check didn't go through. Try again, or pay with PayPal.");
+    expect(w.cases()).toHaveLength(1);
+    const v = internationalSimView(w.a);
+    const nn = v.merchants.find((m) => m.id === NOTENEST)!;
+    expect(nn.orders[0]).toMatchObject({ receipt: "nn_pro_annual_990", amount: "$49", status: "Tried, not paid", buyer: "Emma Clarke", paypal: true });
+    expect(v.merchants.find((m) => m.id === PIXELFORGE)!.settings).toMatchObject({ limit: "₹2 lakh", moneysaver: true, paypal: false });
+    for (const o of v.outcomes) expect(bannedWordsIn(o.label)).toEqual([]);
+    await expect(runSimAction(w.engine, w.a, { action: "pay_paypal", merchantId: PIXELFORGE, orderId: order.id })).rejects.toThrow();
   });
 });

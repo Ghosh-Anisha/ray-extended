@@ -90,6 +90,13 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
   let amount = money(amountMinor, currency);
   // Foreign amounts show both: $49 (₹4,100).
   if (amountMinor !== null && currency !== "INR" && payment?.base_amount) amount = `${amount} (${money(payment.base_amount)})`;
+  // No payment yet (Step 8 F: an expired link or an abandoned checkout): the
+  // amount of the link or order the case cites.
+  if (amountMinor === null) {
+    const cited = repo.caseEvents.listByCase(kase.id).map((e) => e.evidence_ref).filter((x): x is string => !!x);
+    const rec = cited.map((id) => repo.rzpLinks.get(id) ?? repo.rzpOrders.get(id)).find((r) => r && r.merchant_id === kase.merchant_id);
+    if (rec) amount = money(rec.amount, rec.currency);
+  }
   return {
     name: customer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
