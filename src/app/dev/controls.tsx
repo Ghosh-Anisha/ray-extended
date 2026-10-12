@@ -31,7 +31,7 @@ const FAILURE_LABEL: Record<string, string> = {
   dropped_200: "Answers 200 but drops the order update",
   site_down: "Site down (503)",
   webhook_disabled: "Webhook turned off",
-  settings_wrong: "Wrong webhook secret",
+  wrong_settings: "Wrong webhook secret",
 };
 
 const time = (ms: number) => new Date(ms).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });

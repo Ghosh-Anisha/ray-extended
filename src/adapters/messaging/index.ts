@@ -1,9 +1,12 @@
 // Simulated in-app WhatsApp and email over the messages table.
 // Sender modes: the merchant's own inbox, the merchant's verified domain
 // (email only), or "Merchant via Razorpay" with replies routed back to the
-// merchant's case. WhatsApp rules are enforced here: outside the 24-hour
-// customer-service window only approved templates may be sent, and only to
-// customers who opted in.
+// merchant's case. Rules enforced on every send:
+// - A message is proactive unless it answers the customer on the same channel
+//   within 24 hours. An opt-out in messaging_consents blocks every proactive
+//   message on that channel.
+// - WhatsApp outside the 24-hour window: approved templates only, and only to
+//   customers with an opted_in consent row.
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "@/db/client";
@@ -80,6 +83,7 @@ export type MessagingErrorCode =
   | "TEMPLATE_NOT_APPROVED"
   | "TEMPLATE_PARAMS"
   | "NOT_OPTED_IN"
+  | "OPTED_OUT"
   | "UNKNOWN_ADDRESS";
 
 export class MessagingError extends Error {
@@ -102,10 +106,11 @@ export interface Messaging {
   senderLabel(address: string): string;
 }
 
+export type Consent = (typeof s.CONSENT_STATUSES)[number];
+
 export type MessagingSim = Messaging & {
-  optIn(merchantId: string, phone: string): void;
-  optOut(merchantId: string, phone: string): void;
-  isOptedIn(merchantId: string, phone: string): boolean;
+  setConsent(customerId: string, channel: Channel, status: Consent, source: string): void;
+  consent(customerId: string, channel: Channel): Consent | null;
 };
 
 // Ties on the fake clock fall back to insert order.
@@ -136,8 +141,6 @@ export function renderTemplate(templateId: string, params: Record<string, string
 
 export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
   const repo = createRepository(db);
-  const optedOut = new Set<string>();
-  const optKey = (merchantId: string, phone: string) => `${merchantId}|${phone}`;
 
   const merchantAddresses = (merchantId: string, channel?: Channel) =>
     (channel ? [channel] : s.CHANNELS)
@@ -146,14 +149,19 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
 
   const merchantOf = (addr: string) => repo.merchants.list().find((m) => merchantAddresses(m.id).includes(addr));
 
-  const isOptedIn = (merchantId: string, phone: string) => {
-    const known = db
+  const customerAt = (merchantId: string, channel: Channel, addr: string) =>
+    db
       .select()
       .from(s.customers)
-      .where(and(eq(s.customers.merchant_id, merchantId), eq(s.customers.phone, phone)))
+      .where(and(eq(s.customers.merchant_id, merchantId), eq(channel === "whatsapp" ? s.customers.phone : s.customers.email, addr)))
       .get();
-    return Boolean(known) && !optedOut.has(optKey(merchantId, phone));
-  };
+
+  const consentRow = (customerId: string, channel: Channel) =>
+    db
+      .select()
+      .from(s.messagingConsents)
+      .where(and(eq(s.messagingConsents.customer_id, customerId), eq(s.messagingConsents.channel, channel)))
+      .get();
 
   const thread = (merchantId: string, customer: string) => {
     const mine = merchantAddresses(merchantId);
@@ -170,16 +178,17 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       .all();
   };
 
-  const window = (merchantId: string, customer: string) => {
+  // Open for 24 hours after the customer's last message on that channel.
+  const windowOn = (merchantId: string, customer: string, channel: Channel) => {
     const lastIn = db
       .select()
       .from(s.messages)
       .where(
         and(
-          eq(s.messages.channel, "whatsapp"),
+          eq(s.messages.channel, channel),
           eq(s.messages.direction, "in"),
           eq(s.messages.from, customer),
-          inArray(s.messages.to, merchantAddresses(merchantId, "whatsapp")),
+          inArray(s.messages.to, merchantAddresses(merchantId, channel)),
         ),
       )
       .orderBy(desc(s.messages.at), desc(insertOrder))
@@ -196,22 +205,32 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       const from = address(input.merchantId, input.channel, input.senderMode);
       if (!from) throw new MessagingError("BAD_SENDER_MODE", `${input.senderMode} cannot send on ${input.channel}`);
 
+      if (input.channel === "whatsapp" && !merchant.whatsapp_on) {
+        throw new MessagingError("WHATSAPP_OFF", `${merchant.name} has WhatsApp turned off`);
+      }
+      if (input.channel === "email" && input.templateId) {
+        throw new MessagingError("BAD_SENDER_MODE", "Templates are for WhatsApp; send email with a body");
+      }
+      const replying = windowOn(input.merchantId, input.to, input.channel).open;
+      const customer = customerAt(input.merchantId, input.channel, input.to);
+      const consent = customer ? consentRow(customer.id, input.channel)?.status : undefined;
+      if (!replying && consent === "opted_out") {
+        throw new MessagingError("OPTED_OUT", `This customer opted out of ${input.channel === "whatsapp" ? "WhatsApp" : "email"} messages`);
+      }
+
       let body = input.body;
       let withinWindow: boolean | null = null;
       if (input.channel === "whatsapp") {
-        if (!merchant.whatsapp_on) throw new MessagingError("WHATSAPP_OFF", `${merchant.name} has WhatsApp turned off`);
-        withinWindow = window(input.merchantId, input.to).open;
+        withinWindow = replying;
         if (input.templateId) body = renderTemplate(input.templateId, input.params);
         if (!withinWindow) {
           if (!input.templateId) {
             throw new MessagingError("WINDOW_CLOSED", "Outside the 24-hour window only an approved template can be sent");
           }
-          if (!isOptedIn(input.merchantId, input.to)) {
+          if (consent !== "opted_in") {
             throw new MessagingError("NOT_OPTED_IN", "This customer has not opted in to WhatsApp messages");
           }
         }
-      } else if (input.templateId) {
-        throw new MessagingError("BAD_SENDER_MODE", "Templates are for WhatsApp; send email with a body");
       }
 
       return repo.messages.insert({
@@ -257,7 +276,7 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       });
     },
 
-    window,
+    window: (merchantId, customer) => windowOn(merchantId, customer, "whatsapp"),
     thread,
 
     inbox(customer) {
@@ -281,12 +300,15 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       return addr.includes("razorpay") ? `${m.name} via Razorpay` : m.name;
     },
 
-    optIn(merchantId, phone) {
-      optedOut.delete(optKey(merchantId, phone));
+    setConsent(customerId, channel, status, source) {
+      if (!repo.customers.get(customerId)) throw new MessagingError("UNKNOWN_ADDRESS", `Customer ${customerId} not found`);
+      const existing = consentRow(customerId, channel);
+      const fields = { status, source, updated_at: clock.now() };
+      if (existing) repo.messagingConsents.update(existing.id, fields);
+      else repo.messagingConsents.insert({ id: newId("cons"), customer_id: customerId, channel, ...fields });
     },
-    optOut(merchantId, phone) {
-      optedOut.add(optKey(merchantId, phone));
+    consent(customerId, channel) {
+      return consentRow(customerId, channel)?.status ?? null;
     },
-    isOptedIn,
   };
 }

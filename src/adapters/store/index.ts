@@ -1,4 +1,5 @@
-// Simulated store connector (WooCommerce-like) over the store_orders table.
+// Simulated store connector (WooCommerce-like) over store_orders, with plugin
+// state in store_settings and live stock in products.
 // Flows use the StoreConnector interface; the sim also reproduces the plugin
 // failures RAY has to find: 200-but-dropped, site down, webhook disabled and
 // wrong settings.
@@ -11,7 +12,7 @@ import { newId } from "../ids";
 
 export type StoreOrder = typeof s.storeOrders.$inferSelect;
 
-export const STORE_FAILURES = ["none", "dropped_200", "site_down", "webhook_disabled", "settings_wrong"] as const;
+export const STORE_FAILURES = s.STORE_FAILURE_MODES;
 export type StoreFailure = (typeof STORE_FAILURES)[number];
 
 export type StoreSettings = {
@@ -75,13 +76,7 @@ export class StoreError extends Error {
 
 export const DROPPED_NOTE = "Queued for cron. Cron marked the job done; order not updated.";
 export const AUTO_CANCEL_NOTE = "Unpaid order cancelled - time limit reached.";
-const PLUGIN = "razorpay-woocommerce";
 const HOLD_STOCK_MINUTES = 60;
-
-// Sim starting state: Leafy Bakes runs plugin 4.8.2 with the 200-but-dropped bug,
-// matching the seeded webhook deliveries.
-const DEFAULT_FAILURES: Record<string, StoreFailure> = { m_leafy_bakes: "dropped_200" };
-const PLUGIN_VERSIONS: Record<string, string> = { m_leafy_bakes: "4.8.2" };
 
 export type StoreSim = StoreConnector & {
   setFailure(merchantId: string, failure: StoreFailure): void;
@@ -93,51 +88,45 @@ export type StoreSim = StoreConnector & {
 
 export function createStoreSim(db: Db, clock: Clock): StoreSim {
   const repo = createRepository(db);
-  const failures = new Map<string, StoreFailure>(Object.entries(DEFAULT_FAILURES));
-  const catalogs = new Map<string, Map<string, { price: number; stock: number }>>();
 
-  const merchant = (merchantId: string) => {
-    const m = repo.merchants.get(merchantId);
-    if (!m || m.store_platform !== "woocommerce") throw new StoreError(`${merchantId} has no connected store`, 404);
-    return m;
+  const settingsOf = (merchantId: string) => {
+    const row = repo.storeSettings.get(merchantId);
+    if (!row) throw new StoreError(`${merchantId} has no connected store`, 404);
+    return row;
   };
-  const failureOf = (merchantId: string) => failures.get(merchantId) ?? "none";
   const siteUp = (merchantId: string) => {
-    merchant(merchantId);
-    if (failureOf(merchantId) === "site_down") throw new StoreError("Store site is down (503)", 503);
+    if (settingsOf(merchantId).site_status === "down") throw new StoreError("Store site is down (503)", 503);
   };
   const slug = (merchantId: string) => merchantId.replace(/^m_/, "").replace(/_/g, "");
 
-  // Product stock, built from the latest snapshot on the merchant's orders.
-  const catalog = (merchantId: string) => {
-    let c = catalogs.get(merchantId);
-    if (!c) {
-      c = new Map();
-      const orders = db
-        .select()
-        .from(s.storeOrders)
-        .where(eq(s.storeOrders.merchant_id, merchantId))
-        .orderBy(s.storeOrders.created_at)
-        .all();
-      for (const o of orders) for (const it of o.items) c.set(it.name, { price: it.price, stock: it.stock });
-      catalogs.set(merchantId, c);
-    }
-    return c;
-  };
+  // Order items name their product; stock always comes from the products table.
+  const product = (merchantId: string, name: string) =>
+    db
+      .select()
+      .from(s.products)
+      .where(and(eq(s.products.merchant_id, merchantId), eq(s.products.name, name)))
+      .get();
   const moveStock = (merchantId: string, items: { name: string; qty: number }[], sign: 1 | -1) => {
-    const c = catalog(merchantId);
-    for (const it of items) {
-      const p = c.get(it.name);
+    const found = items.map((it) => {
+      const p = product(merchantId, it.name);
       if (!p) throw new StoreError(`Unknown product: ${it.name}`);
       if (sign < 0 && p.stock < it.qty) throw new StoreError(`Not enough stock for ${it.name} (${p.stock} left)`);
-    }
-    for (const it of items) c.get(it.name)!.stock += sign * it.qty;
+      return { p, qty: it.qty };
+    });
+    db.transaction(() => {
+      for (const { p, qty } of found) repo.products.update(p.id, { stock: product(merchantId, p.name)!.stock + sign * qty });
+    });
   };
   const snapshotItems = (merchantId: string, items: { name: string; qty: number }[]) =>
     items.map((it) => {
-      const p = catalog(merchantId).get(it.name)!;
+      const p = product(merchantId, it.name)!;
       return { name: it.name, qty: it.qty, price: p.price, stock: p.stock };
     });
+  // Orders are returned with item stock read live from products.
+  const withStock = (o: StoreOrder): StoreOrder => {
+    const items = o.items.map((it) => ({ ...it, stock: product(o.merchant_id, it.name)?.stock ?? it.stock }));
+    return { ...o, items, stock: items.length ? Math.min(...items.map((i) => i.stock)) : o.stock };
+  };
 
   const orderOf = (merchantId: string, orderId: string) => {
     const o = repo.storeOrders.get(orderId);
@@ -145,13 +134,12 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
     return o;
   };
   const setStatus = (o: StoreOrder, status: StoreOrder["status"], note: string, patch: Partial<StoreOrder> = {}) => {
-    const items = patch.items ?? o.items;
-    return repo.storeOrders.update(o.id, {
+    const updated = repo.storeOrders.update(o.id, {
       ...patch,
       status,
       status_history: [...o.status_history, { status, at: clock.now(), note }],
-      stock: items.length ? Math.min(...items.map((i) => catalog(o.merchant_id).get(i.name)?.stock ?? i.stock)) : o.stock,
     })!;
+    return withStock(updated);
   };
 
   const findOrder = (merchantId: string, ref: OrderRef) => {
@@ -164,26 +152,27 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
           : "receipt" in ref
             ? and(mine, eq(s.storeOrders.receipt, ref.receipt))
             : and(mine, eq(s.storeOrders.payment_id, ref.paymentId));
-    return db.select().from(s.storeOrders).where(where).orderBy(desc(s.storeOrders.created_at)).get() ?? null;
+    const o = db.select().from(s.storeOrders).where(where).orderBy(desc(s.storeOrders.created_at)).get();
+    return o ? withStock(o) : null;
   };
 
   const sim: StoreSim = {
     hasStore(merchantId) {
-      return repo.merchants.get(merchantId)?.store_platform === "woocommerce";
+      return repo.storeSettings.get(merchantId) !== undefined;
     },
 
     async getSettings(merchantId) {
       siteUp(merchantId);
-      const f = failureOf(merchantId);
+      const row = settingsOf(merchantId);
       const site = `https://${slug(merchantId)}.example.com`;
       return {
         platform: "woocommerce",
         site_url: site,
-        plugin: PLUGIN,
-        plugin_version: PLUGIN_VERSIONS[merchantId] ?? "4.9.1",
+        plugin: row.plugin,
+        plugin_version: row.plugin_version,
         webhook_url: `${site}/?wc-api=razorpay_webhook`,
-        webhook_enabled: f !== "webhook_disabled",
-        webhook_secret_matches: f !== "settings_wrong",
+        webhook_enabled: row.webhook_enabled,
+        webhook_secret_matches: row.failure_mode !== "wrong_settings",
         payment_action: "authorize_and_capture",
         hold_stock_minutes: HOLD_STOCK_MINUTES,
       };
@@ -197,7 +186,7 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
     async markPaid(merchantId, orderId, paymentId) {
       siteUp(merchantId);
       const o = orderOf(merchantId, orderId);
-      if (o.payment_id === paymentId && o.status !== "cancelled") return o;
+      if (o.payment_id === paymentId && o.status !== "cancelled") return withStock(o);
       if (o.status === "cancelled") throw new StoreError(`Order ${o.number} was cancelled. Restore it first.`);
       if (o.status !== "pending") throw new StoreError(`Order ${o.number} is already ${o.status}`);
       return setStatus(o, "processing", `Payment ${paymentId} recorded by RAY`, { payment_id: paymentId });
@@ -229,7 +218,7 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
         .map((r) => Number(r.n.replace("#", "")) || 0);
       const now = clock.now();
       const note = `Created by RAY for payment ${input.paymentId}`;
-      return repo.storeOrders.insert({
+      const created = repo.storeOrders.insert({
         id: newId("so"),
         number: `#${Math.max(1000, ...numbers) + 1}`,
         merchant_id: merchantId,
@@ -244,25 +233,31 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
         stock: Math.min(...items.map((i) => i.stock)),
         created_at: now,
       });
+      return withStock(created);
     },
 
     async cancelUnshipped(merchantId, orderId, reason) {
       siteUp(merchantId);
       const o = orderOf(merchantId, orderId);
       if (o.status === "completed") throw new StoreError(`Order ${o.number} has shipped and cannot be cancelled`);
-      if (o.status === "cancelled") return o;
+      if (o.status === "cancelled") return withStock(o);
       moveStock(merchantId, o.items, 1);
       return setStatus(o, "cancelled", reason, { items: snapshotItems(merchantId, o.items) });
     },
 
     async receiveWebhook(merchantId, env) {
-      merchant(merchantId);
-      switch (failureOf(merchantId)) {
+      const row = settingsOf(merchantId);
+      if (!row.webhook_enabled) {
+        return { http_status: null, response_body: null, processed: false, cron_note: "Webhook is turned off in plugin settings; not sent." };
+      }
+      if (row.site_status === "down") {
+        return { http_status: 503, response_body: "Service Unavailable", processed: false, cron_note: null };
+      }
+      switch (row.failure_mode) {
         case "webhook_disabled":
-          return { http_status: null, response_body: null, processed: false, cron_note: "Webhook is turned off in plugin settings; not sent." };
         case "site_down":
-          return { http_status: 503, response_body: "Service Unavailable", processed: false, cron_note: null };
-        case "settings_wrong":
+          break;
+        case "wrong_settings":
           return { http_status: 401, response_body: "Webhook signature mismatch", processed: false, cron_note: null };
         case "dropped_200":
           return { http_status: 200, response_body: "OK", processed: false, cron_note: DROPPED_NOTE };
@@ -290,13 +285,20 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
       return ok(`Order already ${o.status}; second payment ignored.`);
     },
 
+    // failure_mode drives site_status and webhook_enabled, so the three never disagree.
     setFailure(merchantId, failure) {
-      merchant(merchantId);
-      failures.set(merchantId, failure);
+      settingsOf(merchantId);
+      repo.storeSettings.update(merchantId, {
+        failure_mode: failure,
+        site_status: failure === "site_down" ? "down" : "up",
+        webhook_enabled: failure !== "webhook_disabled",
+      });
     },
-    failure: failureOf,
-    stock(merchantId, product) {
-      return catalog(merchantId).get(product)?.stock;
+    failure(merchantId) {
+      return settingsOf(merchantId).failure_mode;
+    },
+    stock(merchantId, name) {
+      return product(merchantId, name)?.stock;
     },
 
     runCron(merchantId) {

@@ -2,6 +2,7 @@
 // Any key that is not rzp_test_ stops startup, in either mode.
 import type { Db } from "@/db/client";
 import type { Clock } from "../clock";
+import { withDraftLog } from "./draft-log";
 import { createMockRazorpay } from "./mock";
 import { assertTestKey, createTestClient, type RazorpayKeys } from "./test-client";
 import type { RazorpayAdapter } from "./types";
@@ -26,9 +27,9 @@ export function loadRazorpayConfig(env: Record<string, string | undefined> = pro
   return { mode, keys: () => ({ keyId: keyId!, keySecret }) };
 }
 
-// In test mode every merchant shares the one test account.
+// In test mode every merchant shares the one test account. Both modes log
+// dispute draft changes to the case timeline.
 export function createRazorpay(config: RazorpayConfig, db: Db, clock: Clock, merchantId: string): RazorpayAdapter {
-  return config.mode === "test"
-    ? createTestClient(config.keys())
-    : createMockRazorpay(db, clock, merchantId);
+  const rzp = config.mode === "test" ? createTestClient(config.keys()) : createMockRazorpay(db, clock, merchantId);
+  return withDraftLog(rzp, db, clock, merchantId);
 }

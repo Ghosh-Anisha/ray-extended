@@ -212,6 +212,22 @@ export function seed(db: Db, now: number = SEED_NOW) {
       delivery("evt_LB_rahul_captured_2", "payment.captured", "pay_LB1235RAHUL2", ago(3 * HOUR - 4 * MIN), true,
         "Order already processing; second payment ignored."),
     ]);
+    // Simulated store state: Leafy Bakes runs plugin 4.8.2 with the
+    // 200-but-dropped bug, matching the deliveries above.
+    repo.storeSettings.insertMany([
+      { merchant_id: LEAFY, webhook_enabled: true, site_status: "up", plugin: PLUGIN, plugin_version: PLUGIN_VERSION, failure_mode: "dropped_200" },
+      ...["m_crumb_co", "m_spice_route"].map((merchant_id) => ({
+        merchant_id, webhook_enabled: true, site_status: "up" as const, plugin: PLUGIN, plugin_version: "4.9.1",
+        failure_mode: "none" as const,
+      })),
+    ]);
+    repo.products.insertMany([
+      { id: "prd_LB_chocbox", merchant_id: LEAFY, sku: "LB-CHOCBOX", name: "Chocolate box", price: rupees(1_299), stock: 12 },
+      { id: "prd_LB_banana", merchant_id: LEAFY, sku: "LB-BANANA", name: "Banana bread loaf", price: rupees(499), stock: 7 },
+      { id: "prd_LB_partycake", merchant_id: LEAFY, sku: "LB-PARTYCAKE-2KG", name: "Party cake, 2 kg", price: rupees(6_900), stock: 3 },
+      { id: "prd_LB_hamper", merchant_id: LEAFY, sku: "LB-HAMPER", name: "Cookie hamper", price: rupees(1_850), stock: 5 },
+    ]);
+
     repo.pluginReports.insert({
       id: "pr_woo_482_1", merchant_id: "m_crumb_co", plugin: PLUGIN, plugin_version: PLUGIN_VERSION,
       failure: "Webhook answered 200 but order stayed Pending", reported_at: ago(5 * DAY),
@@ -341,6 +357,18 @@ export function seed(db: Db, now: number = SEED_NOW) {
       { id: "bc_PR_2", merchant_id: PR, amount: net(kohli[0], 2) + net(kohli[1], 2), remark: "RTGS KOHLI EXPORTS PAYMENT", utr: "HDFCR52026101211", date: ago(2 * DAY), matched_invoices: [] },
       { id: "bc_PR_3", merchant_id: PR, amount: rupees(18_000), remark: "IMPS 6281 SUPPLIER PMT", utr: "628510004417", date: ago(3 * HOUR), matched_invoices: [] },
     ]);
+
+    // WhatsApp opt-ins collected at checkout, for customers of merchants with WhatsApp on.
+    const whatsappMerchants = new Set(MERCHANTS.filter((m) => m.whatsapp_on).map((m) => m.id));
+    repo.messagingConsents.insertMany(
+      repo.customers
+        .list()
+        .filter((c) => c.phone && whatsappMerchants.has(c.merchant_id))
+        .map((c) => ({
+          id: `cons_${c.id}_wa`, customer_id: c.id, channel: "whatsapp" as const, status: "opted_in" as const,
+          source: "checkout", updated_at: ago(30 * DAY),
+        })),
+    );
   });
 }
 

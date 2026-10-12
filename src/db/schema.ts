@@ -1,7 +1,7 @@
 // Every table from docs/build-guide.html, "Data model".
 // Conventions: money is integer minor units (paise, cents, pence) with a
 // currency column where it can be non-INR; times are epoch ms.
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const MOMENTS = ["paid_no_order", "international", "subscription", "chargeback", "collect"] as const;
 export const SITUATIONS = ["A", "B", "C", "D", "E", "F"] as const;
@@ -47,6 +47,10 @@ export const SUBSCRIPTION_STATUSES = [
   "paused",
 ] as const;
 export const DISPUTE_PHASES = ["chargeback", "pre_arbitration", "arbitration"] as const;
+export const DISPUTE_DRAFT_STATUSES = ["draft", "submitted"] as const;
+export const STORE_FAILURE_MODES = ["none", "dropped_200", "site_down", "webhook_disabled", "wrong_settings"] as const;
+export const SITE_STATUSES = ["up", "down"] as const;
+export const CONSENT_STATUSES = ["opted_in", "opted_out"] as const;
 
 export type Moment = (typeof MOMENTS)[number];
 export type CaseState = (typeof CASE_STATES)[number];
@@ -153,6 +157,21 @@ export const messages = sqliteTable("messages", {
   within_24h: bool("within_24h"),
   at: integer("at").notNull(),
 });
+
+// One row per customer and channel (migration 0002). An opt-out blocks every
+// proactive message on that channel.
+export const messagingConsents = sqliteTable(
+  "messaging_consents",
+  {
+    id: id(),
+    customer_id: text("customer_id").notNull().references(() => customers.id),
+    channel: text("channel", { enum: CHANNELS }).notNull(),
+    status: text("status", { enum: CONSENT_STATUSES }).notNull(),
+    source: text("source").notNull(),
+    updated_at: integer("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("messaging_consents_customer_channel").on(t.customer_id, t.channel)],
+);
 
 export const playbookRules = sqliteTable("playbook_rules", {
   id: id(),
@@ -281,6 +300,31 @@ export const webhookDeliveries = sqliteTable("webhook_deliveries", {
   payment_id: text("payment_id"),
 });
 
+// Simulated store state per merchant (migration 0002). The mock store reads
+// its plugin failure from here so it survives a restart.
+export const storeSettings = sqliteTable("store_settings", {
+  merchant_id: text("merchant_id").primaryKey().references(() => merchants.id),
+  webhook_enabled: bool("webhook_enabled").notNull(),
+  site_status: text("site_status", { enum: SITE_STATUSES }).notNull(),
+  plugin: text("plugin").notNull(),
+  plugin_version: text("plugin_version").notNull(),
+  failure_mode: text("failure_mode", { enum: STORE_FAILURE_MODES }).notNull(),
+});
+
+// Live stock per product. store_orders.items keeps a snapshot; stock is read here.
+export const products = sqliteTable(
+  "products",
+  {
+    id: id(),
+    merchant_id: text("merchant_id").notNull().references(() => merchants.id),
+    sku: text("sku").notNull(),
+    name: text("name").notNull(),
+    price: integer("price").notNull(),
+    stock: integer("stock").notNull(),
+  },
+  (t) => [uniqueIndex("products_merchant_sku").on(t.merchant_id, t.sku)],
+);
+
 export const pluginReports = sqliteTable("plugin_reports", {
   id: id(),
   merchant_id: text("merchant_id").references(() => merchants.id),
@@ -353,6 +397,9 @@ export const disputes = sqliteTable("disputes", {
   status: text("status").notNull(),
   lane: text("lane"),
   created_at: integer("created_at").notNull(),
+  // Contest evidence saved with action draft, then submitted (migration 0002).
+  draft_json: json<Record<string, unknown>>("draft_json"),
+  draft_status: text("draft_status", { enum: DISPUTE_DRAFT_STATUSES }),
 });
 
 // B2B invoice collection

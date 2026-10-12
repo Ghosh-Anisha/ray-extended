@@ -85,13 +85,9 @@ export type SimulatedPayment = {
   error_reason?: string;
 };
 
-// Contest drafts live with the simulated Razorpay, one store per database.
-const evidenceByDb = new WeakMap<Db, Map<string, DisputeEvidence>>();
 
 export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): MockRazorpay {
   const repo = createRepository(db);
-  if (!evidenceByDb.has(db)) evidenceByDb.set(db, new Map());
-  const evidenceStore = evidenceByDb.get(db)!;
 
   const paymentRow = (id: string) => {
     const row = repo.rzpPayments.get(id);
@@ -152,7 +148,7 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
     deducted: d.deducted,
     respond_by: d.respond_by,
     created_at: d.created_at,
-    evidence: evidenceStore.get(d.id) ?? null,
+    evidence: (d.draft_json as DisputeEvidence | null) ?? null,
   });
 
   const subRow = (id: string) => {
@@ -311,7 +307,7 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
       if (c.amount !== undefined && c.amount > d.amount) {
         throw new RazorpayError("BAD_REQUEST", "Contest amount is more than the disputed amount", 400);
       }
-      const prev = evidenceStore.get(disputeId);
+      const prev = d.draft_json as DisputeEvidence | null;
       const merged: DisputeEvidence = {
         amount: c.amount ?? prev?.amount ?? null,
         summary: c.summary ?? prev?.summary ?? null,
@@ -324,9 +320,13 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
           throw new RazorpayError("BAD_REQUEST", "Submit needs an amount, a summary and at least one document", 400);
         }
         merged.submitted_at = clock.now();
-        repo.disputes.update(disputeId, { status: "under_review" });
       }
-      evidenceStore.set(disputeId, merged);
+      const submitted = c.action === "submit";
+      repo.disputes.update(disputeId, {
+        draft_json: merged,
+        draft_status: submitted ? "submitted" : "draft",
+        ...(submitted ? { status: "under_review" } : {}),
+      });
       return toDispute(disputeRow(disputeId));
     },
 

@@ -52,11 +52,26 @@ describe("Messaging contract: simulated WhatsApp and email", () => {
   });
 
   it("outside the window sends templates only to customers who opted in", async () => {
-    msg.optOut(LEAFY, PRIYA);
-    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
+    expect(msg.consent("cus_priya", "whatsapp")).toBe("opted_in");
     await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: "+919899999999", senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
-    msg.optIn(LEAFY, PRIYA);
+    a.db.$client.prepare("delete from messaging_consents where customer_id = 'cus_priya'").run();
+    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
+    msg.setConsent("cus_priya", "whatsapp", "opted_in", "test");
     await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).resolves.toBeTruthy();
+  });
+
+  it("an opt-out blocks every proactive message on that channel, but not replies", async () => {
+    msg.setConsent("cus_priya", "whatsapp", "opted_out", "customer replied STOP");
+    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "via_razorpay", ...check })).rejects.toSatisfy(code("OPTED_OUT"));
+    // Email is a separate channel.
+    await expect(msg.send({ merchantId: LEAFY, channel: "email", to: PRIYA_EMAIL, senderMode: "merchant_inbox", body: "Hello" })).resolves.toBeTruthy();
+    msg.setConsent("cus_priya", "email", "opted_out", "unsubscribe link");
+    await expect(msg.send({ merchantId: LEAFY, channel: "email", to: PRIYA_EMAIL, senderMode: "verified_domain", body: "Hello" })).rejects.toSatisfy(code("OPTED_OUT"));
+    // When she writes in, answering her is not proactive.
+    await msg.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "Where is my order?" });
+    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", body: "Checking now" })).resolves.toBeTruthy();
+    a.clock.advance(WINDOW_MS);
+    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("OPTED_OUT"));
   });
 
   it("a customer message opens the window for 24 hours, then it closes", async () => {

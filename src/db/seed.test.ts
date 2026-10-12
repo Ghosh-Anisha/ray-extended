@@ -14,6 +14,7 @@ const EXPECTED_ROWS: Record<string, number> = {
   actions: 0,
   timers: 0,
   messages: 0,
+  messaging_consents: 8,
   playbook_rules: 0,
   memory: 0,
   ai_calls: 0,
@@ -24,6 +25,8 @@ const EXPECTED_ROWS: Record<string, number> = {
   rzp_links: 0,
   store_orders: 5,
   webhook_deliveries: 4,
+  store_settings: 3,
+  products: 4,
   plugin_reports: 1,
   downtimes: 0,
   subscriptions: 3,
@@ -74,6 +77,8 @@ describe("seed", () => {
     const order = repo.storeOrders.get("so_leafy_1234")!;
     expect(order).toMatchObject({ number: "#1234", status: "pending", total: 129_900, stock: 12 });
     expect(order.items[0]).toMatchObject({ name: "Chocolate box", stock: 12 });
+    expect(repo.storeSettings.get("m_leafy_bakes")).toMatchObject({ failure_mode: "dropped_200", plugin_version: "4.8.2", site_status: "up", webhook_enabled: true });
+    expect(repo.products.list(eq(schema.products.name, "Chocolate box"))).toMatchObject([{ merchant_id: "m_leafy_bakes", stock: 12 }]);
     const priya = repo.rzpPayments.get("pay_LB1234PRIYA")!;
     expect(priya).toMatchObject({ status: "captured", amount: 129_900, contact: "+919800000101" });
 

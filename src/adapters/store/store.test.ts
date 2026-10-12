@@ -103,7 +103,7 @@ describe("StoreConnector contract: simulated WooCommerce", () => {
     });
 
     it("settings wrong: webhook rejected, settings show the secret mismatch", async () => {
-      store.setFailure(LEAFY, "settings_wrong");
+      store.setFailure(LEAFY, "wrong_settings");
       const r = await store.receiveWebhook(LEAFY, env("payment.captured", "pay_LB1234PRIYA"));
       expect(r.http_status).toBe(401);
       expect((await store.getSettings(LEAFY)).webhook_secret_matches).toBe(false);
