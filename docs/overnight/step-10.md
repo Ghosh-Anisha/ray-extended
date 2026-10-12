@@ -259,5 +259,9 @@ the merchant's sending address unless the customer's WhatsApp window is open.
   is outside this step's folder.
 - Customer replies on a dispute case are recorded as evidence, not read by
   the understand job (the bank's withdrawal is what closes it).
-- Lint: `npm run lint` also scans `.claude/worktrees/` (other parallel
-  sessions' checkouts) and reports one warning there; nothing from this step.
+
+## Checks run at the end
+
+`git fetch` + rebase on `origin/main` (already up to date), then
+`npm test` (372 passed, 27 skipped; 39 of them new in `src/flows/chargebacks`),
+`npm run lint` (clean) and `npm run typecheck` (clean).
