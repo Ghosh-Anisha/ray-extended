@@ -81,6 +81,8 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
   <a href="#stack">Stack and layout</a>
   <a href="#data">Data model</a>
   <a href="#engine">The engine</a>
+  <a href="#design">Design and voice</a>
+  <a href="#approved">Approved changes log</a>
   <div class="grp">Build steps</div>
   <a href="#s0">0 · Repo and scaffold</a>
   <a href="#s1">1 · Database and seed</a>
@@ -88,6 +90,7 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
   <a href="#s3">3 · Case engine</a>
   <a href="#s4">4 · AI layer</a>
   <a href="#s5">5 · Guards and kill switch</a>
+  <a href="#s5b">5b · Voice</a>
   <a href="#s6">6 · Merchant surfaces</a>
   <a href="#s7">7 · Paid, no order</a>
   <a href="#s8">8 · International declines</a>
@@ -104,7 +107,7 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
 
 <main>
 <header style="display:flex;flex-direction:column;gap:10px">
-  <span class="eyebrow">Razorpay AIPM Buildathon · Track 2 · Build guide</span>
+  <span class="eyebrow">Razorpay AIPM Buildathon · Track 2 · Build guide · v2, 12 Oct</span>
   <h1>RAY, extended: build guide for Claude Code</h1>
   <p class="lede">Step by step instructions to build the full product from the opportunity map: one case engine and all five moments (paid but no order, international card declined, subscription halts, chargeback, B2B invoice overdue). The demo is out of scope here. Every step ends with a prompt you paste into Claude Code and a list that tells you when it's done.</p>
 </header>
@@ -120,7 +123,9 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
     <li>Check the "Done when" list yourself: open the page, run <code>npm test</code>. Then ask it to commit and push.</li>
     <li>If a session runs long, type <code>/compact</code>. If Claude Code wants to change something an earlier step built, it should say so first (that rule is in CLAUDE.md).</li>
   </ol>
-  <div class="note"><b>Order matters.</b> Steps 0 to 6 build the shared engine. Steps 7 to 11 are the five moments and each reuses the engine, so do 7 first: it proves the engine end to end. Steps 8 to 11 can run in parallel cloud sessions once 7 is merged.</div>
+  <div class="note"><b>Order matters.</b> Steps 0 to 6 (with 5b) build the shared engine and must run one after another: 3, 4, 5, 5b, 6. Steps 7 to 11 are the five moments and each reuses the engine, so do 7 first: it proves the engine end to end. Steps 8 to 11 can run in parallel cloud sessions once 7 is merged.</div>
+  <div class="note"><b>Where you are (12 Oct):</b> Steps 0 to 3 are done. v2 of this guide folds in every change approved during those steps (see "Approved changes log"), so the prompts from Step 4 onward already include them. Replace <code>docs/build-guide.html</code> and <code>CLAUDE.md</code> with the v2 files and add <code>docs/design-language.md</code>, then commit before starting Step 4.</div>
+  <p><b>Moving between cloud and laptop.</b> Ask the session to commit, push and open a pull request; merge it. On the laptop: <code>git pull</code>, <code>npm install</code>, <code>npm run db:reset &amp;&amp; npm run db:seed</code>, <code>npm test</code>, then start a Local session in the desktop app. If teleport asks to stash <code>package-lock.json</code>, stash it; it's only npm's local rewrite.</p>
 </section>
 
 <section id="cloud">
@@ -196,25 +201,28 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
       <tr><td>merchants</td><td>id, name, business_type, store_platform, gmv_band, risk_band, failure_history, cluster, wave, ray_on, connector_on, whatsapp_on, banking_plus, udyam, approval_limit, kill_switch</td></tr>
       <tr><td>customers</td><td>id, merchant_id, name, email, phone, language, country</td></tr>
       <tr><td>cases</td><td>id, merchant_id, moment (paid_no_order, international, subscription, chargeback, collect), situation (A to F), state, confidence (sure, likely, unsure), side (razorpay, merchant, customer_or_bank), razorpay_plugin (bool), covered (bool), amount, payment_id, store_order_id, cause, promised_by, opened_at, closed_at, outcome, counts_as_saved (bool)</td></tr>
-      <tr><td>case_events</td><td>id, case_id, at, type (webhook, message_in, message_out, tool_call, approval, timer, finding, note), payload, evidence_ref. Append only.</td></tr>
+      <tr><td>case_events</td><td>id, seq (autoincrement, set on insert), case_id, at, type (webhook, message_in, message_out, tool_call, approval, timer, finding, note), payload, evidence_ref. Append only. <code>at</code> is when the event happened at its source (webhook time, store history time), falling back to clock.now() only when there is none. Read order: <code>at</code>, then <code>seq</code>.</td></tr>
       <tr><td>actions</td><td>id, case_id, tool, args, guard_result, approved_by (tap or rule id), idempotency_key, status (held, done, undone, failed), result, run_after</td></tr>
       <tr><td>timers</td><td>id, case_id, kind, due_at, fired_at</td></tr>
-      <tr><td>messages</td><td>id, case_id, channel (whatsapp, email), direction, from, to, sender_mode (merchant_inbox, verified_domain, via_razorpay), body, template_id, within_24h</td></tr>
+      <tr><td>messages</td><td>id, case_id, channel (whatsapp, email, voice_note, call), direction, from, to, sender_mode (merchant_inbox, verified_domain, via_razorpay), body, transcript, audio_ref, template_id, within_24h</td></tr>
+      <tr><td>messaging_consents</td><td>customer_id, channel (whatsapp, call), status (opted_in, opted_out), source, updated_at. Checked on every send; an opt-out blocks all proactive messages and calls on that channel.</td></tr>
       <tr><td>playbook_rules</td><td>id, merchant_id, moment, rule_json, text, source (edit, merchant, pattern), status (proposed, approved, off), approved_at</td></tr>
       <tr><td>memory</td><td>id, kind (case, edit, rule, pattern), text, vector, merchant_id (null when pooled)</td></tr>
       <tr><td>ai_calls</td><td>id, case_id, job, mode (replay, live), model, input_hash, output, valid, ms</td></tr>
       <tr><td>alerts</td><td>id, merchant_id, case_id, kind, text, channel, sent_at</td></tr>
       <tr><td colspan="2"><b>Mirrors and simulated systems</b></td></tr>
       <tr><td>rzp_payments, rzp_orders, rzp_refunds, rzp_links</td><td>Mirror of Razorpay records (from test mode or mock): status, amount, currency, method, contact, email, vpa, card_last4, card_country, utr, error_code, error_source, error_reason, receipt, created_at, captured_at</td></tr>
-      <tr><td>store_orders</td><td>number, merchant_id, status (pending, processing, cancelled, completed), status_history, razorpay_order_id, receipt, payment_id, items, stock</td></tr>
+      <tr><td>store_orders</td><td>number, merchant_id, status (pending, processing, cancelled, completed), status_history, razorpay_order_id, receipt, payment_id, items (stock read from products)</td></tr>
+      <tr><td>products</td><td>merchant_id, sku, name, price, stock</td></tr>
+      <tr><td>store_settings</td><td>merchant_id, webhook_enabled, site_status, plugin, plugin_version, failure_mode (none, dropped_200, site_down, webhook_disabled, wrong_settings). The mock store reads from it.</td></tr>
       <tr><td>webhook_deliveries</td><td>event_id, merchant_id, event, url, http_status, response_body, delivered_at, plugin, plugin_version, processed (bool), cron_note</td></tr>
       <tr><td>plugin_reports, downtimes</td><td>Failure reports with plugin and version; stored downtime webhooks (method, bank, start, end)</td></tr>
       <tr><td>subscriptions, mandates, sub_invoices</td><td>status (created, authenticated, active, pending, halted, cancelled, paused), retries_left, pending_invoice_id, plan, amount, b2b, lifetime_value, resume_at</td></tr>
-      <tr><td>disputes</td><td>id, payment_id, reason_code, network, phase (chargeback, pre_arbitration, arbitration), amount, deducted (bool), respond_by, status, lane</td></tr>
+      <tr><td>disputes</td><td>id, payment_id, reason_code, network, phase (chargeback, pre_arbitration, arbitration), amount, deducted (bool), respond_by, status, lane, draft_json, draft_status. A draft needs an open case for that payment; draft events are type note with payload.kind dispute_draft_created, dispute_draft_changed or dispute_draft_submitted.</td></tr>
       <tr><td>buyers, invoices, promises, bank_credits</td><td>Buyer pay history and usual TDS rate; invoice number, amount, due_date, accepted_at, status, paid_amount, key_account, disputed_part; promise date and amount; credit amount, remark, utr, date, matched_invoices</td></tr>
     </tbody>
   </table></div>
-  <p><b>Case states:</b> likely, confirmed, waiting_merchant, waiting_customer, acting, verifying, closed, fixed_itself, unconfirmed.</p>
+  <p><b>Case states:</b> likely, confirmed, waiting_merchant, waiting_customer, acting, verifying, closed, fixed_itself, unconfirmed. Every state change goes through the state machine and writes a case_events row; no direct writes to <code>cases.state</code>. Anything a case or a guard reads is stored in the database, never only in memory.</p>
 </section>
 
 <section id="engine">
@@ -231,6 +239,37 @@ button.copy:focus-visible,a:focus-visible{outline:2px solid var(--accent);outlin
     </tbody>
   </table></div>
   <p><b>Seven AI jobs</b>, each with a code guard: understand, investigate (bounded agent loop), decide, converse, write, verify, learn. Data comes from code and Razorpay's APIs first, MCP where an API isn't enough. A follow-up event continues the existing case; a new query starts a new investigation.</p>
+</section>
+
+<section id="design">
+  <h2>Design and voice</h2>
+  <p>Every screen, message and AI prompt follows <code>docs/design-language.md</code>. It sets the words (state names, labels, buttons), RAY's voice to merchants, customers and buyers, the look, the interaction rules, and voice notes and calls.</p>
+  <ul>
+    <li><b>Look:</b> Razorpay-native, built with Blade (<code>@razorpay/blade</code>, MIT) after a short spike; plain CSS with the same tokens if Blade won't run cleanly. No Razorpay logo file; the top bar says "Razorpay" with a "Prototype" tag.</li>
+    <li><b>Two views:</b> a View: Phone | Desktop switch in the merchant area. Phone shows stacked cards and a fixed action bar; desktop shows tables and the three-pane case page.</li>
+    <li><b>Voice:</b> ElevenLabs only. Voice notes in (merchant, customer, buyer) are real on the free tier; calls are simulated with transcript, a few generated audio lines and a post-call summary. Calls for paid-no-order (text first, call only if no reply by the promised time), subscriptions, the Collect call stage, and an opt-in urgent merchant call before a chargeback deadline. Never for international buyers, chargeback cardholders or a first contact.</li>
+  </ul>
+</section>
+
+<section id="approved">
+  <h2>Approved changes log</h2>
+  <p>Changes Annie approved during the build. They are part of the spec and already in the steps below.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>When</th><th>Change</th></tr></thead>
+    <tbody>
+      <tr><td>After Step 2</td><td>Store failure modes, product stock, WhatsApp consents and dispute drafts persist in the database (store_settings, products, messaging_consents, dispute draft fields), with a restart test.</td></tr>
+      <tr><td>After Step 2</td><td>products.price added. An order RAY creates for a payment must total the captured payment amount; a mismatch goes to the merchant instead.</td></tr>
+      <tr><td>After Step 2</td><td>Seeded consents: 8 opted_in (source checkout), plus one opted_out and one with no row at a WhatsApp-on merchant, so both blocked paths are tested.</td></tr>
+      <tr><td>After Step 2</td><td>Crumb &amp; Co and Spice Route get store_settings rows (none, 4.9.1). Seed test row counts include the new tables.</td></tr>
+      <tr><td>After Step 2</td><td>Dispute drafts need an open case; draft events use type note with a typed payload.kind constant.</td></tr>
+      <tr><td>After Step 2</td><td>case_events gets a seq column; reads order by at, then seq. <code>at</code> is the source's time.</td></tr>
+      <tr><td>Step 3</td><td>All state changes go through the state machine (including order-for-payment), with a test that fails on a change without an event.</td></tr>
+      <tr><td>Step 3</td><td>Dev webhook and message routes call handleEvent, the same entry point as real events, and still write webhook_deliveries rows.</td></tr>
+      <tr><td>Step 3</td><td>Dev panel "Move clock forward" (fake clock only) advances the clock and runs the tick in due order; presets 15 min, 30 min, 2 h, 48 h, 72 h.</td></tr>
+      <tr><td>12 Oct</td><td>Design language added (docs/design-language.md), Razorpay-native with Blade, phone and desktop views with a switch.</td></tr>
+      <tr><td>12 Oct</td><td>Voice added with ElevenLabs: Step 5b, and voice rules in Steps 7, 9, 10 and 11.</td></tr>
+    </tbody>
+  </table></div>
 </section>
 
 <h2 id="steps" style="margin-top:20px">Build steps</h2>
@@ -354,6 +393,9 @@ Write a dummy specialist and the tests under "Done when". Plan first.</pre></div
     <li><b>AI_MODE=live</b>: Anthropic SDK. Small model for understand and verify, a stronger one for investigate and decide. Mask names, phones, emails and card numbers before the call; unmask after.</li>
     <li><b>AI_MODE=record</b>: live, and save each output as a fixture.</li>
     <li>Every call is logged in ai_calls. Prompts live in <code>src/ai/prompts/</code>, one file per job, versioned.</li>
+    <li>The write job's prompt includes sections 1 and 2 of <code>docs/design-language.md</code> (words and RAY's voice). A test fails any draft that contains one of its banned words.</li>
+    <li>understand accepts a transcript from a voice note exactly like text.</li>
+    <li>investigate's read tools come from Step 5. If they don't exist yet, use a typed placeholder list that Step 5 replaces; never two lists.</li>
   </ul>
   <div class="note">No API key? You can still fill the fixtures for free: ask Claude Code, in its own session, to act as the model for each eval case and write the outputs as fixture files, labelled "recorded in Claude Code". Keep that label in the UI.</div>
   <h4>Done when</h4>
@@ -363,9 +405,10 @@ Write a dummy specialist and the tests under "Done when". Plan first.</pre></div
     <li>The grounding check fails a draft that contains a number not in the case.</li>
   </ul></div>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
-<pre class="prompt">Read docs/build-guide.html Step 4 and the "Why it needs AI" section in CLAUDE.md. Do Step 4 only.
+<pre class="prompt">Read docs/build-guide.html Step 4, docs/design-language.md sections 1 and 2, and the "AI layer" section in CLAUDE.md. Do Step 4 only.
 Build src/ai with the seven jobs as typed functions, zod output schemas, one prompt file per job, and three modes (replay, live, record) selected by AI_MODE. investigate is a bounded loop over read-only tools with a step cap of 6 and evidence ids on every finding.
 Add PII masking for live calls, the grounding checker for drafts, ai_calls logging, and the replay-miss fallback (Unsure, never acts).
+Put design-language sections 1 and 2 into the write prompt and add a banned-words test for drafts. If the read tools don't exist yet, use a typed placeholder list for investigate that Step 5 will replace.
 Write the tests under "Done when". Plan first.</pre></div>
 </section>
 
@@ -390,6 +433,8 @@ Write the tests under "Done when". Plan first.</pre></div>
       <tr><td>First message</td><td>Has details the customer can check (amount, time, last 4 of the UTR) and no link</td></tr>
       <tr><td>Channel rules</td><td>WhatsApp template and 24-hour window; opt-in for proactive messages</td></tr>
       <tr><td>Confidence</td><td>Nothing runs on Unsure</td></tr>
+      <tr><td>Consent</td><td>messaging_consents checked on every send and call; opted_out or no row blocks proactive messages and calls on that channel</td></tr>
+      <tr><td>Order total</td><td>An order created for a payment totals the captured amount</td></tr>
       <tr><td>Kill switch</td><td>Per merchant and global; blocks all act tools, reads still work</td></tr>
     </tbody>
   </table></div>
@@ -401,8 +446,32 @@ Write the tests under "Done when". Plan first.</pre></div>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 5. Do Step 5 only.
 Build src/tools (read and act tools listed in Step 5, calling the adapters) and src/guards with guardedCall. Implement every guard in the table, the 10-minute refund hold with Undo, idempotency keys, and the kill switch per merchant and global.
-A failed guard writes its reason to case_events and moves the case to waiting_merchant.
+A failed guard writes its reason to case_events and moves the case to waiting_merchant (through the state machine).
+If Step 4 left a placeholder read-tool list for investigate, replace it with the real read tools so there is one list.
+Order totals: create_order_for_payment must total the captured payment amount; a mismatch is a failed guard.
 Write one passing and one failing test per guard. Plan first.</pre></div>
+</section>
+
+<!-- STEP 5b -->
+<section class="step" id="s5b">
+  <div class="step-head"><span class="num">5b</span><h3>Voice: voice notes and calls</h3></div>
+  <p>A voice adapter on ElevenLabs and a guarded <code>place_call</code> tool. Flows wire it in at Steps 7, 9, 10 and 11. Rules come from section 5 of <code>docs/design-language.md</code>.</p>
+  <ul>
+    <li><b>Voice notes in:</b> speech-to-text, live on ElevenLabs' free tier when <code>ELEVENLABS_API_KEY</code> is set, recorded sample transcripts otherwise. The transcript goes to the understand job; the message keeps the audio and the transcript.</li>
+    <li><b>Merchant voice notes</b> never approve money. They produce the approval card, and the merchant taps.</li>
+    <li><b>Calls out (Simulated):</b> a call screen with the transcript, a few generated audio lines when a key is set, an outcome (Answered, No answer, Busy, Asked not to call) and a post-call summary written to case_events.</li>
+    <li><b>Call rules in the guard:</b> opt-in, the merchant's calling hours (default 10 AM to 7 PM), a prior text required for paid-no-order, opens as the merchant with who and why, never asks for a PIN, OTP or card number, never reads a link, never takes payment, records an opt-out on "don't call".</li>
+  </ul>
+  <h4>Done when</h4>
+  <div class="done"><ul>
+    <li>A Hinglish voice note from Priya becomes a transcript the understand job reads. A merchant voice note "haan refund kar do" produces an approval card, not a refund.</li>
+    <li>One test per call rule; a call to an opted-out customer, outside hours, or without a prior text (paid-no-order) is blocked.</li>
+  </ul></div>
+  <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
+<pre class="prompt">Read docs/build-guide.html Step 5b and section 5 of docs/design-language.md. Do Step 5b only.
+Build src/adapters/voice (ElevenLabs only): speech-to-text for inbound voice notes (live when ELEVENLABS_API_KEY is set, recorded sample transcripts otherwise) and simulated outbound calls that produce a transcript, a few generated audio lines when a key is set, an outcome and a post-call summary in case_events.
+Add a place_call act tool behind guardedCall with every call rule from Step 5b. A merchant voice note produces the approval card and never approves money by itself.
+Don't wire calls into flows yet. Add ELEVENLABS_API_KEY to .env.example with no value. Write the tests under "Done when". Plan first.</pre></div>
 </section>
 
 <!-- STEP 6 -->
@@ -416,16 +485,20 @@ Write one passing and one failing test per guard. Plan first.</pre></div>
     <li><b>WhatsApp approval card</b> (simulated): Approve, Change (free text, RAY redrafts), Open case.</li>
     <li><b>Twice-daily digest</b>: count and ₹ at stake; "details" lists numbered cases to act on.</li>
     <li><b>Playbook</b>: per-moment rules with on/off, limits, tone, sign-off, send-from.</li>
-    <li><b>Simulators:</b> customer inbox (WhatsApp and email), buyer inbox, store admin, dev panel (fire events, advance clock, kill switch).</li>
+    <li><b>Simulators:</b> customer inbox (WhatsApp, email, voice notes), buyer inbox, store admin, call screen, dev panel (fire events through handleEvent, Move clock forward with presets, kill switch).</li>
+    <li><b>Look and words:</b> everything follows <code>docs/design-language.md</code>: Blade after a short spike (plain CSS with the same tokens if it won't run cleanly), its state labels and buttons, the components in section 3, and the interaction rules in section 4.</li>
+    <li><b>View switch:</b> View: Phone | Desktop in the merchant top bar. Defaults by screen width and remembers the choice. Layouts per surface as in section 3 of the design language.</li>
   </ul>
   <h4>Done when</h4>
   <div class="done"><ul>
     <li>The dummy specialist's case shows correctly on every surface, and a tap on the card updates the case page.</li>
-    <li>Pages work at phone width.</li>
+    <li>Both views work for every surface, and the switch changes them without a reload.</li>
+    <li>Every simulated system carries the Simulated tag; no screen shows a banned word.</li>
   </ul></div>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
-<pre class="prompt">Read docs/build-guide.html Step 6. Do Step 6 only.
-Build the merchant surfaces under src/app/(merchant) and the simulators under src/app/(sim) as listed. UI copy is plain and short. Label every simulated system "Simulated". Every approval button shows Covered or Your call.
+<pre class="prompt">Read docs/build-guide.html Step 6 and all of docs/design-language.md. Do Step 6 only.
+Start with a short Blade spike (one Card, Badge and Button in our app). If it won't run cleanly with our Next.js and React versions, stop and tell me, then use plain CSS with the design-language tokens.
+Build the merchant surfaces under src/app/(merchant) and the simulators under src/app/(sim) as listed, with the Phone | Desktop view switch. Use the design language's exact words, components and interaction rules. Label every simulated system "Simulated". Every approval button shows Covered or Your call.
 Wire them to the engine through API routes, using the dummy specialist from Step 3 to check everything renders. Plan first.</pre></div>
 </section>
 
@@ -475,6 +548,7 @@ Wire them to the engine through API routes, using the dummy specialist from Step
       <li>Replies in the customer's language, in the playbook's tone, to the channel used last; one case across email and WhatsApp.</li>
       <li>Always to a person: abusive or very upset customers, amounts above the limit, no match after two tries.</li>
       <li>No Razorpay match and the merchant uses another gateway: says it's likely another gateway's payment.</li>
+      <li>Voice: voice notes read like text. Follow-up call only after the first text (which says a call may follow and from which number), only if no reply by the promised time, only to opted-in customers, from the merchant's number.</li>
     </ul></div>
   </div>
   <p><b>Counts as saved when</b> the order ships and the customer confirms it arrived (or the extra payment on E is refunded and accepted). Razorpay's own plugin cases are counted on a separate "of which, Razorpay's own plugin" line.</p>
@@ -486,7 +560,9 @@ Wire them to the engine through API routes, using the dummy specialist from Step
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 7 in full. Do Step 7 only.
 Build src/flows/paid-no-order as a Specialist: detector rules and timers (15 min, 30 min, 2 h, 48 h, 72 h), situations A to F, the investigate loop that finds the 200-but-dropped plugin failure and the other causes listed, the pre-action check, Fulfil by store type, Refund with the 10-minute hold, the pre-tap promise line, the holding message, proof attached on a later dispute, and the conversation rules.
-Add replay fixtures for every AI call these scenarios make. Write the scenario tests under "Done when". Plan first and list every rule from Step 7 in the plan so I can check none is missing.</pre></div>
+Use the voice rules in section 5 of docs/design-language.md for this moment (voice notes in; follow-up call only after the first text and no reply by the promised time). Use the design language's words on every screen and message.
+Fulfil and create-order must keep the order total equal to the captured payment.
+Add replay fixtures for every AI call these scenarios make. Write the scenario tests under "Done when", plus one for the follow-up call. Plan first and list every rule from Step 7 in the plan so I can check none is missing.</pre></div>
 </section>
 
 <!-- STEP 8 -->
@@ -520,7 +596,7 @@ Add replay fixtures for every AI call these scenarios make. Write the scenario t
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 8. Do Step 8 only, reusing the engine, guards and surfaces.
 Build src/flows/international as a Specialist with situations A to F from the table, the error_reason lookup table (code, no model), buyer type rules, the cause-specific checkout failure message (shown in a simulated checkout page), the one email after the buyer leaves, the merchant fix request draft for D, the risk ticket for E, the pattern insight, and the invoice attach for transfers.
-Models only write buyer emails, the request reason and the insight text. Add fixtures and the scenario tests under "Done when". Plan first.</pre></div>
+Models only write buyer emails, the request reason and the insight text. No calls to international buyers (design language section 5); voice notes from buyers are read like text. Add fixtures and the scenario tests under "Done when". Plan first.</pre></div>
 </section>
 
 <!-- STEP 9 -->
@@ -540,7 +616,7 @@ Models only write buyer emails, the request reason and the insight text. Add fix
   <ul>
     <li>Razorpay's retries and Revenue-Protect stay as they are (simulated). RAY starts only after retries run out, and for sign-ups, cancellations and messages.</li>
     <li>One save offer only. Pause has no end date in the API, so RAY schedules the resume. No plan change on domestic-card subscriptions.</li>
-    <li>Channels: email by default, WhatsApp with consent, SMS for short links, hand-off to a voice agent (simulated) above a value the merchant sets.</li>
+    <li>Channels: email by default, WhatsApp with consent, SMS for short links, and one call through place_call (ElevenLabs, simulated) to subscribers above a value the merchant sets, with the playbook's save offer.</li>
     <li>Subscriber pays by link and the bank retry also succeeds: duplicate refund on approval. No response: halts per Razorpay's rules, case closes as lost.</li>
     <li>Sharma Tutorials: pause means skip a month.</li>
   </ul>
@@ -553,6 +629,7 @@ Models only write buyer emails, the request reason and the insight text. Add fix
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 9. Do Step 9 only, reusing the engine.
 Build src/flows/subscriptions as a Specialist with situations A to F, the save-offer logic from the playbook, the ask-the-merchant path with 2 or 3 options that becomes a proposed rule, the "didn't authorise" evidence pack, scheduled resume after pause, channel choice, and the hand-off of B2B failures to the Collect flow.
+Use the voice rules in section 5 of docs/design-language.md: one call through place_call for subscribers above the merchant's value limit, with the post-call summary feeding decide.
 Add fixtures and the scenario tests under "Done when". Plan first.</pre></div>
 </section>
 
@@ -578,6 +655,8 @@ Add fixtures and the scenario tests under "Done when". Plan first.</pre></div>
     <li><b>Filing:</b> through Dispute Responder where enabled (simulated hand-off), otherwise the Disputes API: upload documents, contest with action draft, submit on approval. Not enabled: RAY prepares the pack for the merchant to upload.</li>
     <li><b>Customer outreach</b> for non-fraud only: fix or refund offer and a withdraw request; merchant approves.</li>
     <li>Approved unchanged several times: RAY offers to stop asking for that type. Weekly pattern insight.</li>
+    <li>The dispute.created handler opens the case first; a draft can only be written on an open case.</li>
+    <li>Voice: an opt-in urgent call to the merchant the day before a deadline if they haven't answered, ending with the decision card on WhatsApp. Never a call to the cardholder.</li>
   </ul>
   <p><b>Counts as saved when</b> the dispute is won or withdrawn.</p>
   <h4>Done when</h4>
@@ -588,6 +667,7 @@ Add fixtures and the scenario tests under "Done when". Plan first.</pre></div>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 10. Do Step 10 only, reusing the engine and the paid-no-order flow for situation A.
 Build src/flows/chargebacks as a Specialist: situations A to F, the expected-value decision rule in code, the three lanes with every bound listed (opt-in, first stage, Stop window, auto-off, override rule), deadline timers, the bounded evidence finder, filing through the simulated Dispute Responder or the Disputes API path, non-fraud customer outreach, and the weekly pattern insight.
+The dispute.created handler opens the case before any draft. Add the opt-in urgent merchant call through place_call (design language section 5); never call the cardholder.
 Add fixtures and the tests under "Done when". Plan first.</pre></div>
 </section>
 
@@ -601,7 +681,7 @@ Add fixtures and the tests under "Done when". Plan first.</pre></div>
       <tr><td>Before due</td><td>3 days before</td><td>Email</td><td>Runs alone</td></tr>
       <tr><td>Gentle</td><td>Due + 3</td><td>Email, WhatsApp to accounts</td><td>Runs alone</td></tr>
       <tr><td>Firm</td><td>Due + 15</td><td>Email and WhatsApp</td><td>One tap per buyer, batched in the morning list</td></tr>
-      <tr><td>Call</td><td>Due + 25</td><td>Receivables Agent (simulated)</td><td>One tap</td></tr>
+      <tr><td>Call</td><td>Due + 25</td><td>place_call (ElevenLabs, simulated); asks for a date, logs a promise</td><td>One tap; key accounts a tap per call</td></tr>
       <tr><td>MSME rights</td><td>45 days after acceptance, Udyam only</td><td>Email: 45-day rule, interest at 3× RBI bank rate, 43B(h)</td><td>Always approval</td></tr>
       <tr><td>Samadhaan</td><td>Only on request</td><td>Draft for the merchant to file</td><td>Merchant files</td></tr>
     </tbody>
@@ -638,7 +718,8 @@ Add fixtures and the tests under "Done when". Plan first.</pre></div>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
 <pre class="prompt">Read docs/build-guide.html Step 11. Do Step 11 only, reusing the engine.
 Build src/flows/collect as a Specialist with the chase stages and timings, the morning list and priority score, reply reading for every reply type, the promise ledger, and the money matcher (exact, subset-sum, TDS, remittance advice, part payment) in code with the model only for remarks and advice text.
-Banking+ merchants get the full loop; others get the read-only view with a Banking+ offer. Add fixtures and the tests under "Done when". Plan first.</pre></div>
+Banking+ merchants get the full loop; others get the read-only view with a Banking+ offer. The Call stage uses place_call with the voice rules in section 5 of docs/design-language.md, and a promise from the call goes into the ledger. Buyer voice notes are read like text.
+Add fixtures and the tests under "Done when". Plan first.</pre></div>
 </section>
 
 <!-- STEP 12 -->
@@ -727,7 +808,7 @@ Run the Razorpay contract tests in test mode. Then run the paid-no-order B scena
   <div class="step-head"><span class="num">16</span><h3>Final check</h3></div>
   <p>A review pass against this guide, done by a fresh session so it doesn't mark its own homework.</p>
   <div class="prompt-wrap"><div class="prompt-bar"><span>Paste into Claude Code</span><button class="copy" type="button">Copy prompt</button></div>
-<pre class="prompt">Read docs/build-guide.html in full, then review the codebase against it. For every step, list each rule, situation, timer and guard, and mark it built, partly built or missing, with the file and test that cover it.
+<pre class="prompt">Read docs/build-guide.html (including the Approved changes log) and docs/design-language.md in full, then review the codebase against them. For every step, list each rule, situation, timer and guard, and mark it built, partly built or missing, with the file and test that cover it.
 Run test, eval, lint and typecheck. Do not change code in this pass; give me the list so I can decide what to fix.</pre></div>
 </section>
 
