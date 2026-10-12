@@ -144,7 +144,13 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         note(kase, { kind: "investigated", to: r.to, reason: r.reason, confidence: r.confidence, side: r.side, cause: r.cause });
         setTimers(kase, r.timers);
         propose(kase, r.proposals);
-        move(repo.cases.get(caseId)!, r.to, r.reason);
+        if (r.to === "closed") {
+          // Closed straight from new evidence (Step 11: the money landed).
+          const saved = await spec.countsAsSaved(deps, repo.cases.get(caseId)!);
+          move(repo.cases.get(caseId)!, "closed", r.reason, { closed_at: clock.now(), outcome: r.outcome ?? "verified", counts_as_saved: saved });
+        } else {
+          move(repo.cases.get(caseId)!, r.to, r.reason);
+        }
         break;
       }
       case "confirmed": {

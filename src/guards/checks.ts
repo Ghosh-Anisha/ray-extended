@@ -353,6 +353,13 @@ function recipient(g: GuardContext) {
   return g.a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, g.kase.merchant_id), eq(col, to))).get();
 }
 
+// A buyer (Collect) at the message's address, when it isn't a customer's.
+function buyerRecipient(g: GuardContext) {
+  const to = g.args.to as string;
+  const col = g.args.channel === "whatsapp" ? s.buyers.phone : s.buyers.email;
+  return g.a.db.select().from(s.buyers).where(and(eq(s.buyers.merchant_id, g.kase.merchant_id), eq(col, to))).get();
+}
+
 // ---- Channel rules: WhatsApp template and 24-hour window.
 export async function channelRules(g: GuardContext): Promise<Failure[]> {
   const out: Failure[] = [];
@@ -372,8 +379,17 @@ export async function channelRules(g: GuardContext): Promise<Failure[]> {
 
 // ---- Consent: an opt-out, or no WhatsApp opt-in, blocks proactive messages.
 export async function consent(g: GuardContext): Promise<Failure[]> {
-  if (replying(g)) return [];
   const channel = g.args.channel as Channel;
+  // Buyers need an opt-in row on every channel, for every message (Step 11).
+  const buyer = recipient(g) ? undefined : buyerRecipient(g);
+  if (buyer) {
+    const status = g.a.messaging.buyerConsent(buyer.id, channel);
+    const label = channel === "whatsapp" ? "WhatsApp" : "email";
+    if (status === "opted_out") return [fail("consent", "opted_out", `${buyer.name} opted out of ${label} messages.`)];
+    if (status !== "opted_in") return [fail("consent", "no_opt_in", `${buyer.name} hasn't opted in to ${label} messages.`)];
+    return [];
+  }
+  if (replying(g)) return [];
   const who = recipient(g);
   const status = who ? g.a.messaging.consent(who.id, channel) : null;
   const name = who?.name ?? "This person";
@@ -432,9 +448,18 @@ export async function firstMessage(g: GuardContext): Promise<Failure[]> {
   }
   const rest = body.replace(URL, " ");
   const words = rest.split(/\s+/).filter(Boolean).length;
-  const alone = !rest.includes(g.merchant.name) || (amount !== null && !mentionsAmount(rest, amount.minor, amount.currency)) || words < 8;
+  // A Collect reminder's link covers some of the buyer's invoices, so the
+  // message states that link's own amount (Step 11).
+  const linkAmount = g.kase.moment === "collect" ? collectLinkAmount(g, links.map(strip)) : null;
+  const stated = linkAmount ?? amount;
+  const alone = !rest.includes(g.merchant.name) || (stated !== null && !mentionsAmount(rest, stated.minor, stated.currency)) || words < 8;
   if (alone) out.push(fail("first_message", "link_alone", "A link can't go out alone. The message needs your name, the amount and what it's for."));
   return out;
+}
+
+function collectLinkAmount(g: GuardContext, links: string[]) {
+  const link = g.repo.rzpLinks.list(eq(s.rzpLinks.merchant_id, g.kase.merchant_id)).find((l) => l.short_url && links.includes(l.short_url));
+  return link ? { minor: link.amount, currency: link.currency } : null;
 }
 
 // ---- Grounding (rule 6): every number in the message is in the case data.
@@ -501,9 +526,17 @@ export const clockLabel = (minutes: number) => {
   return `${((h + 11) % 12) + 1}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "AM" : "PM"}`;
 };
 
-function callee(g: GuardContext) {
+type Callee = { name: string; phone: string | null; email: string | null; consent: ReturnType<Adapters["messaging"]["consent"]> };
+
+// The person called: a customer, or a buyer (the Collect Call stage), who is
+// named by their contact person.
+function callee(g: GuardContext): Callee | undefined {
   const to = g.args.to as string;
-  return g.a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, g.kase.merchant_id), eq(s.customers.phone, to))).get();
+  const c = g.a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, g.kase.merchant_id), eq(s.customers.phone, to))).get();
+  if (c) return { name: c.name, phone: c.phone, email: c.email, consent: g.a.messaging.consent(c.id, "call") };
+  const b = g.a.db.select().from(s.buyers).where(and(eq(s.buyers.merchant_id, g.kase.merchant_id), eq(s.buyers.phone, to))).get();
+  if (b) return { name: b.contact_name, phone: b.phone, email: b.email, consent: g.a.messaging.buyerConsent(b.id, "call") };
+  return undefined;
 }
 
 export async function callRules(g: GuardContext): Promise<Failure[]> {
@@ -524,7 +557,7 @@ export async function callRules(g: GuardContext): Promise<Failure[]> {
     if (to !== merchantPhone(g.merchant.id)) out.push(fail("call_rules", "wrong_number", "The urgent call only goes to your own number."));
     if (!g.merchant.urgent_call_opt_in) out.push(fail("call_rules", "no_opt_in", "You haven't opted in to an urgent call before a deadline."));
   } else {
-    const status = person ? g.a.messaging.consent(person.id, "call") : null;
+    const status = person ? person.consent : null;
     if (status === "opted_out") out.push(fail("call_rules", "opted_out", `${name} asked not to be called.`));
     else if (status !== "opted_in") out.push(fail("call_rules", "no_opt_in", `${name} hasn't opted in to calls.`));
   }

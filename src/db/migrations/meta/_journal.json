@@ -71,6 +71,13 @@
       "when": 1791827268608,
       "tag": "0009_store_other_gateway",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792000000000,
+      "tag": "1100_collect",
+      "breakpoints": true
     }
   ]
 }

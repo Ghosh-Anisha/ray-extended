@@ -21,7 +21,7 @@ import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEven
 import { findCase } from "./grouping";
 import { orchestrate } from "./orchestrator";
 import type { EngineContext, Registry } from "./specialist";
-import type { Case } from "./state-machine";
+import { isFinal, type Case } from "./state-machine";
 
 export type HandleResult =
   | { outcome: "unmatched" }
@@ -85,6 +85,16 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     if (seen) return { outcome: "duplicate", caseId: seen.caseId };
 
     let kase = findCase(db, e);
+    if (!kase) {
+      for (const spec of registry.all()) {
+        const id = spec.route ? await spec.route(ctx, e) : null;
+        const routed = id ? repo.cases.get(id) : undefined;
+        if (routed && routed.merchant_id === e.merchantId && routed.moment === spec.moment && !isFinal(routed.state)) {
+          kase = routed;
+          break;
+        }
+      }
+    }
     let alertText: string | null = null;
     if (!kase) {
       let detection = null;

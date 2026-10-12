@@ -37,6 +37,15 @@ export const TAKEOVER_ONLY: Partial<Record<CaseState, readonly CaseState[]>> = {
 };
 export const isFinal = (state: CaseState) => FINAL_STATES.includes(state);
 
+// The money landed on a case that never needed a tap (Step 11, Collect: a
+// Sure bank credit posts on its own). These extra moves to closed exist only
+// for that, and need one of these outcomes.
+export const SETTLED_OUTCOMES: readonly string[] = ["collected"];
+export const SETTLED_ONLY: Partial<Record<CaseState, readonly CaseState[]>> = {
+  likely: ["closed"],
+  waiting_customer: ["closed"],
+};
+
 export class IllegalTransitionError extends Error {
   constructor(
     readonly from: CaseState,
@@ -50,7 +59,8 @@ export class IllegalTransitionError extends Error {
 
 export function checkTransition(kase: Pick<Case, "state" | "confidence">, to: CaseState, outcome?: string | null) {
   const takeover = outcome === HANDLED_BY_MERCHANT && TAKEOVER_ONLY[kase.state]?.includes(to);
-  if (!TRANSITIONS[kase.state].includes(to) && !takeover) {
+  const settled = !!outcome && SETTLED_OUTCOMES.includes(outcome) && !!SETTLED_ONLY[kase.state]?.includes(to);
+  if (!TRANSITIONS[kase.state].includes(to) && !takeover && !settled) {
     throw new IllegalTransitionError(kase.state, to, "not an allowed move");
   }
   // CLAUDE.md rule 4: nothing acts on Unsure confidence.

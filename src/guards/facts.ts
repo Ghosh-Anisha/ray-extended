@@ -19,6 +19,9 @@ const SKIP = new Set(["id", "seq", "merchant_id", "customer_id", "case_id", "tok
 
 type Row = Record<string, unknown>;
 
+// The note kind for numbers code computed for a case. Only code writes it.
+export const CASE_FACTS = "case_facts";
+
 function display(row: Row, currency: string): Row {
   const out: Row = {};
   for (const [k, v] of Object.entries(row)) {
@@ -97,7 +100,14 @@ export function caseFacts(db: Db, caseId: string): Row {
 
   follow(kase.payment_id);
   follow(kase.store_order_id);
-  for (const e of repo.caseEvents.listByCase(caseId)) follow(e.evidence_ref);
+  for (const e of repo.caseEvents.listByCase(caseId)) {
+    follow(e.evidence_ref);
+    // Numbers code worked out for the case (days overdue, totals), written
+    // as a case_facts note before a message quotes them (Step 11).
+    if (e.type === "note" && e.payload.kind === CASE_FACTS && e.payload.facts && typeof e.payload.facts === "object") {
+      records.push(display(e.payload.facts as Row, "INR"));
+    }
+  }
   // Links and invoices RAY created or fetched for this case.
   for (const a of db.select().from(s.actions).where(and(eq(s.actions.case_id, caseId), eq(s.actions.status, "done"))).all()) {
     if (a.result) records.push(display(a.result, "INR"));

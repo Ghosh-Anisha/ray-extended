@@ -196,18 +196,24 @@ export const messages = sqliteTable("messages", {
 });
 
 // One row per customer and channel (migration 0002). An opt-out blocks every
-// proactive message on that channel.
+// proactive message on that channel. Buyers have rows too (migration 1100):
+// a row names exactly one of customer_id or buyer_id, and a buyer needs an
+// opted_in row for every message on that channel.
 export const messagingConsents = sqliteTable(
   "messaging_consents",
   {
     id: id(),
-    customer_id: text("customer_id").notNull().references(() => customers.id),
+    customer_id: text("customer_id").references(() => customers.id),
+    buyer_id: text("buyer_id").references(() => buyers.id),
     channel: text("channel", { enum: CONSENT_CHANNELS }).notNull(),
     status: text("status", { enum: CONSENT_STATUSES }).notNull(),
     source: text("source").notNull(),
     updated_at: integer("updated_at").notNull(),
   },
-  (t) => [uniqueIndex("messaging_consents_customer_channel").on(t.customer_id, t.channel)],
+  (t) => [
+    uniqueIndex("messaging_consents_customer_channel").on(t.customer_id, t.channel),
+    uniqueIndex("messaging_consents_buyer_channel").on(t.buyer_id, t.channel),
+  ],
 );
 
 export const playbookRules = sqliteTable("playbook_rules", {
@@ -475,6 +481,8 @@ export const invoices = sqliteTable("invoices", {
   paid_amount: integer("paid_amount").notNull().default(0),
   key_account: bool("key_account").notNull(),
   disputed_part: integer("disputed_part"),
+  // What TDS is a percent of (migration 1100). Null: the invoice amount.
+  taxable_value: integer("taxable_value"),
 });
 
 export const promises = sqliteTable("promises", {

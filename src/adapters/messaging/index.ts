@@ -7,6 +7,8 @@
 //   message on that channel.
 // - WhatsApp outside the 24-hour window: approved templates only, and only to
 //   customers with an opted_in consent row.
+// - Buyers (Collect, Step 11) need an opted_in row on the channel for every
+//   message, reply or not. No row, or an opt-out, blocks it.
 // - A voice note is a WhatsApp message: it is stored on channel voice_note
 //   with its transcript as the body, and opens the window like text.
 import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
@@ -147,6 +149,8 @@ export type Consent = (typeof s.CONSENT_STATUSES)[number];
 export type MessagingSim = Messaging & {
   setConsent(customerId: string, channel: ConsentChannel, status: Consent, source: string): void;
   consent(customerId: string, channel: ConsentChannel): Consent | null;
+  setBuyerConsent(buyerId: string, channel: ConsentChannel, status: Consent, source: string): void;
+  buyerConsent(buyerId: string, channel: ConsentChannel): Consent | null;
 };
 
 // Ties on the fake clock fall back to insert order.
@@ -201,6 +205,20 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       .select()
       .from(s.messagingConsents)
       .where(and(eq(s.messagingConsents.customer_id, customerId), eq(s.messagingConsents.channel, channel)))
+      .get();
+
+  const buyerAt = (merchantId: string, channel: Channel, addr: string) =>
+    db
+      .select()
+      .from(s.buyers)
+      .where(and(eq(s.buyers.merchant_id, merchantId), eq(channel === "whatsapp" ? s.buyers.phone : s.buyers.email, addr)))
+      .get();
+
+  const buyerConsentRow = (buyerId: string, channel: ConsentChannel) =>
+    db
+      .select()
+      .from(s.messagingConsents)
+      .where(and(eq(s.messagingConsents.buyer_id, buyerId), eq(s.messagingConsents.channel, channel)))
       .get();
 
   const thread = (merchantId: string, customer: string) => {
@@ -260,9 +278,14 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       }
       const replying = windowOn(input.merchantId, input.to, input.channel).open;
       const customer = customerAt(input.merchantId, input.channel, input.to);
-      const consent = customer ? consentRow(customer.id, input.channel)?.status : undefined;
-      if (!replying && consent === "opted_out") {
+      const buyer = customer ? undefined : buyerAt(input.merchantId, input.channel, input.to);
+      const consent = customer ? consentRow(customer.id, input.channel)?.status : buyer ? buyerConsentRow(buyer.id, input.channel)?.status : undefined;
+      if (!replying && customer && consent === "opted_out") {
         throw new MessagingError("OPTED_OUT", `This customer opted out of ${input.channel === "whatsapp" ? "WhatsApp" : "email"} messages`);
+      }
+      if (buyer) {
+        if (consent === "opted_out") throw new MessagingError("OPTED_OUT", `This buyer opted out of ${input.channel === "whatsapp" ? "WhatsApp" : "email"} messages`);
+        if (consent !== "opted_in") throw new MessagingError("NOT_OPTED_IN", `This buyer has not opted in to ${input.channel === "whatsapp" ? "WhatsApp" : "email"} messages`);
       }
 
       let body = input.body;
@@ -359,6 +382,16 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
     },
     consent(customerId, channel) {
       return consentRow(customerId, channel)?.status ?? null;
+    },
+    setBuyerConsent(buyerId, channel, status, source) {
+      if (!repo.buyers.get(buyerId)) throw new MessagingError("UNKNOWN_ADDRESS", `Buyer ${buyerId} not found`);
+      const existing = buyerConsentRow(buyerId, channel);
+      const fields = { status, source, updated_at: clock.now() };
+      if (existing) repo.messagingConsents.update(existing.id, fields);
+      else repo.messagingConsents.insert({ id: newId("cons"), buyer_id: buyerId, channel, ...fields });
+    },
+    buyerConsent(buyerId, channel) {
+      return buyerConsentRow(buyerId, channel)?.status ?? null;
     },
   };
 }

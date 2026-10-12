@@ -477,11 +477,16 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
       const customer = urgent
         ? undefined
         : a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, kase.merchant_id), eq(s.customers.phone, x.to))).get();
+      // The Collect Call stage calls a buyer's contact person (Step 11).
+      const buyer =
+        urgent || customer
+          ? undefined
+          : a.db.select().from(s.buyers).where(and(eq(s.buyers.merchant_id, kase.merchant_id), eq(s.buyers.phone, x.to))).get();
       const call = await a.voice.call({
         merchantId: kase.merchant_id,
         caseId: kase.id,
         to: x.to,
-        calleeName: urgent ? merchant.name : (customer?.name ?? x.to),
+        calleeName: urgent ? merchant.name : (customer?.name ?? buyer?.contact_name ?? x.to),
         from: merchantCallNumber(kase.merchant_id),
         callerName: urgent ? "RAY" : merchant.name,
         opening: x.opening,
@@ -491,6 +496,7 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
       let optedOut = false;
       if (call.outcome === "asked_not_to_call") {
         if (customer) a.messaging.setConsent(customer.id, "call", "opted_out", "asked not to be called on a call");
+        if (buyer) a.messaging.setBuyerConsent(buyer.id, "call", "opted_out", "asked not to be called on a call");
         if (urgent) repo.merchants.update(merchant.id, { urgent_call_opt_in: false });
         optedOut = true;
       }

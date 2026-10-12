@@ -37,6 +37,8 @@ type Step<To extends CaseState> = { to: To; reason: string; timers?: TimerReques
 
 export type InvestigateResult = Step<CaseState> & {
   findings: Finding[];
+  // With to: "closed", the outcome to record (Step 11: "collected").
+  outcome?: string;
   confidence?: Detection["confidence"];
   side?: Detection["side"];
   cause?: string;
@@ -96,6 +98,10 @@ export interface Specialist {
   // The merchant tapped Change with free text: redraft and offer the same
   // card again. Flows without it only record the text.
   onChange?(ctx: EngineContext, kase: Case, text: string, event: EngineEvent): Promise<ChangeResult>;
+  // Optional (Step 11): the open case of this moment an event belongs to,
+  // asked when grouping finds none and before any detector runs. A buyer's
+  // reply or a bank credit can come weeks after the case was last active.
+  route?(ctx: EngineContext, event: EngineEvent): string | null | Promise<string | null>;
 }
 
 export type Registry = {
