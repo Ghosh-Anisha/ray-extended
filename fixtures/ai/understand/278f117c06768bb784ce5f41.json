@@ -1,0 +1,31 @@
+{
+  "job": "understand",
+  "key": "278f117c06768bb784ce5f41",
+  "label": "recorded in Claude Code",
+  "prompt_version": "collect-remittance.v1",
+  "model": null,
+  "input": {
+    "task": "collect_remittance",
+    "kind": "remittance_advice",
+    "text": "Remittance advice from Bansal Packaging Traders. We have paid Rs 96,800 by RTGS today. PR/26-27/2407: Rs 48,400. PR/26-27/2412: Rs 48,400. Regards, Vikas"
+  },
+  "output": {
+    "payer_name": "Bansal Packaging Traders",
+    "invoice_refs": [
+      "PR/26-27/2407",
+      "PR/26-27/2412"
+    ],
+    "allocations": [
+      {
+        "invoice_ref": "PR/26-27/2407",
+        "amount": 48400
+      },
+      {
+        "invoice_ref": "PR/26-27/2412",
+        "amount": 48400
+      }
+    ],
+    "tds_mentioned": false,
+    "confidence": "sure"
+  }
+}

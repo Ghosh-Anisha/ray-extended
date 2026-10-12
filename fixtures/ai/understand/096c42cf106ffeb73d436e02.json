@@ -1,0 +1,19 @@
+{
+  "job": "understand",
+  "key": "096c42cf106ffeb73d436e02",
+  "label": "recorded in Claude Code",
+  "prompt_version": "collect-remittance.v1",
+  "model": null,
+  "input": {
+    "task": "collect_remittance",
+    "kind": "bank_remark",
+    "text": "IMPS 6281 SUPPLIER PMT"
+  },
+  "output": {
+    "payer_name": null,
+    "invoice_refs": [],
+    "allocations": [],
+    "tds_mentioned": false,
+    "confidence": "unsure"
+  }
+}

@@ -62,12 +62,15 @@ export function readUtr(text: string): string | null {
 }
 
 // Invoice numbers named in the text: "PR/26-27/2402", "INV-2402", "invoice 2402", "#2402".
-export function invoicesNamed(text: string, invoices: Pick<Invoice, "id" | "number">[]): string[] {
+// bare: also a number on its own ("for 2433"), for the merchant's own answer.
+export function invoicesNamed(text: string, invoices: Pick<Invoice, "id" | "number">[], bare = false): string[] {
   const out = new Set<string>();
   for (const inv of invoices) {
     const tail = inv.number.match(/(\d{3,})$/)?.[1];
     if (text.includes(inv.number)) out.add(inv.id);
     else if (tail && new RegExp(`(?:inv(?:oice)?\\s*(?:no\\.?|number)?\\s*[-#:/]?\\s*|#|/)${tail}\\b`, "i").test(text)) out.add(inv.id);
+    // A bare invoice number ("the invoice for 2403"), never an amount.
+    else if (tail && (bare || /\binv(?:oice)?s?\b/i.test(text)) && new RegExp(`(?<![₹\\d,.]|rs\\.?\\s?|inr\\s?)\\b${tail}\\b(?![,.]\\d)`, "i").test(text)) out.add(inv.id);
   }
   return [...out];
 }
@@ -106,7 +109,7 @@ export function readReply(text: string, now: number, invoices: Pick<Invoice, "id
   if (has(/\balready paid\b|\b(?:have|has|we|i) (?:already )?(?:paid|transferred|sent|released)\b|\bpaid (?:it|this|the|yesterday|today|on|via)\b|\btransferred\b|\bsent the payment\b|\bpayment (?:is |has been )?(?:done|made|sent|released|processed)\b|\bkar diya\b|\bho gaya\b|\bbhej diya\b|\b(?:neft|rtgs|imps|utr)\b/, t)) {
     return r("says_paid", "They say they've paid.");
   }
-  const doc = t.match(/\b(?:copy of|send (?:us |me )?(?:the |a )?|resend (?:the )?|need (?:the |a )?|share (?:the |a )?)(invoice|po|purchase order|ledger|statement|delivery challan|challan|e-?way bill|gst invoice|credit note|pod|proof of delivery)\b/);
+  const doc = t.match(/\b(?:copy of|send|resend|need|share)\b(?:\s+(?:us|me|the|a|an|copy|of|over|your))*\s+(invoice|po|purchase order|ledger|statement|delivery challan|challan|e-?way bill|gst invoice|credit note|pod|proof of delivery)\b/);
   if (doc) return r("document_request", `They asked for the ${doc[1]}.`, { document: doc[1] });
   if (date !== null && has(/\bwill\b|\bshall\b|\bby\b|\bpay\b|\bclear\b|\brelease\b|\bprocess\b|\bkar denge\b|\bde denge\b|\bho jayega\b|\btak\b|\bon\b/, t)) {
     return r("promise", "They gave a date to pay.");

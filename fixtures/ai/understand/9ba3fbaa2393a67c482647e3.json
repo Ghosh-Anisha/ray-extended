@@ -1,0 +1,26 @@
+{
+  "job": "understand",
+  "key": "9ba3fbaa2393a67c482647e3",
+  "label": "recorded in Claude Code",
+  "prompt_version": "collect-remittance.v1",
+  "model": null,
+  "input": {
+    "task": "collect_remittance",
+    "kind": "remittance_advice",
+    "text": "Remittance advice: Rs 30,000 sent by NEFT against PR/26-27/2412. Balance to follow. Vikas, Bansal Packaging Traders"
+  },
+  "output": {
+    "payer_name": "Bansal Packaging Traders",
+    "invoice_refs": [
+      "PR/26-27/2412"
+    ],
+    "allocations": [
+      {
+        "invoice_ref": "PR/26-27/2412",
+        "amount": 30000
+      }
+    ],
+    "tds_mentioned": false,
+    "confidence": "sure"
+  }
+}

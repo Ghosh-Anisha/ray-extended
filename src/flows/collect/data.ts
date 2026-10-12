@@ -160,7 +160,7 @@ export function addPromise(ctx: Ctx, caseId: string, inv: Invoice, date: number,
   // A new promise replaces an open one on the same invoice.
   for (const p of promisesFor(ctx.repo, inv.id).filter((x) => x.status === "open")) ctx.repo.promises.update(p.id, { status: "replaced" });
   const row = ctx.repo.promises.insert({ id: newId("prm"), invoice_id: inv.id, buyer_id: inv.buyer_id, promised_date: date, amount, made_at: ctx.clock.now(), status: "open" });
-  note(ctx, caseId, { kind: N.promise, promise_id: row.id, source, invoice_id: inv.id }, row.id);
+  note(ctx, caseId, { kind: N.promise, promise_id: row.id, source, invoice_id: inv.id, from_event: evidenceRef }, row.id);
   return row;
 }
 

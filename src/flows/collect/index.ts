@@ -10,6 +10,7 @@
 // wait for the merchant's tap; Sure credits post alone with undo, Likely
 // waits for a tap, Unsure only asks.
 import { and, eq, isNull } from "drizzle-orm";
+import { newId } from "@/adapters/ids";
 import { firstNameOf } from "@/adapters/voice";
 import * as s from "@/db/schema";
 import type { EngineEvent } from "@/engine/events";
@@ -132,7 +133,26 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     if (k === "buyer_message") return buyerAtAddress(ctx, e.merchantId, e);
     if (k === "credit") {
       const credit = ctx.repo.bankCredits.get(String(e.payload.credit_id));
-      return credit ? buyerFromRemark(ctx, e.merchantId, credit.remark) : undefined;
+      return credit ? buyerFromCredit(ctx, e.merchantId, credit) : undefined;
+    }
+    return undefined;
+  }
+
+  // The payer of a credit, in code: the remark, a UTR the buyer already
+  // gave RAY, or the payment on a pay link RAY sent them.
+  function buyerFromCredit(ctx: Ctx, merchantId: string, credit: typeof s.bankCredits.$inferSelect): Buyer | undefined {
+    const byRemark = buyerFromRemark(ctx, merchantId, credit.remark);
+    if (byRemark) return byRemark;
+    const cases = ctx.repo.cases.list(and(eq(s.cases.merchant_id, merchantId), eq(s.cases.moment, "collect")));
+    for (const c of cases) {
+      const viaUtr = notes(ctx, c.id, N.utr).some((u) => String(u.payload.utr).toUpperCase() === credit.utr.toUpperCase());
+      const viaLink = notes(ctx, c.id, N.link).some((l) => {
+        const link = ctx.repo.rzpLinks.get(String(l.payload.link_id));
+        const paid = link?.payment_id ? ctx.repo.rzpPayments.get(link.payment_id) : undefined;
+        return credit.remark.includes(String(l.payload.link_id)) || (!!paid?.utr && paid.utr === credit.utr);
+      });
+      const b = viaUtr || viaLink ? buyerOf(ctx, c.id) : null;
+      if (b) return b;
     }
     return undefined;
   }
@@ -261,8 +281,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
   // grounding check finds them when the tap sends it.
   function offer(ctx: Ctx, kase: Case, itemId: string, ask: string, proposal: ProposedAction, meta: PendingMeta, facts: Record<string, string>, ref: string, replaces?: string) {
     if (replaces) for (const p of pendingItems(ctx, kase.id).filter((x) => x.meta.type === replaces && x.itemId !== itemId)) resolve(ctx, kase.id, p.itemId, "replaced", ref);
-    writeFacts(ctx, kase.id, facts, ref);
-    addPending(ctx, kase.id, { itemId, ask, proposal: { ...proposal, id: itemId }, meta }, ref);
+    if (addPending(ctx, kase.id, { itemId, ask, proposal: { ...proposal, id: itemId }, meta }, ref)) writeFacts(ctx, kase.id, facts, ref);
   }
 
   function firmOffer(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], ref: string) {
@@ -338,7 +357,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
 
   // Promises whose date has passed: kept if the money came, else broken.
   // The second broken promise moves the invoice on a stage and flags it.
-  function checkPromises(ctx: Ctx, kase: Case, out: Outcome, ref: string) {
+  function checkPromises(ctx: Ctx, kase: Case, out: Outcome) {
     const now = ctx.clock.now();
     for (const inv of invoicesOf(ctx, kase.id)) {
       for (const p of promisesFor(ctx.repo, inv.id).filter((x) => x.status === "open" && x.promised_date + DAY <= now)) {
@@ -532,7 +551,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
       ctx.repo.cases.update(kase.id, { confidence: "sure" });
       const r = await call(ctx, kase, "post_match", { credit_id: credit.id, allocations: match.options[0] });
       if (r.status === "done") {
-        useAdvice(ctx, kase, match, ref);
+        markAdviceUsed(ctx, kase, match, ref);
         out.findings.push({ text: `Posted to the books: ${label(match.options[0]).slice(5)}. ${match.reason} (Bookkeeping Agent, Simulated) You can undo this.`, evidenceRef: r.action.id });
         return;
       }
@@ -554,7 +573,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         followUps.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "question", body: built.body } });
       }
       if (i === 0 && match.kind === "part" && b.email && consented(ctx, b, "email")) {
-        const rest = openInvoicesOfBuyer(ctx.db, b).reduce((n, x) => n + owedOn(ctx.db, x), 0) - credit.amount;
+        const rest = invoicesOf(ctx, kase.id).reduce((n, x) => n + owedOn(ctx.db, x), 0) - credit.amount;
         const built = M.askRest(b, m.name, credit.amount, rest);
         if (rest > 0) {
           facts = built.facts;
@@ -573,7 +592,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     }
   }
 
-  function useAdvice(ctx: Ctx, kase: Case, match: MatchResult, ref: string) {
+  function markAdviceUsed(ctx: Ctx, kase: Case, match: MatchResult, ref: string) {
     if (match.kind !== "advice") return;
     const a = notes(ctx, kase.id, N.advice).findLast((x) => !x.payload.used);
     if (a) note(ctx, kase.id, { kind: N.advice, allocations: a.payload.allocations, used: true }, ref);
@@ -826,7 +845,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     if (k === "merchant_note") onMerchantNote(ctx, kase, b, e!, out);
     if (k === "credit" || k === "buyer_message" || k === "merchant_note") await chase(ctx, kase, b, out, ref, true);
     if (k === "morning" || k === "check" || k === "handoff") {
-      checkPromises(ctx, kase, out, ref);
+      checkPromises(ctx, kase, out);
       const invs = invoicesOf(ctx, kase.id);
       const waitingOnPost = pendingItems(ctx, kase.id).some((p) => p.meta.type === "post" || p.meta.type === "credit_question");
       if (invs.length && invs.every((i) => settled(ctx.db, ctx.repo.invoices.get(i.id)!)) && !waitingOnPost) {
@@ -855,7 +874,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
 
   // RAY's recommendation first: money to post, then answers to the buyer,
   // then the strongest chase step.
-  const ORDER = ["post", "credit_question", "correction", "credit_note", "doc", "contact", "plan", "call", "firm", "msme", "unreachable", "who", "unclear", "blocked"];
+  const ORDER = ["post", "credit_question", "correction", "credit_note", "doc", "contact", "plan", "who", "unclear", "blocked", "call", "firm", "msme", "unreachable"];
   const rank = (items: Pending[]) => [...items].sort((x, y) => ORDER.indexOf(x.meta.type) - ORDER.indexOf(y.meta.type) || x.at - y.at);
 
   const toInvestigate = (r: Outcome, timers: TimerRequest[]): InvestigateResult => ({
@@ -880,7 +899,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
       if (k === "credit") {
         const credit = ctx.repo.bankCredits.get(String(e.payload.credit_id));
         if (!credit || credit.merchant_id !== e.merchantId || credit.matched_invoices.length) return null;
-        const b = buyerFromRemark(ctx, e.merchantId, credit.remark);
+        const b = buyerFromCredit(ctx, e.merchantId, credit);
         return {
           moment: "collect",
           confidence: b ? "likely" : "unsure",
@@ -953,7 +972,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         }
         case "post":
           for (const t of (meta.tds as Allocation[] | undefined) ?? []) note(ctx, kase.id, { kind: N.tds, invoice_id: t.invoice_id, amount: t.amount, credit_id: meta.credit_id }, r.action.id);
-          useAdvice(ctx, kase, { kind: meta.kind } as MatchResult, ref);
+          markAdviceUsed(ctx, kase, { kind: meta.kind } as MatchResult, ref);
           // The other options for this credit are gone.
           for (const p of pendingItems(ctx, kase.id).filter((x) => x.meta.credit_id === meta.credit_id)) resolve(ctx, kase.id, p.itemId, "another option posted", ref);
           out.findings.push({ text: `Posted to the books (Bookkeeping Agent, Simulated). You can undo this.`, evidenceRef: r.action.id });
@@ -979,6 +998,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         }
       }
       syncAmount(ctx, kase);
+      for (const f of out.findings) ctx.repo.caseEvents.insert({ id: newId("cev"), case_id: kase.id, at: ctx.clock.now(), type: "finding", payload: { text: f.text, cited_by: ref }, evidence_ref: f.evidenceRef });
       return { to: "verifying", reason: `Done: ${proposal.label}.`, timers: ensureCheck(ctx, kase) };
     },
 
@@ -1003,13 +1023,13 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
 
     async onChange(ctx, kase, text, e) {
       const ref = e.sourceId;
-      if (/samadhaan/i.test(text)) return samadhaan(ctx, kase, ref);
+      if (/samadhaan/i.test(text)) return samadhaan(ctx, kase);
       // An answer to "which invoice is it for?": the invoices the merchant names.
       const q = pendingItems(ctx, kase.id).find((p) => p.meta.type === "credit_question");
       if (q) {
         const credit = ctx.repo.bankCredits.get(String(q.meta.credit_id))!;
         const all = ctx.db.select().from(s.invoices).where(eq(s.invoices.merchant_id, kase.merchant_id)).all().filter((i) => owedOn(ctx.db, i) > 0);
-        const named = invoicesNamed(text, all);
+        const named = invoicesNamed(text, all, true);
         if (!named.length) return { reason: "I couldn't find an open invoice number in that. Which invoice is it for?" };
         const invs = all.filter((i) => named.includes(i.id)).sort((x, y) => x.due_date - y.due_date);
         let left = credit.amount;
@@ -1034,7 +1054,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     },
   };
 
-  async function samadhaan(ctx: Ctx, kase: Case, ref: string) {
+  async function samadhaan(ctx: Ctx, kase: Case) {
     const b = buyerOf(ctx, kase.id);
     const m = merchantOf(ctx, kase);
     if (!b || !m.udyam) return { reason: "MSME Samadhaan is only for Udyam-registered merchants with an overdue buyer." };
