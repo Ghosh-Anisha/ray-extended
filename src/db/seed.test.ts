@@ -15,7 +15,7 @@ const EXPECTED_ROWS: Record<string, number> = {
   timers: 0,
   messages: 0,
   messaging_consents: 9,
-  playbook_rules: 0,
+  playbook_rules: 7,
   memory: 0,
   ai_calls: 0,
   alerts: 0,

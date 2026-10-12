@@ -1,5 +1,6 @@
-// Dev panel: move the fake clock forward, then run the tick so due timers
-// fire in due-time order. Refused when the app runs on the real clock.
+// Dev panel: move the fake clock forward, stopping at each due timer or held
+// action (the refund hold) so each runs at its own due time, in order.
+// Refused when the app runs on the real clock.
 import { z } from "zod";
 import { getAdapters } from "@/adapters";
 import { getEngine } from "@/engine";
@@ -12,8 +13,7 @@ export async function POST(req: Request) {
     const a = getAdapters();
     if (a.clockMode !== "fake") throw new Error("The clock can only be moved when the fake clock is on");
     const { ms } = input.parse(await req.json());
-    a.clock.advance(ms);
-    const { fired } = await getEngine().tick();
-    return { now: a.clock.now(), fired };
+    const { now, fired, released } = await getEngine().advanceBy(ms);
+    return { now, fired, released };
   });
 }

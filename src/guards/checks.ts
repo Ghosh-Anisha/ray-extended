@@ -15,7 +15,7 @@ import { normalizeEmail, normalizePhone } from "@/engine/events";
 import type { Approval, ProposedAction } from "@/engine/specialist";
 import type { Case } from "@/engine/state-machine";
 import { normalise } from "@/ai/key";
-import type { ActToolSpec, GuardName, MatchClaim } from "@/tools/act";
+import { AUTO_CUSTOMER_MESSAGES, CONFIRMS, needsApproval, type ActToolSpec, type GuardName, type MatchClaim, type MessageKind } from "@/tools/act";
 import type { ActToolName } from "@/tools/names";
 import { caseFacts } from "./facts";
 import { formatDate, formatMoney, formatTime, last4 } from "./format";
@@ -71,12 +71,12 @@ export async function confidence(g: GuardContext): Promise<Failure[]> {
 // ---- Approval: a tap from the merchant on a proposal for this action, or
 // an approved playbook rule for this merchant and moment.
 export async function approval(g: GuardContext): Promise<Failure[]> {
-  const need = g.spec.approval;
-  if (need === "none") return [];
+  const need = needsApproval(g.spec, g.args);
+  if (need === "none") return autoMessages(g);
   const ap = g.approval;
   if (!ap) {
     if (need === "unless_sure" && g.kase.confidence === "sure") return [];
-    return [fail("approval", "missing", "This needs your tap before RAY can do it.")];
+    return [fail("approval", "missing", `This needs your tap before RAY can do it.${await captureTimeLeft(g)}`)];
   }
   if (ap.by === "rule") {
     const rule = g.repo.playbookRules.get(ap.ruleId);
@@ -85,7 +85,8 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
       rule.status === "approved" &&
       rule.merchant_id === g.kase.merchant_id &&
       rule.moment === g.kase.moment &&
-      (rule.rule_json.tool === undefined || rule.rule_json.tool === g.tool);
+      (rule.rule_json.tool === undefined || rule.rule_json.tool === g.tool) &&
+      (rule.rule_json.kind === undefined || rule.rule_json.kind === g.args.kind);
     return ok ? [] : [fail("approval", "rule_not_approved", "That rule isn't approved for this, so this needs your tap.", { rule_id: ap.ruleId })];
   }
   const ev = g.repo.caseEvents.get(ap.evidenceRef);
@@ -104,6 +105,32 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
     return [fail("approval", "different_action", "You approved a different action, so this needs your tap.", { proposal_id: ap.tap.proposalId })];
   }
   return [];
+}
+
+// Razorpay refunds an authorised payment that isn't captured in time (5 days
+// by default). Without the capture rule, the merchant is asked with the time left.
+export const CAPTURE_TIMEOUT_MS = 5 * 24 * 60 * 60 * 1000;
+
+async function captureTimeLeft(g: GuardContext): Promise<string> {
+  if (g.tool !== "capture") return "";
+  const p = await g.payment();
+  if (!p || p.status !== "authorized") return "";
+  const left = p.created_at + CAPTURE_TIMEOUT_MS - g.now;
+  if (left <= 0) return " The time to capture it has run out.";
+  const days = Math.floor(left / 86_400_000);
+  const hours = Math.floor((left % 86_400_000) / 3_600_000);
+  const mins = Math.floor((left % 3_600_000) / 60_000);
+  const parts = days ? [`${days} day${days > 1 ? "s" : ""}`, `${hours} hr`] : hours ? [`${hours} hr`, `${mins} min`] : [`${mins} min`];
+  return ` ${parts.join(" ")} left to capture ${money(p)} before Razorpay refunds it.`;
+}
+
+// Automatic customer messages go out alone only while the playbook has them on.
+function autoMessages(g: GuardContext): Failure[] {
+  if (g.tool !== "send_message" || g.args.kind !== "auto_customer") return [];
+  const on = g.repo.playbookRules
+    .list(and(eq(s.playbookRules.merchant_id, g.kase.merchant_id), eq(s.playbookRules.status, "approved")))
+    .some((r) => r.rule_json.setting === AUTO_CUSTOMER_MESSAGES && r.rule_json.on === true && (!r.moment || r.moment === g.kase.moment));
+  return on ? [] : [fail("approval", "auto_messages_off", "Automatic customer messages are off in your playbook, so this needs your tap.")];
 }
 
 // ---- Amount cap: without a tap, nothing above the merchant's approval limit.
@@ -412,6 +439,41 @@ export async function grounding(g: GuardContext): Promise<Failure[]> {
   return stray.length ? [fail("grounding", "ungrounded", `The message has numbers that aren't in the case: ${stray.join(", ")}.`, { numbers: stray })] : [];
 }
 
+// ---- Confirmation: a message saying money was refunded or an order is
+// confirmed goes out only after that action ran and its result checks out
+// (never during the refund hold). Only the confirmation kinds may say so.
+const SAYS_DONE = /\brefunded\b|\brefund (?:is|has been|was) (?:processed|issued|sent|done|made)\b|\bconfirmed\b/i;
+
+export async function confirmation(g: GuardContext): Promise<Failure[]> {
+  const kind = g.args.kind as MessageKind;
+  const tools = CONFIRMS[kind];
+  if (!tools) {
+    return SAYS_DONE.test(messageBody(g.args))
+      ? [fail("confirmation", "says_done", "Only a refund or order confirmation can say it's refunded or confirmed, after RAY has done it and checked.")]
+      : [];
+  }
+  const id = g.args.confirms_action_id as string | undefined;
+  const action = id ? g.repo.actions.get(id) : undefined;
+  if (!action || action.case_id !== g.kase.id || !tools.includes(action.tool)) {
+    return [fail("confirmation", "no_action", "RAY can't find what this message confirms on the case.")];
+  }
+  if (action.status === "held") return [fail("confirmation", "on_hold", "The refund is still on hold, so it can't be confirmed yet.")];
+  if (action.status !== "done") return [fail("confirmation", "not_done", "That hasn't been done, so it can't be confirmed.")];
+  if (!(await resultChecksOut(g, action))) return [fail("confirmation", "not_checked", "RAY couldn't check that it went through, so it can't be confirmed yet.")];
+  return [];
+}
+
+// Reads the result back from the source: the refund at Razorpay, the order in the store.
+async function resultChecksOut(g: GuardContext, action: typeof s.actions.$inferSelect): Promise<boolean> {
+  const result = action.result ?? {};
+  if (action.tool === "refund") {
+    const refunds = await g.a.razorpay(g.kase.merchant_id).listRefunds(action.args.payment_id as string);
+    return refunds.some((r) => r.id === result.id && r.status !== "failed");
+  }
+  const order = await g.a.store.getOrder(g.kase.merchant_id, { id: result.id as string }).catch(() => null);
+  return !!order && ["processing", "completed"].includes(order.status) && order.payment_id === action.args.payment_id;
+}
+
 // The refund hold isn't a check that can fail; guardedCall holds the action.
 export async function refundHold(): Promise<Failure[]> {
   return [];
@@ -430,12 +492,15 @@ export const CHECKS: Record<GuardName, (g: GuardContext) => Promise<Failure[]>> 
   consent,
   first_message: firstMessage,
   grounding,
+  confirmation,
   refund_hold: refundHold,
 };
 
 // The guards that apply to a tool, in the order they run.
+// Approval always runs: a tool that runs alone passes it (send_message's
+// auto_customer kind still checks the playbook).
 export function guardsFor(spec: ActToolSpec): GuardName[] {
-  return ["kill_switch", "confidence", ...(spec.approval === "none" ? [] : (["approval"] as const)), ...spec.guards];
+  return ["kill_switch", "confidence", "approval", ...spec.guards];
 }
 
 // Lazy, memoised reads every check shares.

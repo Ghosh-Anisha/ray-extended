@@ -1,9 +1,11 @@
 // Seed data from docs/build-guide.html, Step 1. All merchants, customers and
 // buyers are fictional; emails use example.com and phones are made up.
-// Only starting state is seeded: cases, events, actions, timers, messages and
-// rules are created later by the engine from events.
+// Only starting state is seeded: cases, events, actions, timers and messages
+// are created later by the engine from events. Rules are only the ones RAY
+// proposes at setup, each off until the merchant approves it.
 import { pathToFileURL } from "node:url";
 import { openMigratedDb, type Db } from "./client";
+import { proposeSetupRules } from "@/engine/setup-rules";
 import { createRepository } from "./repository";
 import type * as s from "./schema";
 
@@ -360,6 +362,10 @@ export function seed(db: Db, now: number = SEED_NOW) {
       { id: "bc_PR_2", merchant_id: PR, amount: net(kohli[0], 2) + net(kohli[1], 2), remark: "RTGS KOHLI EXPORTS PAYMENT", utr: "HDFCR52026101211", date: ago(2 * DAY), matched_invoices: [] },
       { id: "bc_PR_3", merchant_id: PR, amount: rupees(18_000), remark: "IMPS 6281 SUPPLIER PMT", utr: "628510004417", date: ago(3 * HOUR), matched_invoices: [] },
     ]);
+
+    // Rules RAY proposes at setup for every merchant with RAY on, all off
+    // (proposed) until the merchant approves them.
+    for (const m of MERCHANTS.filter((m) => m.ray_on)) proposeSetupRules(db, m.id);
 
     // WhatsApp opt-ins collected at checkout, for customers of merchants with
     // WhatsApp on. Kavya later opted out; Imran has no consent row at all.

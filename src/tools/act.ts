@@ -26,6 +26,7 @@ export const GUARDS = [
   "consent",
   "first_message",
   "grounding",
+  "confirmation",
   "refund_hold",
 ] as const;
 export type GuardName = (typeof GUARDS)[number];
@@ -57,7 +58,8 @@ export type ActToolSpec<A = any> = {
   // Merchant-facing name of the action, for reasons: "A check stopped the refund".
   label: string;
   // required: a tap or an approved rule. unless_sure: a tap unless the case is Sure. none: runs alone.
-  approval: "required" | "unless_sure" | "none";
+  // A function when it depends on the args (send_message, by kind).
+  approval: ApprovalNeed | ((args: A) => ApprovalNeed);
   guards: GuardName[];
   holdMs?: number;
   paymentId?(args: A): string | undefined;
@@ -69,7 +71,46 @@ export type ActToolSpec<A = any> = {
   undo?(ctx: ActRunContext, args: A, result: Record<string, unknown>): Promise<Record<string, unknown>>;
 };
 
+export type ApprovalNeed = "required" | "unless_sure" | "none";
+
+export const needsApproval = (spec: ActToolSpec, args: unknown): ApprovalNeed =>
+  typeof spec.approval === "function" ? spec.approval(args) : spec.approval;
+
 export const REFUND_HOLD_MS = 10 * 60 * 1000;
+
+// Every message says what kind it is, and the kind decides whether it needs
+// the merchant's tap (or an approved rule) before it goes out.
+export const MESSAGE_APPROVAL = {
+  // Runs alone.
+  promise_line: "none", // "We can see your ₹1,299. You'll hear from us by ..." before the tap
+  holding: "none", // the promised time passed and the merchant hasn't tapped
+  status: "none", // where things stand, answering the customer
+  resend_confirmation: "none", // resending a confirmation the store already sent
+  before_due_reminder: "none", // Collect, 3 days before due
+  gentle_reminder: "none", // Collect, due + 3
+  recovery_link: "none", // international F, subscription A and B
+  question: "none", // the one question; the only kind allowed on an Unsure case
+  auto_customer: "none", // only while the playbook has automatic customer messages on
+  // A tap or an approved rule.
+  firm_reminder: "required",
+  msme_notice: "required",
+  dispute_outreach: "required",
+  didnt_authorise_reply: "required",
+  refund_confirmation: "required",
+  fulfil_confirmation: "required",
+} as const satisfies Record<string, ApprovalNeed>;
+export type MessageKind = keyof typeof MESSAGE_APPROVAL;
+export const MESSAGE_KINDS = Object.keys(MESSAGE_APPROVAL) as MessageKind[];
+
+// Confirmation kinds name the action they confirm; it must have run and
+// been checked first (never during a refund hold).
+export const CONFIRMS: Partial<Record<MessageKind, readonly string[]>> = {
+  refund_confirmation: ["refund"],
+  fulfil_confirmation: ["mark_paid", "restore_order", "create_order_for_payment"],
+};
+
+// The playbook setting automatic customer messages need.
+export const AUTO_CUSTOMER_MESSAGES = "auto_customer_messages";
 
 // Foreign payments compare by Razorpay's INR base amount.
 async function paymentInr(a: Adapters, kase: Case, id: string, minor?: number) {
@@ -221,22 +262,25 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     },
   }),
 
-  // kind "question" is the one thing RAY may still send when it's Unsure.
+  // The kind decides the approval (MESSAGE_APPROVAL). Only a question may
+  // go out on an Unsure case.
   send_message: def({
     args: z
       .object({
         channel: z.enum(CHANNELS),
         to: z.string().min(3),
         sender_mode: z.enum(SENDER_MODES),
-        kind: z.enum(["question", "update"]).default("update"),
+        kind: z.enum(MESSAGE_KINDS as [MessageKind, ...MessageKind[]]),
         body: z.string().min(1).optional(),
         template_id: z.string().optional(),
         params: z.record(z.string(), z.string()).optional(),
+        // For refund_confirmation and fulfil_confirmation: the action confirmed.
+        confirms_action_id: z.string().optional(),
       })
       .refine((v) => (v.body === undefined) !== (v.template_id === undefined), "Give either a body or a template_id"),
     label: "the message",
-    approval: "none",
-    guards: ["channel_rules", "consent", "first_message", "grounding"],
+    approval: (x) => MESSAGE_APPROVAL[x.kind],
+    guards: ["channel_rules", "consent", "first_message", "grounding", "confirmation"],
     async run({ a, kase }, x) {
       const m = await a.messaging.send({
         merchantId: kase.merchant_id,
@@ -295,7 +339,9 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     },
   }),
 
-  // The subscription's own pending invoice, ready to send; never a fresh link.
+  // The subscription's own pending invoice link, ready to send; never a
+  // fresh link. It only reads (Razorpay's fetch-invoices call): nothing is
+  // charged, the subscriber pays through the link. So it runs alone.
   pay_pending_invoice: def({
     args: subscriptionArgs,
     label: "the pending invoice",
@@ -304,6 +350,7 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     async run({ a, kase }, x) {
       const inv = await a.razorpay(kase.merchant_id).fetchPendingInvoice(x.subscription_id);
       if (!inv || inv.status !== "issued") throw new Error(`Subscription ${x.subscription_id} has no pending invoice`);
+      if (inv.subscription_id !== x.subscription_id) throw new Error(`Invoice ${inv.id} isn't this subscription's own`);
       return { invoice_id: inv.id, subscription_id: x.subscription_id, short_url: inv.short_url, amount: inv.amount };
     },
   }),

@@ -7,9 +7,9 @@
 // Events are handled one at a time. A redelivered event (same source id) is
 // recorded once.
 import { AsyncLocalStorage } from "node:async_hooks";
-import { and, asc, eq, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import type { Adapters } from "@/adapters";
-import type { Clock } from "@/adapters/clock";
+import type { Clock, FakeClock } from "@/adapters/clock";
 import { newId } from "@/adapters/ids";
 import type { ReceiveInput } from "@/adapters/messaging";
 import type { Db } from "@/db/client";
@@ -27,16 +27,21 @@ export type HandleResult =
   | { outcome: "duplicate"; caseId: string }
   | { outcome: "alert_only" | "handled"; caseId: string; created: boolean; case: Case };
 
+export type TickResult = {
+  fired: { timerId: string; caseId: string; kind: string; dueAt: number }[];
+  released: { actionId: string; caseId: string; status: string; dueAt: number }[];
+};
+
 export type Engine = {
   handleEvent(event: EngineEventInput): Promise<HandleResult>;
   // Records a customer message, then hands it to handleEvent.
   receiveMessage(input: ReceiveInput): Promise<HandleResult>;
   // Fires every due timer, earliest first, through handleEvent.
   // Also releases held actions whose hold has ended, in the same due order.
-  tick(): Promise<{
-    fired: { timerId: string; caseId: string; kind: string; dueAt: number }[];
-    released: { actionId: string; caseId: string; status: string; dueAt: number }[];
-  }>;
+  tick(): Promise<TickResult>;
+  // Fake clock only: moves forward ms, stopping at each due timer or held
+  // action on the way so it runs with the clock set to its own due time.
+  advanceBy(ms: number): Promise<TickResult & { now: number }>;
   stop(): void;
 };
 
@@ -178,6 +183,42 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     }
   }
 
+  // The earliest thing still to come: an unfired timer or a held action.
+  function nextDueAt(): number | null {
+    const t = db
+      .select({ at: s.timers.due_at })
+      .from(s.timers)
+      .where(and(isNull(s.timers.fired_at), isNull(s.timers.cancelled_at)))
+      .orderBy(asc(s.timers.due_at))
+      .get();
+    const h = db
+      .select({ at: s.actions.run_after })
+      .from(s.actions)
+      .where(and(eq(s.actions.status, "held"), isNotNull(s.actions.run_after)))
+      .orderBy(asc(s.actions.run_after))
+      .get();
+    const ats = [t?.at, h?.at].filter((x): x is number => typeof x === "number");
+    return ats.length ? Math.min(...ats) : null;
+  }
+
+  async function advanceBy(ms: number) {
+    const fake = clock as Partial<FakeClock>;
+    if (!fake.set) throw new Error("Only the fake clock can be moved forward");
+    if (!Number.isFinite(ms) || ms < 0) throw new Error("The clock only moves forward");
+    const target = clock.now() + ms;
+    const out: TickResult = { fired: [], released: [] };
+    for (;;) {
+      const due = nextDueAt();
+      if (due === null || due > target) break;
+      if (due > clock.now()) fake.set(due);
+      const r = await tickOnce();
+      out.fired.push(...r.fired);
+      out.released.push(...r.released);
+    }
+    fake.set(target);
+    return { ...out, now: clock.now() };
+  }
+
   const unsubscribe = adapters?.webhooks.subscribe(async (d) => {
     const work = engine.handleEvent(fromWebhook(d));
     if (!inside.getStore()) await work;
@@ -191,6 +232,7 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
       return engine.handleEvent(fromMessage(m, input.merchantId));
     },
     tick: () => serial(tickOnce),
+    advanceBy: (ms) => serial(() => advanceBy(ms)),
     stop: () => unsubscribe?.(),
   };
   return engine;

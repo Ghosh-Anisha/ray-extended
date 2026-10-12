@@ -6,6 +6,7 @@ import { createMockRazorpay, type Payment, type RazorpayAdapter } from "@/adapte
 import * as s from "@/db/schema";
 import { transition } from "@/engine/state-machine";
 import { caseFacts, formatMoney, formatTime, releaseDueActions, REFUND_HOLD_MS, setKillSwitch, undoAction, type GuardedResult } from ".";
+import { MESSAGE_APPROVAL } from "@/tools/act";
 import { guardWorld, LEAFY, MIN, PRIYA, PRIYA_ORDER, PRIYA_PAY, type GuardWorld } from "./test-helpers";
 
 let w: GuardWorld;
@@ -21,7 +22,7 @@ const markPaidArgs = { order_id: PRIYA_ORDER, payment_id: PRIYA_PAY };
 const mock = () => createMockRazorpay(w.a.db, w.a.clock, LEAFY);
 // The first WhatsApp to Priya: amount, time, date and UTR ending, from her payment.
 const checkParams = { name: "Priya", merchant: "Leafy Bakes", amount: "₹1,299", time: "9:22 AM", date: "12 Oct", order: "#1234", utr_last4: "0021" };
-const firstWhatsApp = { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", template_id: "payment_received_check", params: checkParams };
+const firstWhatsApp = { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind: "status", template_id: "payment_received_check", params: checkParams };
 
 describe("guard: approval", () => {
   it("passes with the merchant's tap on a proposal for this action", async () => {
@@ -262,12 +263,12 @@ describe("guard: first message (rule 7)", () => {
     const k = w.openCase();
     await w.a.messaging.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "where is my order" });
     const linked = await w.call(k.id, "send_message", {
-      channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox",
+      channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind: "status",
       body: "We got your ₹1,299 at 9:22 AM on 12 Oct, UTR ending 0021. Track it at https://leafybakes.example.com/track",
     });
     expect(codes(linked)).toContain("first_message:link");
     const noUtr = await w.call(k.id, "send_message", {
-      channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", body: "We got your ₹1,299 at 9:22 AM on 12 Oct.",
+      channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind: "status", body: "We got your ₹1,299 at 9:22 AM on 12 Oct.",
     });
     expect(codes(noUtr)).toEqual(["first_message:not_checkable"]);
   });
@@ -285,7 +286,7 @@ describe("guard: first message (rule 7)", () => {
       const k = emmaCase();
       const url = await link(k.id);
       const body = `Hi Emma, this is NoteNest. Your $49 payment for Pro annual didn't go through. You can pay here: ${url}`;
-      const r = await w.call(k.id, "send_message", { channel: "email", to: EMMA, sender_mode: "verified_domain", body });
+      const r = await w.call(k.id, "send_message", { channel: "email", to: EMMA, sender_mode: "verified_domain", kind: "recovery_link", body });
       expect(r.status).toBe("done");
     });
 
@@ -293,11 +294,11 @@ describe("guard: first message (rule 7)", () => {
       const k = emmaCase();
       const url = await link(k.id);
       const other = await w.call(k.id, "send_message", {
-        channel: "email", to: EMMA, sender_mode: "verified_domain",
+        channel: "email", to: EMMA, sender_mode: "verified_domain", kind: "recovery_link",
         body: "Hi Emma, this is NoteNest. Your $49 payment for Pro annual didn't go through. Pay at https://notenest-pay.example.com/pro",
       });
       expect(codes(other)).toContain("first_message:link_not_razorpay");
-      const alone = await w.call(k.id, "send_message", { channel: "email", to: EMMA, sender_mode: "verified_domain", body: url });
+      const alone = await w.call(k.id, "send_message", { channel: "email", to: EMMA, sender_mode: "verified_domain", kind: "recovery_link", body: url });
       expect(codes(alone)).toEqual(["first_message:link_alone"]);
     });
   });
@@ -308,14 +309,14 @@ describe("guard: channel rules", () => {
     const k = w.openCase();
     expect((await w.call(k.id, "send_message", firstWhatsApp)).status).toBe("done");
     await w.a.messaging.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "YES" });
-    const r = await w.call(k.id, "send_message", { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", body: "Thanks Priya, order #1234 is confirmed." });
+    const r = await w.call(k.id, "send_message", { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind: "status", body: "Thanks Priya, we're checking order #1234 now." });
     expect(r.status).toBe("done");
   });
 
   it("fails free text outside the 24-hour window, an unapproved template, and WhatsApp when it's off", async () => {
     const k = w.openCase();
     await w.call(k.id, "send_message", firstWhatsApp);
-    const free = { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", body: "Order #1234 is confirmed." };
+    const free = { channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind: "status", body: "We're checking order #1234 now." };
     expect(codes(await w.call(k.id, "send_message", free))).toEqual(["channel_rules:window_closed"]);
     const pending = { ...firstWhatsApp, template_id: "festive_offer", params: { name: "Priya", merchant: "Leafy Bakes" } };
     expect(codes(await w.call(k.id, "send_message", pending))).toContain("channel_rules:template_not_approved");
@@ -476,7 +477,7 @@ describe("a failed guard", () => {
     const { bannedWordsIn, hasEmDash } = await import("@/ai/grounding");
     const k = w.openCase({ confidence: "unsure" });
     setKillSwitch(w.a.db, w.a.clock, "global", true);
-    const r = await w.call(k.id, "send_message", { channel: "whatsapp", to: "+919800000107", sender_mode: "verified_domain", body: "₹9,999 https://x.example.com" });
+    const r = await w.call(k.id, "send_message", { channel: "whatsapp", to: "+919800000107", sender_mode: "verified_domain", kind: "status", body: "₹9,999 refunded https://x.example.com" });
     const reasons = r.status === "blocked" ? r.failures.map((f) => f.reason) : [];
     expect(reasons.length).toBeGreaterThan(3);
     for (const reason of reasons) {
@@ -501,4 +502,125 @@ it("keeps every action on the record, with its idempotency key", async () => {
   const rows = w.repo.actions.list(eq(s.actions.case_id, k.id));
   expect(rows).toHaveLength(1);
   expect(rows[0].idempotency_key).toMatch(/^ik_[0-9a-f]{32}$/);
+});
+
+describe("capture: tap or the setup rule", () => {
+  const authorised = () => mock().simulatePayment({ amount: 49_900, status: "authorized" });
+  const captureRule = () => w.repo.playbookRules.get(`rule_setup_capture_${LEAFY}`)!;
+
+  it("is proposed at setup and off until the merchant approves it", () => {
+    expect(captureRule()).toMatchObject({ text: "Capture authorised payments before the timeout", status: "proposed", rule_json: { tool: "capture" } });
+  });
+
+  it("without the rule, RAY asks the merchant and shows the time left", async () => {
+    const p = authorised();
+    const k = w.openCase({ payment_id: p.id, store_order_id: null });
+    w.a.clock.advance(26 * 60 * MIN);
+    const r = await w.call(k.id, "capture", { payment_id: p.id });
+    expect(codes(r)).toEqual(["approval:missing"]);
+    expect(r.status === "blocked" && r.failures[0].reason).toBe(
+      "This needs your tap before RAY can do it. 3 days 22 hr left to capture ₹499 before Razorpay refunds it.",
+    );
+    expect(codes(await w.call(k.id, "capture", { payment_id: p.id }, { by: "rule", ruleId: captureRule().id, evidenceRef: "evt_c" }))).toContain(
+      "approval:rule_not_approved",
+    );
+  });
+
+  it("with the rule approved, capture runs alone", async () => {
+    w.repo.playbookRules.update(captureRule().id, { status: "approved", approved_at: w.a.clock.now() });
+    const p = authorised();
+    const k = w.openCase({ payment_id: p.id, store_order_id: null });
+    const r = await w.call(k.id, "capture", { payment_id: p.id }, { by: "rule", ruleId: captureRule().id, evidenceRef: "evt_c" });
+    expect(r.status).toBe("done");
+    expect(r.action.approved_by).toBe(captureRule().id);
+    expect((await mock().fetchPayment(p.id)).status).toBe("captured");
+  });
+});
+
+describe("send_message: approval by kind", () => {
+  const msg = (kind: string) => ({ channel: "email", to: "priya.sharma@example.com", sender_mode: "verified_domain", kind, body: "Hi Priya, this is Leafy Bakes about order #1234." });
+
+  for (const [kind, need] of Object.entries(MESSAGE_APPROVAL)) {
+    it(`${kind}: ${need === "none" ? "goes out without a tap" : "needs a tap or a rule"}`, async () => {
+      const k = w.openCase();
+      if (kind === "auto_customer") {
+        w.rule("approved", { rule_json: { setting: "auto_customer_messages", on: true } });
+      }
+      const alone = await w.call(k.id, "send_message", msg(kind));
+      if (need === "none") {
+        expect(guards(alone)).not.toContain("approval");
+      } else {
+        expect(codes(alone)).toContain("approval:missing");
+        const tapped = await w.call(k.id, "send_message", msg(kind), w.tapFor(k.id, "send_message", msg(kind)));
+        expect(guards(tapped)).not.toContain("approval");
+        const rule = w.rule("approved", { rule_json: { tool: "send_message", kind } });
+        expect(guards(await w.call(k.id, "send_message", msg(kind), { by: "rule", ruleId: rule.id, evidenceRef: `evt_${kind}` }))).not.toContain("approval");
+      }
+    });
+  }
+
+  it("automatic customer messages need the playbook setting on", async () => {
+    const k = w.openCase();
+    expect(codes(await w.call(k.id, "send_message", msg("auto_customer")))).toContain("approval:auto_messages_off");
+  });
+
+  it("a rule for one kind doesn't cover another", async () => {
+    const k = w.openCase();
+    const rule = w.rule("approved", { rule_json: { tool: "send_message", kind: "firm_reminder" } });
+    expect(codes(await w.call(k.id, "send_message", msg("msme_notice"), { by: "rule", ruleId: rule.id, evidenceRef: "evt_m" }))).toContain(
+      "approval:rule_not_approved",
+    );
+  });
+});
+
+describe("guard: confirmation (only after the action ran and checked out)", () => {
+  const say = (kind: string, body: string, confirms?: string) => ({
+    channel: "whatsapp", to: PRIYA, sender_mode: "merchant_inbox", kind, body, ...(confirms ? { confirms_action_id: confirms } : {}),
+  });
+
+  it("refund confirmation fails during the hold and passes once the refund is done", async () => {
+    const k = w.openCase();
+    await w.call(k.id, "send_message", firstWhatsApp);
+    await w.a.messaging.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "ok" });
+    const held = await w.call(k.id, "refund", refundArgs, w.tapFor(k.id, "refund", refundArgs));
+    const confirm = say("refund_confirmation", "Hi Priya, your ₹1,299 for order #1234 has been refunded.", held.action.id);
+    expect(codes(await w.call(k.id, "send_message", confirm, w.tapFor(k.id, "send_message", confirm)))).toEqual(["confirmation:on_hold"]);
+    w.a.clock.advance(REFUND_HOLD_MS);
+    await releaseDueActions(w.a);
+    expect((await w.call(k.id, "send_message", confirm, w.tapFor(k.id, "send_message", confirm))).status).toBe("done");
+  });
+
+  it("order confirmation passes after mark paid is done and the store shows it paid", async () => {
+    const k = w.openCase();
+    await w.call(k.id, "send_message", firstWhatsApp);
+    await w.a.messaging.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "ok" });
+    const done = await w.call(k.id, "mark_paid", markPaidArgs, w.tapFor(k.id, "mark_paid", markPaidArgs));
+    const confirm = say("fulfil_confirmation", "Thanks Priya, order #1234 is confirmed.", done.action.id);
+    expect((await w.call(k.id, "send_message", confirm, w.tapFor(k.id, "send_message", confirm))).status).toBe("done");
+    // Naming an action that isn't a fulfil one fails.
+    const wrong = say("fulfil_confirmation", "Thanks Priya, order #1234 is confirmed.", "act_nothing");
+    expect(codes(await w.call(k.id, "send_message", wrong, w.tapFor(k.id, "send_message", wrong)))).toEqual(["confirmation:no_action"]);
+  });
+
+  it("any other kind saying refunded or confirmed fails", async () => {
+    const k = w.openCase();
+    await w.a.messaging.receive({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "where is my order" });
+    await w.call(k.id, "send_message", firstWhatsApp);
+    expect(codes(await w.call(k.id, "send_message", say("holding", "Your order #1234 is confirmed.")))).toEqual(["confirmation:says_done"]);
+    expect(codes(await w.call(k.id, "send_message", say("status", "We refunded your ₹1,299.")))).toEqual(["confirmation:says_done"]);
+  });
+});
+
+describe("pay_pending_invoice", () => {
+  it("only shares the subscription's own pending invoice link; nothing is charged", async () => {
+    const before = { payments: w.repo.rzpPayments.list().length, invoice: w.repo.subInvoices.get("inv_FL_karan_3"), sub: w.repo.subscriptions.get("sub_FL_karan") };
+    const k = w.openCase({ merchant_id: "m_fitloop", moment: "subscription", payment_id: null, store_order_id: null, amount: 49_900 });
+    const r = await w.call(k.id, "pay_pending_invoice", { subscription_id: "sub_FL_karan" });
+    expect(r.status === "done" && r.result).toMatchObject({ invoice_id: "inv_FL_karan_3", subscription_id: "sub_FL_karan", amount: 49_900 });
+    expect(r.action.approved_by).toBeNull();
+    expect(w.repo.rzpPayments.list()).toHaveLength(before.payments);
+    expect(w.repo.subInvoices.get("inv_FL_karan_3")).toEqual(before.invoice);
+    expect(w.repo.subscriptions.get("sub_FL_karan")).toEqual(before.sub);
+    expect(w.repo.rzpLinks.list()).toEqual([]);
+  });
 });

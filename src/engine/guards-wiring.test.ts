@@ -89,4 +89,27 @@ describe("engine and guards", () => {
       .map((e) => `${e.payload.from}>${e.payload.to}`);
     expect(moves.slice(-2)).toEqual(["waiting_merchant>acting", "acting>waiting_merchant"]);
   });
+
+  it("one big clock jump runs the refund hold and a timer inside it, each at its own due time, in order", async () => {
+    const { repo, caseId, tap } = await toWaitingMerchant();
+    await engine!.handleEvent(tap);
+    const hold = repo.actions.list()[0];
+    const check = repo.timers.list().find((t) => t.kind === "verify_check")!;
+    const start = a!.clock.now();
+    expect(hold.run_after).toBe(start + 10 * MIN);
+    expect(check.due_at).toBe(start + 30 * MIN);
+
+    const r = await engine!.advanceBy(3 * 60 * MIN);
+    expect(r.now).toBe(start + 3 * 60 * MIN);
+    expect(r.released).toMatchObject([{ actionId: hold.id, status: "done" }]);
+    const timeline = repo.caseEvents.listByCase(caseId);
+    // The refund ran with the clock at the end of its hold, not at the end of the jump.
+    expect(timeline.find((e) => e.payload.kind === "action_done")?.at).toBe(hold.run_after);
+    // The check timer ran at its due time, after the refund, and closed the case then.
+    const closed = timeline.find((e) => e.payload.kind === "state_changed" && e.payload.to === "closed")!;
+    expect(closed.at).toBe(check.due_at);
+    expect(repo.cases.get(caseId)).toMatchObject({ state: "closed", closed_at: check.due_at });
+    const seqOf = (kind: string) => timeline.find((e) => e.payload.kind === kind)!.seq!;
+    expect(seqOf("action_done")).toBeLessThan(closed.seq!);
+  });
 });

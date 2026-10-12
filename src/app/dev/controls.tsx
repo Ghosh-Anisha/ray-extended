@@ -93,7 +93,7 @@ export function DevControls({ data }: { data: DevData }) {
 
       <Simulated title="Move clock forward">
         {data.clockMode === "fake" ? (
-          <p>Moves the clock, then fires any timers that are now due, earliest first.</p>
+          <p>Moves the clock, stopping at each timer or held action that falls due so it runs at its own time, earliest first.</p>
         ) : (
           <p>The app is on the real clock, so it can&apos;t be moved.</p>
         )}
