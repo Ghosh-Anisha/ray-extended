@@ -31,6 +31,9 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
       note(kase, { kind: "timer_set", timer_kind: t.kind, due_at: timer.due_at }, timer.id);
     }
   };
+  const propose = (kase: Case, actions?: ProposedAction[]) => {
+    if (actions?.length) note(kase, { kind: "actions_proposed", actions });
+  };
   // Compares against the case as it is now: a hook may already have moved it
   // (a failed guard moves the case to waiting_merchant itself).
   const move = (kase: Case, to: CaseState, reason: string, patch?: Parameters<typeof transition>[4]["patch"]) => {
@@ -53,6 +56,21 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
       // an action that was running has already finished by now.
       if (tap.choice === "handle_myself") {
         takeOver(deps, kase, evidenceRef);
+        return repo.cases.get(caseId)!;
+      }
+      if (tap.choice === "change") {
+        if (kase.state !== "waiting_merchant") {
+          note(kase, { kind: "tap_ignored", state: kase.state, why: "change" });
+          return kase;
+        }
+        // Recorded as data; the flow redrafts from it, never follows it.
+        note(kase, { kind: "change_requested", text: tap.text });
+        const spec = deps.registry.forMoment(kase.moment);
+        if (spec?.onChange) {
+          const r = await spec.onChange(deps, kase, tap.text!, event);
+          note(kase, { kind: "change_handled", reason: r.reason });
+          propose(kase, r.proposals);
+        }
         return repo.cases.get(caseId)!;
       }
       if (kase.state !== "waiting_merchant") {
@@ -100,6 +118,7 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
       const r = await spec.onPromisedTime(deps, kase, external);
       note(kase, { kind: "promised_time_handled", reason: r.reason, to: r.to ?? kase.state });
       setTimers(kase, r.timers);
+      propose(kase, r.proposals);
       if (r.to) move(kase, r.to, r.reason);
       const after = repo.cases.get(caseId)!;
       if (after.state === before) return after;
@@ -124,6 +143,7 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         if (Object.keys(fields).length > 0) repo.cases.update(kase.id, fields);
         note(kase, { kind: "investigated", to: r.to, reason: r.reason, confidence: r.confidence, side: r.side, cause: r.cause });
         setTimers(kase, r.timers);
+        propose(kase, r.proposals);
         move(repo.cases.get(caseId)!, r.to, r.reason);
         break;
       }
@@ -157,6 +177,7 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         approval = null;
         note(kase, { kind: "approval_handled", to: r.to, reason: r.reason }, evidenceRef);
         setTimers(kase, r.timers);
+        propose(kase, r.proposals);
         move(kase, r.to, r.reason);
         break;
       }
@@ -164,6 +185,7 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         const r = await spec.verify(deps, kase, external);
         note(kase, { kind: "verified", to: r.to, reason: r.reason, outcome: r.outcome ?? null });
         setTimers(kase, r.timers);
+        propose(kase, r.proposals);
         if (r.to === "closed") {
           const saved = await spec.countsAsSaved(deps, kase);
           move(kase, "closed", r.reason, { closed_at: clock.now(), outcome: r.outcome ?? "verified", counts_as_saved: saved });

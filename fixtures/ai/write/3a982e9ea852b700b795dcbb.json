@@ -1,0 +1,101 @@
+{
+  "job": "write",
+  "key": "3a982e9ea852b700b795dcbb",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "fulfil_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "B",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "merchant",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,299",
+        "payment_id": "pay_LB1234PRIYA",
+        "store_order_id": "so_leafy_1234",
+        "cause": "webhook_disabled",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1234",
+          "status": "captured",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000101",
+          "email": "priya.sharma@example.com",
+          "vpa": "priya.sharma@okaxis",
+          "utr": "628514730021 (ending 0021)",
+          "receipt": "wc_1234",
+          "created_at": "9:22 AM on 12 Oct",
+          "captured_at": "9:22 AM on 12 Oct"
+        },
+        {
+          "status": "paid",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "receipt": "wc_1234",
+          "created_at": "9:20 AM on 12 Oct"
+        },
+        {
+          "number": "#1234",
+          "status": "pending",
+          "razorpay_order_id": "order_LB1234",
+          "receipt": "wc_1234",
+          "total": "₹1,299",
+          "stock": 12,
+          "created_at": "9:20 AM on 12 Oct"
+        },
+        {
+          "name": "Chocolate box",
+          "qty": 1,
+          "price": "₹1,299",
+          "stock": 12
+        },
+        {
+          "name": "Priya Sharma",
+          "email": "priya.sharma@example.com",
+          "phone": "+919800000101",
+          "language": "en",
+          "country": "IN"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "10:15 AM on 12 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:30 AM on 12 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Priya",
+      "order": "#1234",
+      "amount": "₹1,299"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Priya, we got your payment of ₹1,299 at 9:22 AM on 12 Oct, UTR ending 0021, and your order #1234 is confirmed. We're getting it ready for you now. Sorry for the wait. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

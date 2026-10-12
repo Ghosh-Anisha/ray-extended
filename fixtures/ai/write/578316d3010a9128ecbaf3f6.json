@@ -1,0 +1,122 @@
+{
+  "job": "write",
+  "key": "578316d3010a9128ecbaf3f6",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "refund_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "E",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "customer_or_bank",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,299",
+        "payment_id": "pay_LB1242SANJAY1",
+        "cause": "paid_twice",
+        "promised_by": "12:00 PM on 12 Oct",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1242SANJAY1",
+          "status": "captured",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000105",
+          "email": "sanjay.k@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731242 (ending 1242)",
+          "receipt": "wc_1242",
+          "created_at": "9:40 AM on 12 Oct",
+          "captured_at": "9:40 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "receipt": "wc_1242",
+          "created_at": "9:39 AM on 12 Oct"
+        },
+        {
+          "number": "#1242",
+          "status": "processing",
+          "razorpay_order_id": "order_LB1242SANJAY1",
+          "receipt": "wc_1242",
+          "payment_id": "pay_LB1242SANJAY1",
+          "total": "₹1,299",
+          "stock": 12,
+          "created_at": "9:39 AM on 12 Oct"
+        },
+        {
+          "name": "Chocolate box",
+          "qty": 1,
+          "price": "₹1,299",
+          "stock": 12
+        },
+        {
+          "name": "Sanjay Kulkarni",
+          "email": "sanjay.k@example.com",
+          "phone": "+919800000105",
+          "language": "en",
+          "country": "IN"
+        },
+        {
+          "order_id": "order_LB1242SANJAY2",
+          "status": "captured",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000105",
+          "email": "sanjay.k@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731243 (ending 1243)",
+          "receipt": "wc_1242b",
+          "created_at": "9:42 AM on 12 Oct",
+          "captured_at": "9:42 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "receipt": "wc_1242b",
+          "created_at": "9:41 AM on 12 Oct"
+        },
+        {
+          "message_id": "msg_ref1",
+          "channel": "email",
+          "to": "sanjay.k@example.com",
+          "from": "support@leafybakes.in",
+          "body": "Hi Sanjay, we can see your payment of ₹1,299 at 9:40 AM on 12 Oct, UTR ending 1242. You can check this in your UPI app. You'll hear from us with an update by 12:00 PM. Team Leafy Bakes"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "promised_time",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Sanjay",
+      "order": "#1242",
+      "amount": "₹1,299"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Sanjay, we've refunded the extra ₹1,299 you paid. It goes back to the same account at your bank's usual speed. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

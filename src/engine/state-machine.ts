@@ -18,7 +18,8 @@ export const TRANSITIONS: Record<CaseState, readonly CaseState[]> = {
   waiting_customer: ["confirmed", "likely", "waiting_merchant", "unconfirmed", "fixed_itself"],
   waiting_merchant: ["acting", "waiting_customer", "confirmed", "closed", "fixed_itself"],
   acting: ["verifying", "waiting_merchant"],
-  verifying: ["closed", "acting", "waiting_merchant"],
+  // unconfirmed: no reply to the "did it arrive?" check (Step 7).
+  verifying: ["closed", "acting", "waiting_merchant", "unconfirmed"],
   unconfirmed: ["likely", "closed"],
   closed: [],
   fixed_itself: [],

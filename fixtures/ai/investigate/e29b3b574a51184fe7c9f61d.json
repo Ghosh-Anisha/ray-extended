@@ -1,0 +1,181 @@
+{
+  "job": "investigate",
+  "key": "e29b3b574a51184fe7c9f61d",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_LB1234PRIYA",
+      "razorpay_order_id": "order_LB1234",
+      "store_order": "#1234",
+      "causes": [
+        "plugin_dropped_capture",
+        "site_down",
+        "webhook_disabled",
+        "wrong_settings",
+        "auto_cancelled",
+        "order_missing"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "msg_ref1",
+        "type": "message_in",
+        "summary": "Customer wrote: I paid 1200 for the chocolate box this morning but no order yet"
+      },
+      {
+        "id": "msg_ref2",
+        "type": "message_in",
+        "summary": "Customer wrote: Sorry, it was 1299. UTR 628514730021"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_payment",
+        "id": "pay_LB1234PRIYA",
+        "result": {
+          "evidence_ids": [
+            "pay_LB1234PRIYA"
+          ],
+          "data": {
+            "id": "pay_LB1234PRIYA",
+            "order_id": "order_LB1234",
+            "status": "captured",
+            "amount": 129900,
+            "currency": "INR",
+            "base_amount": null,
+            "amount_refunded": 0,
+            "method": "upi",
+            "contact": "+919800000101",
+            "email": "priya.sharma@example.com",
+            "vpa": "priya.sharma@okaxis",
+            "card_last4": null,
+            "card_country": null,
+            "utr": "628514730021",
+            "error_code": null,
+            "error_source": null,
+            "error_reason": null,
+            "created_at": 1791777120000,
+            "captured_at": 1791777125000
+          }
+        }
+      },
+      {
+        "tool": "get_webhook_deliveries",
+        "id": "pay_LB1234PRIYA",
+        "result": {
+          "evidence_ids": [
+            "evt_LB_priya_captured",
+            "evt_LB_priya_order_paid"
+          ],
+          "data": [
+            {
+              "event_id": "evt_LB_priya_captured",
+              "merchant_id": "m_leafy_bakes",
+              "event": "payment.captured",
+              "url": "https://leafybakes.example.com/?wc-api=razorpay_webhook",
+              "http_status": 200,
+              "response_body": "OK",
+              "delivered_at": 1791777120000,
+              "plugin": "razorpay-woocommerce",
+              "plugin_version": "4.8.2",
+              "processed": false,
+              "cron_note": "Queued for cron. Cron marked the job done; order not updated.",
+              "payment_id": "pay_LB1234PRIYA",
+              "handled_case_id": null,
+              "unmatched_reason": null
+            },
+            {
+              "event_id": "evt_LB_priya_order_paid",
+              "merchant_id": "m_leafy_bakes",
+              "event": "order.paid",
+              "url": "https://leafybakes.example.com/?wc-api=razorpay_webhook",
+              "http_status": 200,
+              "response_body": "OK",
+              "delivered_at": 1791777120000,
+              "plugin": "razorpay-woocommerce",
+              "plugin_version": "4.8.2",
+              "processed": false,
+              "cron_note": "Queued for cron. Cron marked the job done; order not updated.",
+              "payment_id": "pay_LB1234PRIYA",
+              "handled_case_id": null,
+              "unmatched_reason": null
+            }
+          ]
+        }
+      },
+      {
+        "tool": "get_store_order",
+        "id": "#1234",
+        "result": {
+          "evidence_ids": [
+            "so_leafy_1234"
+          ],
+          "data": {
+            "id": "so_leafy_1234",
+            "number": "#1234",
+            "merchant_id": "m_leafy_bakes",
+            "customer_id": "cus_priya",
+            "status": "pending",
+            "status_history": [
+              {
+                "status": "pending",
+                "at": 1791777000000
+              }
+            ],
+            "razorpay_order_id": "order_LB1234",
+            "receipt": "wc_1234",
+            "payment_id": null,
+            "total": 129900,
+            "items": [
+              {
+                "name": "Chocolate box",
+                "qty": 1,
+                "price": 129900,
+                "stock": 12
+              }
+            ],
+            "stock": 12,
+            "created_at": 1791777000000
+          }
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Order #1234 is still Pending with no payment on it.",
+        "evidence_id": "so_leafy_1234",
+        "supports": "order_not_updated"
+      }
+    ],
+    "next": {
+      "tool": "get_store_settings",
+      "id": null
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "unsure"
+  }
+}

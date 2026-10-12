@@ -39,3 +39,6 @@ export function countdown(ms: number): { clock: string; words: string } {
 export const firstName = (name: string) => name.split(/\s+/)[0];
 
 export const money = (minor: number | null | undefined, currency = "INR") => (minor === null || minor === undefined ? "Amount not known yet" : formatMoney(minor, currency));
+
+// Store order numbers are kept with their "#" ("#1234"); show them once.
+export const orderLabel = (n: string) => (n.startsWith("#") ? n : `#${n}`);

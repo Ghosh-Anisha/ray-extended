@@ -126,9 +126,14 @@ export const createOrderInput = z.object({
 export type CreateOrderInput = z.input<typeof createOrderInput>;
 
 // receipt is the idempotency key: the same receipt returns the same refund.
+// speed: normal (Razorpay's 5 to 7 working days) or optimum (instant where
+// the bank supports it).
+export const REFUND_SPEEDS = ["normal", "optimum"] as const;
+export type RefundSpeed = (typeof REFUND_SPEEDS)[number];
 export const refundInput = z.object({
   amount: z.number().int().positive(),
   receipt: z.string().min(1).max(40),
+  speed: z.enum(REFUND_SPEEDS).default("normal"),
   notes: z.record(z.string(), z.string()).optional(),
 });
 export type RefundInput = z.input<typeof refundInput>;

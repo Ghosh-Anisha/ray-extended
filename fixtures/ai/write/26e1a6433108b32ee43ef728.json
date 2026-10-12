@@ -1,0 +1,91 @@
+{
+  "job": "write",
+  "key": "26e1a6433108b32ee43ef728",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "developer",
+    "kind": "developer_brief",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "state": "likely",
+        "confidence": "likely",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹6,900",
+        "payment_id": "pay_LB1255KAVYA",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1255KAVYA",
+          "status": "captured",
+          "amount": "₹6,900",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000107",
+          "email": "kavya.rao@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731255 (ending 1255)",
+          "receipt": "wc_1255",
+          "created_at": "9:50 AM on 12 Oct",
+          "captured_at": "9:50 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹6,900",
+          "currency": "INR",
+          "receipt": "wc_1255",
+          "created_at": "9:49 AM on 12 Oct"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "10:15 AM on 12 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:30 AM on 12 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "cause": "order_missing",
+      "findings": [
+        {
+          "text": "Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue.",
+          "evidenceRef": "evt_ref1"
+        },
+        {
+          "text": "Razorpay captured ₹6,900 at 9:50 AM on 12 Oct, so the money reached Razorpay.",
+          "evidenceRef": "pay_LB1255KAVYA"
+        },
+        {
+          "text": "Your store has no order for this payment.",
+          "evidenceRef": "pay_LB1255KAVYA"
+        },
+        {
+          "text": "Your plugin settings look right: payment updates are on and the secret matches.",
+          "evidenceRef": "store_settings:m_leafy_bakes"
+        }
+      ]
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Developer brief: order_missing\n\nWhat happened:\n- Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue. (evidence: evt_ref1)\n- Razorpay captured ₹6,900 at 9:50 AM on 12 Oct, so the money reached Razorpay. (evidence: pay_LB1255KAVYA)\n- Your store has no order for this payment. (evidence: pay_LB1255KAVYA)\n- Your plugin settings look right: payment updates are on and the secret matches. (evidence: store_settings:m_leafy_bakes)\n\nWhat to change:\n- Check why checkout didn't create the order before payment; the plugin should create it on the order.paid webhook.\n\nHow to check:\n- Make a test payment in test mode, then check the webhook log shows the delivery and the order turns Processing.",
+    "confidence": "sure"
+  }
+}

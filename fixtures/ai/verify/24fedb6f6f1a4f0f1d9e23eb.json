@@ -1,0 +1,14 @@
+{
+  "job": "verify",
+  "key": "24fedb6f6f1a4f0f1d9e23eb",
+  "label": "recorded in Claude Code",
+  "prompt_version": "verify.v1",
+  "model": null,
+  "input": {
+    "reply": "Got the refund, thanks."
+  },
+  "output": {
+    "status": "arrived",
+    "confidence": "sure"
+  }
+}

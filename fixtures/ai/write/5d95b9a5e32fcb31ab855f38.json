@@ -1,0 +1,114 @@
+{
+  "job": "write",
+  "key": "5d95b9a5e32fcb31ab855f38",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "developer",
+    "kind": "developer_brief",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "state": "likely",
+        "confidence": "likely",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,299",
+        "payment_id": "pay_LB1234PRIYA",
+        "store_order_id": "so_leafy_1234",
+        "opened_at": "10:25 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1234",
+          "status": "captured",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000101",
+          "email": "priya.sharma@example.com",
+          "vpa": "priya.sharma@okaxis",
+          "utr": "628514730021 (ending 0021)",
+          "receipt": "wc_1234",
+          "created_at": "9:22 AM on 12 Oct",
+          "captured_at": "9:22 AM on 12 Oct"
+        },
+        {
+          "status": "paid",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "receipt": "wc_1234",
+          "created_at": "9:20 AM on 12 Oct"
+        },
+        {
+          "number": "#1234",
+          "status": "cancelled",
+          "razorpay_order_id": "order_LB1234",
+          "receipt": "wc_1234",
+          "total": "₹1,299",
+          "stock": 12,
+          "created_at": "9:20 AM on 12 Oct"
+        },
+        {
+          "name": "Chocolate box",
+          "qty": 1,
+          "price": "₹1,299",
+          "stock": 13
+        },
+        {
+          "name": "Priya Sharma",
+          "email": "priya.sharma@example.com",
+          "phone": "+919800000101",
+          "language": "en",
+          "country": "IN"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "10:40 AM on 12 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:55 AM on 12 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "12:25 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "cause": "auto_cancelled",
+      "findings": [
+        {
+          "text": "Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue.",
+          "evidenceRef": "evt_ref1"
+        },
+        {
+          "text": "Razorpay captured ₹1,299 at 9:22 AM on 12 Oct, so the money reached Razorpay.",
+          "evidenceRef": "pay_LB1234PRIYA"
+        },
+        {
+          "text": "Order #1234 was cancelled by your store's time limit before the payment arrived.",
+          "evidenceRef": "so_leafy_1234"
+        },
+        {
+          "text": "Your plugin settings look right: payment updates are on and the secret matches.",
+          "evidenceRef": "store_settings:m_leafy_bakes"
+        }
+      ]
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Developer brief: auto_cancelled\n\nWhat happened:\n- Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue. (evidence: evt_ref1)\n- Razorpay captured ₹1,299 at 9:22 AM on 12 Oct, so the money reached Razorpay. (evidence: pay_LB1234PRIYA)\n- Order #1234 was cancelled by your store's time limit before the payment arrived. (evidence: so_leafy_1234)\n- Your plugin settings look right: payment updates are on and the secret matches. (evidence: store_settings:m_leafy_bakes)\n\nWhat to change:\n- Raise WooCommerce's hold stock time, or let the plugin mark late payments paid instead of leaving them cancelled.\n\nHow to check:\n- Make a test payment in test mode, then check the webhook log shows the delivery and the order turns Processing.",
+    "confidence": "sure"
+  }
+}

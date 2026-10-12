@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "3ec965b64562ddf7dffcc4fb",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "I was charged twice, 1299 two times for one chocolate box!"
+  },
+  "output": {
+    "amount": 1299,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

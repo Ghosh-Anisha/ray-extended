@@ -1,0 +1,56 @@
+{
+  "job": "decide",
+  "key": "a74a1e39c5c08f2754adf608",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "case": {
+      "amount": "₹1,299",
+      "side": "merchant",
+      "cause": "wrong_settings",
+      "in_stock": true,
+      "confidence": "sure"
+    },
+    "findings": [
+      {
+        "text": "Your site turned the payment update away: 401, the signature didn't match.",
+        "evidenceRef": "evt_ref1"
+      },
+      {
+        "text": "Razorpay captured ₹1,299 at 9:22 AM on 12 Oct, so the money reached Razorpay.",
+        "evidenceRef": "pay_LB1234PRIYA"
+      },
+      {
+        "text": "Order #1234 is still Pending with no payment on it.",
+        "evidenceRef": "so_leafy_1234"
+      },
+      {
+        "text": "Your plugin's webhook secret doesn't match your Razorpay account.",
+        "evidenceRef": "store_settings:m_leafy_bakes"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_setup_capture_m_leafy_bakes",
+        "moment": "paid_no_order",
+        "text": "Capture authorised payments before the timeout",
+        "status": "proposed"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "fulfil",
+      "refund",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "fulfil",
+    "reason": "It's in stock and Razorpay has the payment, so ship it.",
+    "rule_id": null,
+    "confidence": "sure"
+  }
+}

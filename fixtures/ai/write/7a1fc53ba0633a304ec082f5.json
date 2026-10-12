@@ -1,0 +1,78 @@
+{
+  "job": "write",
+  "key": "7a1fc53ba0633a304ec082f5",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "fulfil_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "B",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "merchant",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹6,900",
+        "payment_id": "pay_LB1255KAVYA",
+        "cause": "order_missing",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1255KAVYA",
+          "status": "captured",
+          "amount": "₹6,900",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000107",
+          "email": "kavya.rao@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731255 (ending 1255)",
+          "receipt": "wc_1255",
+          "created_at": "9:50 AM on 12 Oct",
+          "captured_at": "9:50 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹6,900",
+          "currency": "INR",
+          "receipt": "wc_1255",
+          "created_at": "9:49 AM on 12 Oct"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "10:15 AM on 12 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:30 AM on 12 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Kavya",
+      "order": "#1255",
+      "amount": "₹6,900"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Kavya, we got your payment of ₹6,900 at 9:50 AM on 12 Oct, UTR ending 1255, and your order #1255 is confirmed. We're getting it ready for you now. Sorry for the wait. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

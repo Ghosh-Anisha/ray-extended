@@ -53,6 +53,32 @@ export const WHATSAPP_TEMPLATES: Record<string, Template> = {
     status: "approved",
     body: "Hello {{name}}, invoice {{invoice}} for {{amount}} from {{merchant}} was due on {{date}}. Reply with the date you plan to pay.",
   },
+  // Paid, no order (Step 7). The first text when RAY writes first: checkable
+  // details, no link, and the time the customer will hear back by.
+  payment_seen_promise: {
+    status: "approved",
+    body: "Hi {{name}}, this is {{merchant}}. We can see your payment of {{amount}} at {{time}} on {{date}}, UTR ending {{utr_last4}}. You can check this in your UPI app. You'll hear from us with an update by {{update_by}}.",
+  },
+  // The same, saying a call may follow and from which number.
+  payment_seen_promise_call: {
+    status: "approved",
+    body: "Hi {{name}}, this is {{merchant}}. We can see your payment of {{amount}} at {{time}} on {{date}}, UTR ending {{utr_last4}}. You can check this in your UPI app. You'll hear from us with an update by {{update_by}}. If we don't hear back from you by then, we'll call you from this number.",
+  },
+  // The order is fixed: the confirmation, with details the customer can check.
+  order_confirmed_payment: {
+    status: "approved",
+    body: "Hi {{name}}, this is {{merchant}}. We got your payment of {{amount}} at {{time}} on {{date}}, UTR ending {{utr_last4}}, and your order {{order}} is confirmed.",
+  },
+  // The promised time passed and the merchant hasn't decided yet.
+  payment_update_holding: {
+    status: "approved",
+    body: "Hi {{name}}, this is {{merchant}}. We're still on your payment of {{amount}}. You'll hear from us by {{update_by}}.",
+  },
+  // 48 hours after the order went out.
+  delivery_check: {
+    status: "approved",
+    body: "Hi {{name}}, this is {{merchant}}. Did your order {{order}} arrive? Reply YES or NO.",
+  },
   festive_offer: {
     status: "pending",
     body: "Hi {{name}}, {{merchant}} has a festive offer for you.",
@@ -128,6 +154,10 @@ const insertOrder = sql`rowid`;
 
 const slug = (merchantId: string) => merchantId.replace(/^m_/, "").replace(/_/g, "-");
 
+// Merchants who verified their own email domain send from that address;
+// everyone else gets a simulated one.
+export const VERIFIED_SENDERS: Record<string, string> = { m_leafy_bakes: "support@leafybakes.in" };
+
 function address(merchantId: string, channel: Channel, mode: SenderMode): string | null {
   const m = slug(merchantId);
   if (channel === "whatsapp") {
@@ -136,7 +166,7 @@ function address(merchantId: string, channel: Channel, mode: SenderMode): string
     return null;
   }
   if (mode === "merchant_inbox") return `${m}.owner@mail.example.com`;
-  if (mode === "verified_domain") return `orders@${m}.example.com`;
+  if (mode === "verified_domain") return VERIFIED_SENDERS[merchantId] ?? `orders@${m}.example.com`;
   return `${m}@via-razorpay.example.com`;
 }
 

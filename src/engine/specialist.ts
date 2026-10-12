@@ -31,7 +31,9 @@ export type Detection = {
 export type Finding = { text: string; evidenceRef: string };
 export type TimerRequest = { kind: string; inMs: number };
 
-type Step<To extends CaseState> = { to: To; reason: string; timers?: TimerRequest[] };
+// A hook that hands the case back to the merchant may offer new proposals;
+// the orchestrator writes them as the case's open proposals.
+type Step<To extends CaseState> = { to: To; reason: string; timers?: TimerRequest[]; proposals?: ProposedAction[] };
 
 export type InvestigateResult = Step<CaseState> & {
   findings: Finding[];
@@ -53,6 +55,10 @@ export type ProposedAction = {
   tool: string;
   args: Record<string, unknown>;
   covered: boolean;
+  // Done after the main action with the same tap, each matched on tool and
+  // args by the approval guard. The confirmation message the card shows as
+  // its draft is one of these.
+  followUps?: { tool: string; args: Record<string, unknown> }[];
 };
 
 export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string };
@@ -67,10 +73,11 @@ export const PROMISED_TIME_TIMER = "promised_time";
 // in from Step 7.
 export const CALL_TIMER = "call";
 
-export type PromisedTimeResult = { reason: string; to?: CaseState; timers?: TimerRequest[] };
+export type PromisedTimeResult = { reason: string; to?: CaseState; timers?: TimerRequest[]; proposals?: ProposedAction[] };
+export type ChangeResult = { reason: string; proposals?: ProposedAction[] };
 
 export type ApprovalResult = Step<"verifying" | "waiting_merchant">;
-export type VerifyResult = Step<"closed" | "verifying" | "acting" | "waiting_merchant"> & { outcome?: string };
+export type VerifyResult = Step<"closed" | "verifying" | "acting" | "waiting_merchant" | "unconfirmed"> & { outcome?: string };
 
 export interface Specialist {
   id: string;
@@ -86,6 +93,9 @@ export interface Specialist {
   // Required: what to do when the time promised to the customer has passed.
   onPromisedTime(ctx: EngineContext, kase: Case, event: EngineEvent): Promise<PromisedTimeResult>;
   countsAsSaved(ctx: EngineContext, kase: Case): boolean | Promise<boolean>;
+  // The merchant tapped Change with free text: redraft and offer the same
+  // card again. Flows without it only record the text.
+  onChange?(ctx: EngineContext, kase: Case, text: string, event: EngineEvent): Promise<ChangeResult>;
 }
 
 export type Registry = {

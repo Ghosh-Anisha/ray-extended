@@ -7,7 +7,7 @@ import type { Adapters } from "@/adapters";
 import { CHANNELS, SENDER_MODES } from "@/db/schema";
 import * as s from "@/db/schema";
 import { createRepository } from "@/db/repository";
-import { contestInput, EVIDENCE_TYPES } from "@/adapters/razorpay";
+import { contestInput, EVIDENCE_TYPES, REFUND_SPEEDS } from "@/adapters/razorpay";
 import { merchantCallNumber, OUTCOME_LABEL } from "@/adapters/voice";
 import { newId } from "@/adapters/ids";
 import type { Case } from "@/engine/state-machine";
@@ -226,7 +226,8 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
 
   // Held for 10 minutes with Undo; the idempotency key is the refund receipt.
   refund: def({
-    args: z.object({ payment_id: paymentId, amount: z.number().int().positive(), ...fulfil }),
+    // speed: the merchant's default, or optimum when they tap "Make it instant".
+    args: z.object({ payment_id: paymentId, amount: z.number().int().positive(), speed: z.enum(REFUND_SPEEDS).default("normal"), ...fulfil }),
     label: "the refund",
     approval: "required",
     guards: ["match", "one_refund", "pre_action", "amount_cap", "refund_hold"],
@@ -235,7 +236,7 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     amountInr: ({ a, kase }, x) => paymentInr(a, kase, x.payment_id, x.amount),
     async run({ a, kase, idempotencyKey }, x) {
       return asRecord(
-        await a.razorpay(kase.merchant_id).refund(x.payment_id, { amount: x.amount, receipt: idempotencyKey, notes: { case_id: kase.id } }),
+        await a.razorpay(kase.merchant_id).refund(x.payment_id, { amount: x.amount, receipt: idempotencyKey, speed: x.speed, notes: { case_id: kase.id } }),
       );
     },
   }),

@@ -1,0 +1,177 @@
+{
+  "job": "investigate",
+  "key": "5867b2f3c039ef266fc04683",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_LB1234PRIYA",
+      "razorpay_order_id": "order_LB1234",
+      "store_order": "#1234",
+      "causes": [
+        "plugin_dropped_capture",
+        "site_down",
+        "webhook_disabled",
+        "wrong_settings",
+        "auto_cancelled",
+        "order_missing"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "evt_ref1",
+        "type": "webhook",
+        "summary": "payment.captured delivered to the store, answer 200"
+      },
+      {
+        "id": "msg_ref1",
+        "type": "message_in",
+        "summary": "Customer wrote: Hi, I paid Rs 1299 for order #1234 this morning but it still says pending. Please check."
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_payment",
+        "id": "pay_LB1234PRIYA",
+        "result": {
+          "evidence_ids": [
+            "pay_LB1234PRIYA"
+          ],
+          "data": {
+            "id": "pay_LB1234PRIYA",
+            "order_id": "order_LB1234",
+            "status": "captured",
+            "amount": 129900,
+            "currency": "INR",
+            "base_amount": null,
+            "amount_refunded": 0,
+            "method": "upi",
+            "contact": "+919800000101",
+            "email": "priya.sharma@example.com",
+            "vpa": "priya.sharma@okaxis",
+            "card_last4": null,
+            "card_country": null,
+            "utr": "628514730021",
+            "error_code": null,
+            "error_source": null,
+            "error_reason": null,
+            "created_at": 1791777120000,
+            "captured_at": 1791777125000
+          }
+        }
+      },
+      {
+        "tool": "get_store_order",
+        "id": "#1234",
+        "result": {
+          "evidence_ids": [
+            "so_leafy_1234"
+          ],
+          "data": {
+            "id": "so_leafy_1234",
+            "number": "#1234",
+            "merchant_id": "m_leafy_bakes",
+            "customer_id": "cus_priya",
+            "status": "pending",
+            "status_history": [
+              {
+                "status": "pending",
+                "at": 1791777000000
+              }
+            ],
+            "razorpay_order_id": "order_LB1234",
+            "receipt": "wc_1234",
+            "payment_id": null,
+            "total": 129900,
+            "items": [
+              {
+                "name": "Chocolate box",
+                "qty": 1,
+                "price": 129900,
+                "stock": 12
+              }
+            ],
+            "stock": 12,
+            "created_at": 1791777000000
+          }
+        }
+      },
+      {
+        "tool": "get_store_settings",
+        "id": null,
+        "result": {
+          "evidence_ids": [
+            "store_settings:m_leafy_bakes"
+          ],
+          "data": {
+            "reachable": true,
+            "platform": "woocommerce",
+            "site_url": "https://leafybakes.example.com",
+            "plugin": "razorpay-woocommerce",
+            "plugin_version": "4.8.2",
+            "webhook_url": "https://leafybakes.example.com/?wc-api=razorpay_webhook",
+            "webhook_enabled": true,
+            "webhook_secret_matches": true,
+            "payment_action": "authorize_and_capture",
+            "hold_stock_minutes": 60,
+            "other_gateway": false
+          }
+        }
+      },
+      {
+        "tool": "get_plugin_reports",
+        "id": null,
+        "result": {
+          "evidence_ids": [
+            "pr_woo_482_1"
+          ],
+          "data": {
+            "plugin": "razorpay-woocommerce",
+            "plugin_version": "4.8.2",
+            "reports": [
+              {
+                "id": "pr_woo_482_1",
+                "failure": "Webhook answered 200 but order stayed Pending",
+                "reported_at": 1791347400000,
+                "from_this_merchant": false
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Another store on razorpay-woocommerce 4.8.2 reported the same thing: the payment update got an OK but the order stayed Pending. Razorpay's plugin dropped it.",
+        "evidence_id": "pr_woo_482_1",
+        "supports": "plugin_dropped_capture"
+      }
+    ],
+    "next": null,
+    "cause": "plugin_dropped_capture",
+    "side": "razorpay",
+    "situation": "B",
+    "confidence": "sure"
+  }
+}

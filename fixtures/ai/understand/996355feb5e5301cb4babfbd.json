@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "996355feb5e5301cb4babfbd",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "I paid 499 for the banana bread and the money was debited from my bank, but your site says the payment failed."
+  },
+  "output": {
+    "amount": 499,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

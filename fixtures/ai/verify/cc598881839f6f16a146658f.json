@@ -1,0 +1,14 @@
+{
+  "job": "verify",
+  "key": "cc598881839f6f16a146658f",
+  "label": "recorded in Claude Code",
+  "prompt_version": "verify.v1",
+  "model": null,
+  "input": {
+    "reply": "The order arrived, thank you!"
+  },
+  "output": {
+    "status": "arrived",
+    "confidence": "sure"
+  }
+}

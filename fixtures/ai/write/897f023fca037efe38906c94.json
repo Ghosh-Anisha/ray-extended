@@ -1,0 +1,87 @@
+{
+  "job": "write",
+  "key": "897f023fca037efe38906c94",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "developer",
+    "kind": "developer_brief",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "state": "likely",
+        "confidence": "likely",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,299",
+        "payment_id": "pay_LB1234PRIYA",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1234",
+          "status": "captured",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000101",
+          "email": "priya.sharma@example.com",
+          "vpa": "priya.sharma@okaxis",
+          "utr": "628514730021 (ending 0021)",
+          "receipt": "wc_1234",
+          "created_at": "9:22 AM on 12 Oct",
+          "captured_at": "9:22 AM on 12 Oct"
+        },
+        {
+          "status": "paid",
+          "amount": "₹1,299",
+          "currency": "INR",
+          "receipt": "wc_1234",
+          "created_at": "9:20 AM on 12 Oct"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "10:15 AM on 12 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:30 AM on 12 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "cause": "site_down",
+      "findings": [
+        {
+          "text": "Your site answered 503 (down) when Razorpay sent the payment update.",
+          "evidenceRef": "evt_ref1"
+        },
+        {
+          "text": "Razorpay captured ₹1,299 at 9:22 AM on 12 Oct, so the money reached Razorpay.",
+          "evidenceRef": "pay_LB1234PRIYA"
+        },
+        {
+          "text": "Couldn't reach your store: it answered 503, so the site is down.",
+          "evidenceRef": "store_settings:m_leafy_bakes"
+        }
+      ]
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Developer brief: site_down\n\nWhat happened:\n- Your site answered 503 (down) when Razorpay sent the payment update. (evidence: evt_ref1)\n- Razorpay captured ₹1,299 at 9:22 AM on 12 Oct, so the money reached Razorpay. (evidence: pay_LB1234PRIYA)\n- Couldn't reach your store: it answered 503, so the site is down. (evidence: store_settings:m_leafy_bakes)\n\nWhat to change:\n- Bring the site back up and make sure the webhook URL (?wc-api=razorpay_webhook) answers OK while the site is up.\n\nHow to check:\n- Make a test payment in test mode, then check the webhook log shows the delivery and the order turns Processing.",
+    "confidence": "sure"
+  }
+}

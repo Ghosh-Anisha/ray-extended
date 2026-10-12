@@ -64,6 +64,13 @@
       "when": 1791818292007,
       "tag": "0008_voice",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1791827268608,
+      "tag": "0009_store_other_gateway",
+      "breakpoints": true
     }
   ]
 }

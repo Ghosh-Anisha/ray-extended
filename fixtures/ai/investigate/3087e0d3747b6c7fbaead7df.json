@@ -1,0 +1,64 @@
+{
+  "job": "investigate",
+  "key": "3087e0d3747b6c7fbaead7df",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_LB1234PRIYA",
+      "razorpay_order_id": "order_LB1234",
+      "store_order": "#1234",
+      "causes": [
+        "plugin_dropped_capture",
+        "site_down",
+        "webhook_disabled",
+        "wrong_settings",
+        "auto_cancelled",
+        "order_missing"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "msg_ref1",
+        "type": "message_in",
+        "summary": "Customer wrote: I paid 1200 for the chocolate box this morning but no order yet"
+      },
+      {
+        "id": "msg_ref2",
+        "type": "message_in",
+        "summary": "Customer wrote: Sorry, it was 1299. UTR 628514730021"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": []
+  },
+  "output": {
+    "findings": [],
+    "next": {
+      "tool": "get_payment",
+      "id": "pay_LB1234PRIYA"
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "unsure"
+  }
+}

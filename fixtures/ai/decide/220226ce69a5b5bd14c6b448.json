@@ -1,0 +1,44 @@
+{
+  "job": "decide",
+  "key": "220226ce69a5b5bd14c6b448",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "case": {
+      "amount": "₹1,850",
+      "side": "merchant",
+      "cause": "not_captured",
+      "in_stock": true,
+      "confidence": "sure"
+    },
+    "findings": [
+      {
+        "text": "Razorpay has ₹1,850 from 9:40 AM on 12 Oct authorised but not captured. If it isn't captured by 17 Oct, it goes back to the customer.",
+        "evidenceRef": "pay_LB1240MEERA"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_setup_capture_m_leafy_bakes",
+        "moment": "paid_no_order",
+        "text": "Capture authorised payments before the timeout",
+        "status": "approved"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "fulfil",
+      "refund",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "fulfil",
+    "reason": "It's in stock and Razorpay has the payment, so ship it.",
+    "rule_id": null,
+    "confidence": "sure"
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "job": "decide",
+  "key": "78f2dc307c55471d000b65f1",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "case": {
+      "amount": "₹6,900",
+      "side": "merchant",
+      "cause": "order_missing",
+      "in_stock": null,
+      "confidence": "sure"
+    },
+    "findings": [
+      {
+        "text": "Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue.",
+        "evidenceRef": "evt_ref1"
+      },
+      {
+        "text": "Razorpay captured ₹6,900 at 9:50 AM on 12 Oct, so the money reached Razorpay.",
+        "evidenceRef": "pay_LB1255KAVYA"
+      },
+      {
+        "text": "Your store has no order for this payment.",
+        "evidenceRef": "pay_LB1255KAVYA"
+      },
+      {
+        "text": "Your plugin settings look right: payment updates are on and the secret matches.",
+        "evidenceRef": "store_settings:m_leafy_bakes"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_setup_capture_m_leafy_bakes",
+        "moment": "paid_no_order",
+        "text": "Capture authorised payments before the timeout",
+        "status": "proposed"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "fulfil",
+      "refund",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "fulfil",
+    "reason": "It's in stock and Razorpay has the payment, so ship it.",
+    "rule_id": null,
+    "confidence": "sure"
+  }
+}

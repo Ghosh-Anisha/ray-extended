@@ -104,3 +104,7 @@ export const EMPTY = {
 
 export const TONES = ["Warm", "Friendly", "Formal"] as const;
 export type ToneSetting = (typeof TONES)[number];
+
+// How refunds go by default; "Make it instant" on the card overrides it.
+export type RefundSpeedSetting = "normal" | "optimum";
+export const REFUND_SPEED_LABEL: Record<RefundSpeedSetting, string> = { normal: "Normal (5 to 7 working days)", optimum: "Instant where the bank allows" };

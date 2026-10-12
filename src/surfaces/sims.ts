@@ -6,7 +6,7 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import { OUTCOME_LABEL, VOICE_SAMPLES, type VoiceSample } from "@/adapters/voice";
 import { allCalls, callView, voiceNoteView, type CallView, type VoiceNoteView } from "./calls";
-import { dateTime, money } from "./format";
+import { dateTime, money, orderLabel } from "./format";
 import { CHANNEL_LABEL } from "./views";
 
 export type Thread = {
@@ -106,7 +106,7 @@ export function storeAdmin(a: Adapters): StoreView[] {
           .all()
           .map((o) => ({
             id: o.id,
-            number: `#${o.number}`,
+            number: orderLabel(o.number),
             status: o.status,
             total: money(o.total),
             payment: o.payment_id,

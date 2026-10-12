@@ -153,7 +153,7 @@ describe("the dummy case on every surface", () => {
     expect(v.conversation).toMatchObject([{ direction: "in", from: "Priya Sharma", body: "I paid but my order still says pending" }]);
     expect(v.yourCall.primary).toMatchObject({ label: "Mark paid & ship", covered: false });
     expect(v.yourCall.secondary.map((p) => p.label)).toEqual(["Refund the customer"]);
-    expect(v.yourCall.sendFrom).toBe("RAY will send this from Leafy Bakes's own number or inbox");
+    expect(v.yourCall.sendFrom).toBe("RAY will send this from support@leafybakes.in");
     expect(v.promiseLine).toMatch(/^Priya was told to expect a reply by \d{1,2}:\d{2} (AM|PM)$/);
     expect(v.timeline.some((st) => st.failed)).toBe(true);
 
@@ -183,16 +183,16 @@ describe("the dummy case on every surface", () => {
 
   it("Change records the merchant's words on the case and the same card comes back", async () => {
     const { caseId } = await dummyCase();
-    requestChange(a!, { caseId, text: "Refund instead" });
+    await requestChange(engine!, a!, { caseId, text: "Refund instead" });
     const cards = approvalCards(a!, LEAFY);
     expect(cards).toHaveLength(1);
     expect(cards[0].changeAsked).toBe("Refund instead");
     expect(caseView(a!, caseId).events.map((e) => e.what)).toContain("You asked: Refund instead");
   });
 
-  it("the getEngine registry uses the dummy until a flow handles paid_no_order, and RAY_DUMMY_FLOW=off turns it off", () => {
-    expect(buildRegistry({}).forMoment("paid_no_order")?.id).toBe("dummy");
-    expect(buildRegistry({ RAY_DUMMY_FLOW: "off" }).all()).toEqual([]);
+  it("the getEngine registry uses the paid-no-order flow (Step 7) in place of the dummy", () => {
+    expect(buildRegistry().forMoment("paid_no_order")?.id).toBe("paid_no_order");
+    expect(buildRegistry().all().some((x) => x.id === "dummy")).toBe(false);
   });
 });
 
@@ -342,7 +342,9 @@ describe("interaction rules", () => {
 
   it("playbook settings are stored, read back, and can never approve an action", async () => {
     const { caseId } = await dummyCase();
-    expect(readSettings(a!.db, LEAFY, "paid_no_order")).toEqual({ tone: "Warm", signOff: "Team Leafy Bakes", sendFrom: "merchant_inbox", autoMessages: false });
+    // Leafy's seed sends paid-no-order replies from its verified domain (Step 7).
+    expect(readSettings(a!.db, LEAFY, "paid_no_order")).toEqual({ tone: "Warm", signOff: "Team Leafy Bakes", sendFrom: "verified_domain", autoMessages: false, refundSpeed: "normal" });
+    expect(readSettings(a!.db, LEAFY, "chargeback")).toMatchObject({ sendFrom: "merchant_inbox" });
     const row = setSetting(a!, { merchantId: LEAFY, moment: "paid_no_order", key: "sign_off", value: "Love, Leafy Bakes" });
     setSetting(a!, { merchantId: LEAFY, moment: "paid_no_order", key: "send_from", value: "via_razorpay" });
     expect(readSettings(a!.db, LEAFY, "paid_no_order")).toMatchObject({ signOff: "Love, Leafy Bakes", sendFrom: "via_razorpay" });

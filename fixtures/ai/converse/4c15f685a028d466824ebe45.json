@@ -1,0 +1,42 @@
+{
+  "job": "converse",
+  "key": "4c15f685a028d466824ebe45",
+  "label": "recorded in Claude Code",
+  "prompt_version": "converse.v1",
+  "model": null,
+  "input": {
+    "thread": [
+      {
+        "from": "customer",
+        "text": "I paid 1200 for the chocolate box this morning but no order yet"
+      },
+      {
+        "from": "business",
+        "text": "Could you share the UPI reference for the payment you made today, 12 Oct? You'll find it in your UPI app. Team Leafy Bakes"
+      },
+      {
+        "from": "customer",
+        "text": "Sorry, it was 1299. UTR 628514730021"
+      }
+    ],
+    "candidates": [
+      {
+        "id": "pay_LB1234PRIYA",
+        "amount": 1299,
+        "time": "9:22 AM on 12 Oct",
+        "utr_last4": "0021"
+      }
+    ]
+  },
+  "output": {
+    "kind": "read",
+    "question": null,
+    "read": {
+      "amount": 1299,
+      "utr_last4": "0021",
+      "rough_time": null
+    },
+    "points_to": "pay_LB1234PRIYA",
+    "confidence": "sure"
+  }
+}

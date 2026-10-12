@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "faa85f8ee45d9548ca47756f",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Hi, I paid Rs 1299 for order #1234 this morning but it still says pending. Please check."
+  },
+  "output": {
+    "amount": 1299,
+    "rough_time": "this morning",
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

@@ -369,6 +369,15 @@ export function seed(db: Db, now: number = SEED_NOW) {
     // (proposed) until the merchant approves them.
     for (const m of MERCHANTS.filter((m) => m.ray_on)) proposeSetupRules(db, m.id);
 
+    // Leafy Bakes sends paid-no-order replies from its verified domain
+    // (support@leafybakes.in). A playbook setting, so it can never approve
+    // an action.
+    repo.playbookRules.insert({
+      id: "rule_setting_send_from_leafy_pno", merchant_id: LEAFY, moment: "paid_no_order",
+      rule_json: { setting: "send_from", value: "verified_domain", tool: "none" }, text: "Send customer messages from",
+      source: "merchant", status: "approved", approved_at: ago(30 * DAY),
+    });
+
     // WhatsApp opt-ins collected at checkout, for customers of merchants with
     // WhatsApp on. Kavya later opted out; Imran has no consent row at all.
     const whatsappMerchants = new Set(MERCHANTS.filter((m) => m.whatsapp_on).map((m) => m.id));

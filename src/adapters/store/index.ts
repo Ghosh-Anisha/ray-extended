@@ -25,6 +25,8 @@ export type StoreSettings = {
   webhook_secret_matches: boolean;
   payment_action: "authorize_and_capture";
   hold_stock_minutes: number;
+  // Also takes payments through another gateway.
+  other_gateway: boolean;
 };
 
 export type OrderRef = { id: string } | { number: string } | { receipt: string } | { paymentId: string };
@@ -181,6 +183,7 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
         webhook_secret_matches: row.failure_mode !== "wrong_settings",
         payment_action: "authorize_and_capture",
         hold_stock_minutes: HOLD_STOCK_MINUTES,
+        other_gateway: row.other_gateway,
       };
     },
 

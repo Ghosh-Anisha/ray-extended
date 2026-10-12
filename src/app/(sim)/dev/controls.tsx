@@ -232,6 +232,15 @@ export function DevControls({ data }: { data: DevData }) {
                 <option key={f} value={f}>{FAILURE_LABEL[f] ?? f}</option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={async () => {
+                setStatus(await post("/api/dev/connector-sweep", { merchantId: st.id }));
+                router.refresh();
+              }}
+            >
+              Check store for paid orders
+            </button>
           </div>
         ))}
       </Simulated>

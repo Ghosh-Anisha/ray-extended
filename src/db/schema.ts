@@ -350,6 +350,10 @@ export const storeSettings = sqliteTable("store_settings", {
   plugin: text("plugin").notNull(),
   plugin_version: text("plugin_version").notNull(),
   failure_mode: text("failure_mode", { enum: STORE_FAILURE_MODES }).notNull(),
+  // The store also takes payments through another gateway (migration 0009).
+  // When a customer's payment matches nothing at Razorpay, RAY says it's
+  // likely that gateway's.
+  other_gateway: bool("other_gateway").notNull().default(false),
 });
 
 // Live stock per product. store_orders.items keeps a snapshot; stock is read here.

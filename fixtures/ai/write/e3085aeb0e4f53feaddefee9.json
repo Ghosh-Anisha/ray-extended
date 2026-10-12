@@ -1,0 +1,117 @@
+{
+  "job": "write",
+  "key": "e3085aeb0e4f53feaddefee9",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "refund_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "E",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "customer_or_bank",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹499",
+        "payment_id": "pay_LB1250IMRAN",
+        "cause": "paid_twice",
+        "promised_by": "9:35 AM on 15 Oct",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1250IMRAN",
+          "status": "captured",
+          "amount": "₹499",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000108",
+          "email": "imran.q@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731250 (ending 1250)",
+          "receipt": "wc_1250",
+          "created_at": "9:35 AM on 12 Oct",
+          "captured_at": "10:00 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹499",
+          "currency": "INR",
+          "receipt": "wc_1250",
+          "created_at": "9:34 AM on 12 Oct"
+        },
+        {
+          "order_id": "order_LB1251IMRAN",
+          "status": "captured",
+          "amount": "₹499",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000108",
+          "email": "imran.q@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731251 (ending 1251)",
+          "receipt": "wc_1251",
+          "created_at": "10:00 AM on 12 Oct",
+          "captured_at": "10:00 AM on 12 Oct"
+        },
+        {
+          "status": "attempted",
+          "amount": "₹499",
+          "currency": "INR",
+          "receipt": "wc_1251",
+          "created_at": "9:59 AM on 12 Oct"
+        },
+        {
+          "message_id": "msg_ref1",
+          "channel": "email",
+          "to": "imran.q@example.com",
+          "from": "support@leafybakes.in",
+          "body": "Hi Imran, your payment of ₹499 at 9:35 AM on 12 Oct didn't complete on our side, even if your bank shows it as debited. We're checking with your bank and you'll hear from us by 9:35 AM on 15 Oct. Team Leafy Bakes"
+        },
+        {
+          "status": "created",
+          "amount": "₹499",
+          "currency": "INR",
+          "short_url": "https://pay.sim.example/l/plinkref1",
+          "created_at": "10:00 AM on 12 Oct"
+        },
+        {
+          "message_id": "msg_ref2",
+          "channel": "email",
+          "to": "imran.q@example.com",
+          "from": "support@leafybakes.in",
+          "body": "If you'd like the order now, here's a new payment link from Leafy Bakes for ₹499 for order #1250: https://pay.sim.example/l/plinkref1 Team Leafy Bakes"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "promised_time",
+          "due": "9:35 AM on 15 Oct"
+        },
+        {
+          "kind": "polling_end",
+          "due": "9:35 AM on 15 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Imran",
+      "order": "#1250",
+      "amount": "₹499"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Imran, we've refunded the extra ₹499 you paid. It goes back to the same account at your bank's usual speed. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

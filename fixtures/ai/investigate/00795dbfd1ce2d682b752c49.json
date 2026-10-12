@@ -1,0 +1,104 @@
+{
+  "job": "investigate",
+  "key": "00795dbfd1ce2d682b752c49",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹6,900",
+      "payment_id": "pay_LB1255KAVYA",
+      "razorpay_order_id": "order_LB1255KAVYA",
+      "store_order": "#1255",
+      "causes": [
+        "plugin_dropped_capture",
+        "site_down",
+        "webhook_disabled",
+        "wrong_settings",
+        "auto_cancelled",
+        "order_missing"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "evt_ref1",
+        "type": "webhook",
+        "summary": "payment.captured delivered to the store, answer 200"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_payment",
+        "id": "pay_LB1255KAVYA",
+        "result": {
+          "evidence_ids": [
+            "pay_LB1255KAVYA"
+          ],
+          "data": {
+            "id": "pay_LB1255KAVYA",
+            "order_id": "order_LB1255KAVYA",
+            "status": "captured",
+            "amount": 690000,
+            "currency": "INR",
+            "base_amount": null,
+            "amount_refunded": 0,
+            "method": "upi",
+            "contact": "+919800000107",
+            "email": "kavya.rao@example.com",
+            "vpa": "someone@okaxis",
+            "card_last4": null,
+            "card_country": null,
+            "utr": "628514731255",
+            "error_code": null,
+            "error_source": null,
+            "error_reason": null,
+            "created_at": 1791778800000,
+            "captured_at": 1791778805000
+          }
+        }
+      },
+      {
+        "tool": "get_store_order",
+        "id": "#1255",
+        "result": {
+          "evidence_ids": [],
+          "data": null
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Your store has no order for this payment.",
+        "evidence_id": "pay_LB1255KAVYA",
+        "supports": "order_missing"
+      }
+    ],
+    "next": {
+      "tool": "get_store_settings",
+      "id": null
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "unsure"
+  }
+}

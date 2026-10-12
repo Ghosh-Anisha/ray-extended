@@ -99,10 +99,11 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
     .filter((e) => e.payload.kind === "actions_proposed")
     .flatMap((e) => e.payload.actions as ProposedAction[])
     .findLast((p) => p.id === ap.tap.proposalId);
-  const sameArgs =
-    proposal &&
-    Object.entries(proposal.args).every(([k, v]) => JSON.stringify(normalise(v)) === JSON.stringify(normalise(g.args[k])));
-  if (!proposal || proposal.tool !== g.tool || !sameArgs) {
+  // The tapped proposal, or one of the follow-ups it listed (the
+  // confirmation the card showed as its draft), same tool and same args.
+  const sameAs = (x: { tool: string; args: Record<string, unknown> }) =>
+    x.tool === g.tool && Object.entries(x.args).every(([k, v]) => JSON.stringify(normalise(v)) === JSON.stringify(normalise(g.args[k])));
+  if (!proposal || !(sameAs(proposal) || (proposal.followUps ?? []).some(sameAs))) {
     return [fail("approval", "different_action", "You approved a different action, so this needs your tap.", { proposal_id: ap.tap.proposalId })];
   }
   return [];

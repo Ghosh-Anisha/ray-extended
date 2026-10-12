@@ -5,7 +5,7 @@
 // until Approve rule.
 import { Button, Heading, Text } from "@razorpay/blade/components";
 import { useState } from "react";
-import { TONES } from "@/surfaces/words";
+import { REFUND_SPEED_LABEL, TONES } from "@/surfaces/words";
 import type { PlaybookView } from "@/surfaces/views";
 import { Chip, useAction } from "../bits";
 import { useView } from "../view";
@@ -102,6 +102,16 @@ export function Playbook({ p }: { p: PlaybookView }) {
                 {m.sendFromOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="row" style={{ justifyContent: "space-between" }}>
+              <span>Refund speed</span>
+              <select value={m.settings.refundSpeed} onChange={(e) => setting(m.moment, "refund_speed", e.target.value)}>
+                {Object.entries(REFUND_SPEED_LABEL).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
                   </option>
                 ))}
               </select>

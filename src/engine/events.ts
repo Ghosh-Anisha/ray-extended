@@ -30,13 +30,17 @@ export type EngineEventInput = z.input<typeof engineEvent>;
 // approve: do the proposed action. decline: not this one; the case stays
 // open and the merchant sees the other options. handle_myself: the merchant
 // takes the case over; it closes and RAY stops messaging the customer.
-export const TAP_CHOICES = ["approve", "decline", "handle_myself"] as const;
+// change: the merchant's free text ("refund instead"); the flow redrafts
+// and the same card comes back. The text is data, never an instruction.
+export const TAP_CHOICES = ["approve", "decline", "handle_myself", "change"] as const;
 export const tapPayload = z
   .object({
     choice: z.enum(TAP_CHOICES),
     proposalId: z.string().optional(),
+    text: z.string().trim().min(1).max(500).optional(),
   })
-  .refine((t) => t.choice === "handle_myself" || t.proposalId, "Approve and decline name the proposal");
+  .refine((t) => t.choice === "handle_myself" || t.choice === "change" || t.proposalId, "Approve and decline name the proposal")
+  .refine((t) => t.choice !== "change" || t.text, "Change needs the merchant's text");
 export type TapPayload = z.infer<typeof tapPayload>;
 
 export const CASE_EVENT_TYPE: Record<EngineEventKind, CaseEventType> = {

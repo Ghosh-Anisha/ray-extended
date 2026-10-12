@@ -35,22 +35,21 @@ export async function tap(engine: Engine, a: Adapters, input: z.input<typeof tap
 
 export const changeInput = z.object({ caseId: z.string().min(1), text: z.string().trim().min(1).max(500) });
 
-// Change: the merchant says what to do instead. It is recorded on the case
-// as data (never followed as an instruction); from Step 7 each flow sends it
-// to the write job to redraft and the same card comes back.
-export function requestChange(a: Adapters, input: z.input<typeof changeInput>) {
+// Change: the merchant says what to do instead. It goes to handleEvent like
+// any tap; the flow sends the text (as data, never an instruction) to the
+// write job to redraft, and the same card comes back.
+export async function requestChange(engine: Engine, a: Adapters, input: z.input<typeof changeInput>) {
   const { caseId, text } = changeInput.parse(input);
-  const repo = createRepository(a.db);
-  const kase = repo.cases.get(caseId);
+  const kase = createRepository(a.db).cases.get(caseId);
   if (!kase) throw new Error(`Case ${caseId} not found`);
   if (isFinal(kase.state)) throw new Error("This case is closed.");
-  return repo.caseEvents.insert({
-    id: newId("cev"),
-    case_id: caseId,
+  return engine.handleEvent({
+    kind: "tap",
+    merchantId: kase.merchant_id,
+    caseId,
     at: a.clock.now(),
-    type: "note",
-    payload: { kind: "change_requested", text },
-    evidence_ref: newId("chg"),
+    sourceId: newId("chg"),
+    payload: { choice: "change", text },
   });
 }
 
@@ -103,6 +102,7 @@ export const settingInput = z.object({
 export function setSetting(a: Adapters, input: z.input<typeof settingInput>) {
   const { merchantId, moment, key, value } = settingInput.parse(input);
   if (key === "send_from" && !(s.SENDER_MODES as readonly unknown[]).includes(value)) throw new Error("Pick where messages are sent from");
+  if (key === "refund_speed" && value !== "normal" && value !== "optimum") throw new Error("Pick a refund speed");
   return writeSetting(a.db, a.clock.now(), merchantId, moment, key, value);
 }
 

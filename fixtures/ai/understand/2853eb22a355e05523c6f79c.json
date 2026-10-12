@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "2853eb22a355e05523c6f79c",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Paid 499 for banana bread but didn't get any confirmation"
+  },
+  "output": {
+    "amount": 499,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "calm",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

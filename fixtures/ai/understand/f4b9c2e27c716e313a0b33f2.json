@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "f4b9c2e27c716e313a0b33f2",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "I paid 1850 for the cookie hamper 20 min ago, money is gone from my account but no order"
+  },
+  "output": {
+    "amount": 1850,
+    "rough_time": "20 min ago",
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

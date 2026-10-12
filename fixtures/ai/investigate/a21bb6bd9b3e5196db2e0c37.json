@@ -1,0 +1,65 @@
+{
+  "job": "investigate",
+  "key": "a21bb6bd9b3e5196db2e0c37",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "paid_no_order",
+      "merchant": "Leafy Bakes",
+      "amount": "₹1,299",
+      "payment_id": "pay_LB1234PRIYA",
+      "razorpay_order_id": "order_LB1234",
+      "store_order": "#1234",
+      "causes": [
+        "plugin_dropped_capture",
+        "site_down",
+        "webhook_disabled",
+        "wrong_settings",
+        "auto_cancelled",
+        "order_missing"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "evt_ref1",
+        "type": "webhook",
+        "summary": "payment.captured delivered to the store, answer 200"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": []
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue.",
+        "evidence_id": "evt_ref1",
+        "supports": "delivery_ok"
+      }
+    ],
+    "next": {
+      "tool": "get_payment",
+      "id": "pay_LB1234PRIYA"
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "unsure"
+  }
+}

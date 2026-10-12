@@ -299,7 +299,7 @@ export function createTestClient(keys: RazorpayKeys, fetchImpl: typeof fetch = f
           amount: req.amount,
           receipt: req.receipt,
           notes: req.notes,
-          speed: "normal",
+          speed: req.speed,
         }),
       );
     },

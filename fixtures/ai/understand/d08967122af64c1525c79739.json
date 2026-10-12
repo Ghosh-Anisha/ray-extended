@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "d08967122af64c1525c79739",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "Maine bataya na, paise kat gaye"
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "paid_no_order",
+    "language": "hinglish",
+    "mood": "calm",
+    "legal_or_chargeback_words": [],
+    "confidence": "likely"
+  }
+}

@@ -13,7 +13,7 @@ import { actLabel } from "@/guards";
 import { killSwitchOn } from "@/guards/kill-switch";
 import type { ActToolName } from "@/tools/names";
 import { callView, preCallNotice, voiceNoteView, type CallView, type PreCallNotice, type VoiceNoteView } from "./calls";
-import { age, countdown, dateTime, firstName, formatTime, money, shortId } from "./format";
+import { age, countdown, dateTime, firstName, formatTime, money, orderLabel, shortId } from "./format";
 import { isSettingRow, readSettings } from "./playbook";
 import {
   CONFIDENCE_LABEL,
@@ -95,7 +95,7 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
     amount,
     paymentId: kase.payment_id,
-    orderNumber: order ? `#${order.number}` : null,
+    orderNumber: order ? orderLabel(order.number) : null,
   };
 }
 
@@ -282,6 +282,9 @@ export type CaseView = {
   results: string[];
   card: ApprovalCard | null;
   preCall: PreCallNotice | null;
+  // When the cause is on the merchant's side: the brief for their developer
+  // (technical words are fine inside it).
+  developerBrief: string | null;
 };
 
 const FINAL: CaseState[] = ["closed", "fixed_itself"];
@@ -324,7 +327,10 @@ function stepOf(e: CaseEvent): TimelineStep | null {
   }
   if (e.type === "message_in") return { label: p.voice_note ? "Customer sent a voice note" : "Customer wrote", failed: false };
   if (e.type === "message_out") return { label: "Message sent", failed: false };
-  if (e.type === "approval") return { label: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no" : "You took over", failed: false };
+  if (e.type === "approval") {
+    if (p.choice === "change") return null;
+    return { label: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no" : "You took over", failed: false };
+  }
   if (e.type === "tool_call") {
     if (p.kind === "action_done") return { label: "Done", failed: false };
     if (p.kind === "action_blocked" || p.kind === "action_failed") return { label: "Stopped by a check", failed: true };
@@ -348,6 +354,7 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
     case "message_out":
       return { what: `Sent: ${String(p.body ?? "")}`, who: "RAY" };
     case "approval":
+      if (p.choice === "change") return { what: `You tapped Change: ${String(p.text ?? "")}`, who: "You (tap)" };
       return { what: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no to this option" : "You chose to handle it yourself", who: "You (tap)" };
     case "finding":
       return { what: `Found: ${String(p.text)}`, who: "RAY" };
@@ -370,6 +377,7 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
       if (p.kind === "state_changed") return { what: `${STATE_LABEL[p.to as CaseState]}: ${String(p.reason ?? "")}`, who: "RAY" };
       if (p.kind === "alert_sent") return { what: "Alert sent to you", who: "RAY" };
       if (p.kind === "change_requested") return { what: `You asked: ${String(p.text)}`, who: "You" };
+      if (p.kind === "change_handled") return { what: `RAY redrafted: ${String(p.reason ?? "")}`, who: "RAY" };
       if (p.kind === "promised_time_reached") return { what: "The time promised to the customer came up", who: "RAY" };
       if (p.kind === "actions_proposed") return { what: "RAY proposed what to do", who: "RAY" };
       if (p.kind === "decided") return { what: `RAY's recommendation: ${String(p.summary ?? "")}`, who: "RAY" };
@@ -390,7 +398,10 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
 }
 
 function proposalOf(p: ProposedAction): Proposal {
-  const draft = typeof p.args.draft === "string" ? p.args.draft : p.tool === "send_message" && typeof p.args.body === "string" ? p.args.body : null;
+  // The draft is the message the customer gets: the action's own, or the
+  // confirmation that follows it on the same tap.
+  const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
+  const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
   return { id: p.id, label: p.label, covered: p.covered, draft };
 }
 
@@ -415,7 +426,14 @@ function conversationOf(a: Adapters, kase: Case, customerName: string): Conversa
       at: dateTime(m.at),
       direction: m.direction,
       channel: CHANNEL_LABEL[m.channel],
-      from: m.direction === "in" ? customerName : m.channel === "call" ? merchantName(a, kase) : a.messaging.senderLabel(m.from),
+      from:
+        m.direction === "in"
+          ? customerName
+          : m.channel === "call"
+            ? merchantName(a, kase)
+            : m.channel === "email"
+              ? `${a.messaging.senderLabel(m.from)} (${m.from})`
+              : a.messaging.senderLabel(m.from),
       body: m.body,
       voice: m.channel === "voice_note" ? voiceNoteView(m) : null,
       call: m.channel === "call" ? callView(a, m) : null,
@@ -502,7 +520,8 @@ export function caseView(a: Adapters, caseId: string): CaseView {
       primary: unsure ? null : primary,
       secondary: unsure ? [] : proposals.slice(1),
       draft: primary?.draft ?? null,
-      sendFrom: `RAY will send this from ${SENDER_MODE_LABEL[settings.sendFrom](merchant.name)}`,
+      // A verified domain shows its real address: "support@leafybakes.in".
+      sendFrom: `RAY will send this from ${settings.sendFrom === "verified_domain" ? a.messaging.senderAddress(kase.merchant_id, "email", "verified_domain") : SENDER_MODE_LABEL[settings.sendFrom](merchant.name)}`,
       unsure,
       canTap: waiting && !merchant.killSwitch,
       changes,
@@ -512,6 +531,7 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     results,
     card: null,
     preCall: FINAL.includes(kase.state) ? null : preCallNotice(a, kase.id, sub.name),
+    developerBrief: (timeline.findLast((e) => e.payload.kind === "pno_developer_brief")?.payload.text as string | undefined) ?? null,
   };
   view.card = cardOf(view, voiceNoteFor(timeline, proposals));
   return view;

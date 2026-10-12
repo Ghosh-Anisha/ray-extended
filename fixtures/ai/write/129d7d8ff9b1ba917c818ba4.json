@@ -1,0 +1,93 @@
+{
+  "job": "write",
+  "key": "129d7d8ff9b1ba917c818ba4",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "refund_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "A",
+        "state": "acting",
+        "confidence": "sure",
+        "side": "merchant",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,850",
+        "payment_id": "pay_LB1240MEERA",
+        "cause": "not_captured",
+        "promised_by": "12:00 PM on 12 Oct",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1240MEERA",
+          "status": "captured",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000104",
+          "email": "meera.iyer@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731240 (ending 1240)",
+          "receipt": "wc_1240",
+          "created_at": "9:40 AM on 12 Oct",
+          "captured_at": "10:00 AM on 12 Oct"
+        },
+        {
+          "status": "paid",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "receipt": "wc_1240",
+          "created_at": "9:39 AM on 12 Oct"
+        },
+        {
+          "message_id": "msg_ref1",
+          "channel": "whatsapp",
+          "to": "+919800000104",
+          "from": "wa:leafy-bakes",
+          "body": "Hi Meera, we can see your payment of ₹1,850 at 9:40 AM on 12 Oct, UTR ending 1240. You can check this in your UPI app. You'll hear from us with an update by 12:00 PM. Team Leafy Bakes",
+          "within_24h": true
+        },
+        {
+          "order_id": "order_LB1240MEERA",
+          "status": "captured",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "amount_refunded": "₹0",
+          "method": "upi",
+          "contact": "+919800000104",
+          "email": "meera.iyer@example.com",
+          "vpa": "someone@okaxis",
+          "utr": "628514731240 (ending 1240)",
+          "created_at": "9:40 AM on 12 Oct",
+          "captured_at": "10:00 AM on 12 Oct"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "promised_time",
+          "due": "12:00 PM on 12 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Meera",
+      "order": "#1240",
+      "amount": "₹1,850"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Meera, we've refunded the extra ₹1,850 you paid. It goes back to the same account at your bank's usual speed. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

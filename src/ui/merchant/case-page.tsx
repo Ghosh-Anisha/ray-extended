@@ -169,6 +169,12 @@ function FindingsPane({ v }: { v: CaseView }) {
         </ul>
       )}
       {v.findings.length === 0 ? <p className="muted">{EMPTY.findings}</p> : v.findings.map((f) => <FindingRow key={f.id} f={f} merchantId={v.merchant.id} />)}
+      {v.developerBrief && (
+        <details>
+          <summary>Details for your developer</summary>
+          <pre className="raw">{v.developerBrief}</pre>
+        </details>
+      )}
     </section>
   );
 }

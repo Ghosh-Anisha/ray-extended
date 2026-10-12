@@ -11,20 +11,20 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import type { Moment } from "@/db/schema";
 import { AUTO_CUSTOMER_MESSAGES } from "@/guards";
-import type { ToneSetting } from "./words";
+import type { RefundSpeedSetting, ToneSetting } from "./words";
 
 export { TONES, type ToneSetting } from "./words";
 export type SendFrom = (typeof s.SENDER_MODES)[number];
 
-export type MomentSettings = { tone: ToneSetting; signOff: string; sendFrom: SendFrom; autoMessages: boolean };
+export type MomentSettings = { tone: ToneSetting; signOff: string; sendFrom: SendFrom; autoMessages: boolean; refundSpeed: RefundSpeedSetting };
 
-export const SETTING_KEYS = ["tone", "sign_off", "send_from", AUTO_CUSTOMER_MESSAGES] as const;
+export const SETTING_KEYS = ["tone", "sign_off", "send_from", AUTO_CUSTOMER_MESSAGES, "refund_speed"] as const;
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
 export const isSettingRow = (r: { rule_json: Record<string, unknown> }) => typeof r.rule_json.setting === "string";
 
 export function defaultSettings(merchantName: string): MomentSettings {
-  return { tone: "Warm", signOff: `Team ${merchantName}`, sendFrom: "merchant_inbox", autoMessages: false };
+  return { tone: "Warm", signOff: `Team ${merchantName}`, sendFrom: "merchant_inbox", autoMessages: false, refundSpeed: "normal" };
 }
 
 function settingRow(db: Db, merchantId: string, moment: Moment, key: SettingKey) {
@@ -46,6 +46,7 @@ export function readSettings(db: Db, merchantId: string, moment: Moment): Moment
     signOff: (val("sign_off")?.value as string | undefined) ?? d.signOff,
     sendFrom: (val("send_from")?.value as SendFrom | undefined) ?? d.sendFrom,
     autoMessages: autoRow?.status === "approved" && auto?.on === true,
+    refundSpeed: (val("refund_speed")?.value as RefundSpeedSetting | undefined) ?? d.refundSpeed,
   };
 }
 
@@ -54,6 +55,7 @@ const SETTING_TEXT: Record<SettingKey, string> = {
   sign_off: "Sign-off on customer messages",
   send_from: "Send customer messages from",
   [AUTO_CUSTOMER_MESSAGES]: "Send automatic customer messages",
+  refund_speed: "Refund speed",
 };
 
 // The merchant changed a setting: write it (an update keeps one row per
