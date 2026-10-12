@@ -29,8 +29,11 @@ export type StoreSettings = {
 
 export type OrderRef = { id: string } | { number: string } | { receipt: string } | { paymentId: string };
 
+// expectedTotal is the captured payment amount. Line items are priced from
+// products and must add up to it exactly, or no order is created.
 export type NewOrderForPayment = {
   paymentId: string;
+  expectedTotal: number;
   customerId?: string | null;
   razorpayOrderId?: string | null;
   receipt?: string | null;
@@ -64,10 +67,13 @@ export interface StoreConnector {
   receiveWebhook(merchantId: string, envelope: WebhookEnvelope): Promise<WebhookReceipt>;
 }
 
+export type OrderTotalMismatch = { expected_total: number; line_items_total: number };
+
 export class StoreError extends Error {
   constructor(
     message: string,
     readonly httpStatus = 400,
+    readonly mismatch?: OrderTotalMismatch,
   ) {
     super(message);
     this.name = "StoreError";
@@ -208,6 +214,19 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
       const existing = findOrder(merchantId, { paymentId: input.paymentId });
       if (existing) return existing;
       if (input.items.length === 0) throw new StoreError("An order needs at least one item");
+      const priced = input.items.map((it) => {
+        const p = product(merchantId, it.name);
+        if (!p) throw new StoreError(`Unknown product: ${it.name}`);
+        return p.price * it.qty;
+      });
+      const linesTotal = priced.reduce((a, b) => a + b, 0);
+      if (linesTotal !== input.expectedTotal) {
+        throw new StoreError(
+          `Line items add up to ${linesTotal}, but the payment is ${input.expectedTotal}. Order not created.`,
+          400,
+          { expected_total: input.expectedTotal, line_items_total: linesTotal },
+        );
+      }
       moveStock(merchantId, input.items, -1);
       const items = snapshotItems(merchantId, input.items);
       const numbers = db
@@ -228,7 +247,7 @@ export function createStoreSim(db: Db, clock: Clock): StoreSim {
         razorpay_order_id: input.razorpayOrderId ?? null,
         receipt: input.receipt ?? null,
         payment_id: input.paymentId,
-        total: items.reduce((sum, i) => sum + i.price * i.qty, 0),
+        total: input.expectedTotal,
         items,
         stock: Math.min(...items.map((i) => i.stock)),
         created_at: now,

@@ -11,6 +11,7 @@ import { SEED_NOW, seed } from "@/db/seed";
 import { createAdapters } from ".";
 import { fakeClock } from "./clock";
 import { MessagingError } from "./messaging";
+import { DISPUTE_DRAFT_EVENT_KINDS } from "./razorpay";
 
 const LEAFY = "m_leafy_bakes";
 const PRIYA = "+919800000101";
@@ -65,7 +66,7 @@ describe("simulated state survives a restart", () => {
   it("keeps product stock, and orders read stock from products", async () => {
     const a = boot();
     await a.store.setFailure(LEAFY, "none");
-    await a.store.createOrderForPayment(LEAFY, { paymentId: "pay_restart_1", items: [{ name: "Chocolate box", qty: 2 }] });
+    await a.store.createOrderForPayment(LEAFY, { paymentId: "pay_restart_1", expectedTotal: 2 * 129_900, items: [{ name: "Chocolate box", qty: 2 }] });
     a.db.$client.close();
 
     const b = boot();
@@ -100,17 +101,16 @@ describe("simulated state survives a restart", () => {
     const d = await b.razorpay(LEAFY).fetchDispute("disp_LB_meera");
     expect(d.evidence).toMatchObject({ amount: 690_000, summary: "Delivered by courier" });
 
-    b.clock.advance(60_000);
     await b.razorpay(LEAFY).contestDispute("disp_LB_meera", { action: "draft", documents: { shipping_proof: ["doc_pod_1"] } });
-    b.clock.advance(60_000);
     // Same draft again: nothing changed, nothing logged.
     await b.razorpay(LEAFY).contestDispute("disp_LB_meera", { action: "draft", documents: { shipping_proof: ["doc_pod_1"] } });
-    b.clock.advance(60_000);
     await b.razorpay(LEAFY).contestDispute("disp_LB_meera", { action: "submit" });
     expect(repo.disputes.get("disp_LB_meera")).toMatchObject({ draft_status: "submitted", status: "under_review" });
 
+    // The clock never moved: insert order comes from seq.
     const events = repo.caseEvents.listByCase("case_cb_meera");
-    expect(events.map((e) => e.payload.kind)).toEqual(["dispute_draft_created", "dispute_draft_changed", "dispute_draft_submitted"]);
+    expect(events.every((e) => e.at === SEED_NOW)).toBe(true);
+    expect(events.map((e) => e.payload.kind)).toEqual([...DISPUTE_DRAFT_EVENT_KINDS]);
     expect(events.every((e) => e.evidence_ref === "disp_LB_meera")).toBe(true);
     b.db.$client.close();
   });

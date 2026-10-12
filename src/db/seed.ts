@@ -131,6 +131,9 @@ export function seed(db: Db, now: number = SEED_NOW) {
       { id: "cus_meera", merchant_id: LEAFY, name: "Meera Iyer", email: "meera.iyer@example.com", phone: "+919800000104" },
       { id: "cus_sanjay", merchant_id: LEAFY, name: "Sanjay Kulkarni", email: "sanjay.k@example.com", phone: "+919800000105" },
       { id: "cus_deepa", merchant_id: LEAFY, name: "Deepa Nair", email: "deepa.nair@example.com", phone: "+919800000106" },
+      // Consent edge cases: Kavya opted out of WhatsApp, Imran never gave consent.
+      { id: "cus_kavya", merchant_id: LEAFY, name: "Kavya Rao", email: "kavya.rao@example.com", phone: "+919800000107" },
+      { id: "cus_imran", merchant_id: LEAFY, name: "Imran Qureshi", email: "imran.q@example.com", phone: "+919800000108" },
     ]);
 
     const paidOrder = (id: string, amount: number, receipt: string, at: number) =>
@@ -358,16 +361,19 @@ export function seed(db: Db, now: number = SEED_NOW) {
       { id: "bc_PR_3", merchant_id: PR, amount: rupees(18_000), remark: "IMPS 6281 SUPPLIER PMT", utr: "628510004417", date: ago(3 * HOUR), matched_invoices: [] },
     ]);
 
-    // WhatsApp opt-ins collected at checkout, for customers of merchants with WhatsApp on.
+    // WhatsApp opt-ins collected at checkout, for customers of merchants with
+    // WhatsApp on. Kavya later opted out; Imran has no consent row at all.
     const whatsappMerchants = new Set(MERCHANTS.filter((m) => m.whatsapp_on).map((m) => m.id));
+    const NO_CONSENT = new Set(["cus_imran"]);
     repo.messagingConsents.insertMany(
       repo.customers
         .list()
-        .filter((c) => c.phone && whatsappMerchants.has(c.merchant_id))
-        .map((c) => ({
-          id: `cons_${c.id}_wa`, customer_id: c.id, channel: "whatsapp" as const, status: "opted_in" as const,
-          source: "checkout", updated_at: ago(30 * DAY),
-        })),
+        .filter((c) => c.phone && whatsappMerchants.has(c.merchant_id) && !NO_CONSENT.has(c.id))
+        .map((c) =>
+          c.id === "cus_kavya"
+            ? { id: `cons_${c.id}_wa`, customer_id: c.id, channel: "whatsapp" as const, status: "opted_out" as const, source: "customer replied STOP", updated_at: ago(5 * DAY) }
+            : { id: `cons_${c.id}_wa`, customer_id: c.id, channel: "whatsapp" as const, status: "opted_in" as const, source: "checkout", updated_at: ago(30 * DAY) },
+        ),
     );
   });
 }

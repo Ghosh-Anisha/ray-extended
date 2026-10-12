@@ -9,6 +9,10 @@ import type { Clock } from "../clock";
 import { newId } from "../ids";
 import type { RazorpayAdapter } from "./types";
 
+// payload.kind of the note written for each draft change.
+export const DISPUTE_DRAFT_EVENT_KINDS = ["dispute_draft_created", "dispute_draft_changed", "dispute_draft_submitted"] as const;
+export type DisputeDraftEventKind = (typeof DISPUTE_DRAFT_EVENT_KINDS)[number];
+
 export function withDraftLog(rzp: RazorpayAdapter, db: Db, clock: Clock, merchantId: string): RazorpayAdapter {
   const repo = createRepository(db);
 
@@ -31,13 +35,18 @@ export function withDraftLog(rzp: RazorpayAdapter, db: Db, clock: Clock, merchan
       const changed = JSON.stringify(before.evidence) !== JSON.stringify(after.evidence) || before.status !== after.status;
       if (changed) {
         const submitted = input.action === "submit";
+        const kind: DisputeDraftEventKind = submitted
+          ? "dispute_draft_submitted"
+          : before.evidence
+            ? "dispute_draft_changed"
+            : "dispute_draft_created";
         repo.caseEvents.insert({
           id: newId("cev"),
           case_id: kase.id,
           at: clock.now(),
           type: "note",
           payload: {
-            kind: submitted ? "dispute_draft_submitted" : before.evidence ? "dispute_draft_changed" : "dispute_draft_created",
+            kind,
             dispute_id: disputeId,
             draft_status: submitted ? "submitted" : "draft",
             draft: after.evidence,

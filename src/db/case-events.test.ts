@@ -32,6 +32,25 @@ describe("case_events is append only", () => {
     expect(repo.caseEvents.get("ev_2")?.payload).toEqual({ cause: "x" });
   });
 
+  it("reads events at the same timestamp back in insert order", () => {
+    const ids = ["ev_e", "ev_a", "ev_d", "ev_b", "ev_c"];
+    for (const id of ids) repo.caseEvents.insert({ id, case_id: "case_1", at: 1_000, type: "note", payload: {} });
+    const events = repo.caseEvents.listByCase("case_1");
+    expect(events.map((e) => e.id)).toEqual(ids);
+    expect(events.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
+    expect(events.every((e) => e.at === 1_000)).toBe(true);
+  });
+
+  it("rejects a missing or non-increasing seq at the database level", () => {
+    repo.caseEvents.insert({ id: "ev_1", case_id: "case_1", at: 10, type: "note", payload: {} });
+    const raw = (q: string) => db.$client.prepare(q).run();
+    const insert = (id: string, seq: string) =>
+      `insert into case_events (id, case_id, at, type, payload, seq) values ('${id}', 'case_1', 10, 'note', '{}', ${seq})`;
+    expect(() => raw(insert("ev_2", "null"))).toThrow(/seq must increase/);
+    expect(() => raw(insert("ev_3", "1"))).toThrow(/seq must increase/);
+    expect(() => raw(insert("ev_4", "2"))).not.toThrow();
+  });
+
   it("rejects UPDATE and DELETE at the database level", () => {
     repo.caseEvents.insert({ id: "ev_1", case_id: "case_1", at: 10, type: "note", payload: {} });
     const raw = (q: string) => db.$client.prepare(q).run();

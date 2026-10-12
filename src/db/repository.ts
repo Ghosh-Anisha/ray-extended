@@ -1,6 +1,6 @@
 // Typed repository over every table. Ordinary tables get insert, get, list
 // and update. case_events is append only: insert and read, nothing else.
-import { and, asc, eq, type SQL } from "drizzle-orm";
+import { and, asc, eq, sql, type SQL } from "drizzle-orm";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Db } from "./client";
 import * as s from "./schema";
@@ -28,12 +28,14 @@ function crud<T extends SQLiteTable>(db: Db, table: T, key: SQLiteColumn) {
 }
 
 type CaseEvent = typeof s.caseEvents.$inferSelect;
-type NewCaseEvent = typeof s.caseEvents.$inferInsert;
+type NewCaseEvent = Omit<typeof s.caseEvents.$inferInsert, "seq">;
 
 function caseEventsRepo(db: Db) {
   return Object.freeze({
     insert(row: NewCaseEvent): CaseEvent {
-      return db.insert(s.caseEvents).values(row).returning().get();
+      // seq is computed in the same statement, so it can't race another insert.
+      const seq = sql`(select coalesce(max(seq), 0) + 1 from case_events)`;
+      return db.insert(s.caseEvents).values({ ...row, seq }).returning().get();
     },
     get(id: string): CaseEvent | undefined {
       return db.select().from(s.caseEvents).where(eq(s.caseEvents.id, id)).get();
@@ -43,7 +45,8 @@ function caseEventsRepo(db: Db) {
         .select()
         .from(s.caseEvents)
         .where(eq(s.caseEvents.case_id, caseId))
-        .orderBy(asc(s.caseEvents.at), asc(s.caseEvents.id))
+        // Time order, with seq breaking ties so same-timestamp events keep insert order.
+        .orderBy(asc(s.caseEvents.at), asc(s.caseEvents.seq))
         .all();
     },
   });

@@ -8,13 +8,13 @@ import { PACKRIGHT, SEED_NOW, seed } from "./seed";
 
 const EXPECTED_ROWS: Record<string, number> = {
   merchants: 13,
-  customers: 11,
+  customers: 13,
   cases: 0,
   case_events: 0,
   actions: 0,
   timers: 0,
   messages: 0,
-  messaging_consents: 8,
+  messaging_consents: 9,
   playbook_rules: 0,
   memory: 0,
   ai_calls: 0,

@@ -114,8 +114,12 @@ export const cases = sqliteTable("cases", {
 
 // Append only: no update or delete path in the repository, and triggers in
 // migration 0001 reject UPDATE and DELETE at the database level.
+// seq (migration 0003) is the insert order: set by the repository on insert
+// as max + 1, unique, and checked by a trigger. listByCase orders by `at`
+// then seq, so events at the same timestamp keep insert order.
 export const caseEvents = sqliteTable("case_events", {
   id: id(),
+  seq: integer("seq").unique(),
   case_id: text("case_id").notNull().references(() => cases.id),
   at: integer("at").notNull(),
   type: text("type", { enum: CASE_EVENT_TYPES }).notNull(),

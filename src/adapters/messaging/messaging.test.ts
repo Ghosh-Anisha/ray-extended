@@ -54,10 +54,23 @@ describe("Messaging contract: simulated WhatsApp and email", () => {
   it("outside the window sends templates only to customers who opted in", async () => {
     expect(msg.consent("cus_priya", "whatsapp")).toBe("opted_in");
     await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: "+919899999999", senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
-    a.db.$client.prepare("delete from messaging_consents where customer_id = 'cus_priya'").run();
-    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
-    msg.setConsent("cus_priya", "whatsapp", "opted_in", "test");
     await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", ...check })).resolves.toBeTruthy();
+  });
+
+  it("blocks a proactive WhatsApp to the seeded opted-out and no-consent customers", async () => {
+    const KAVYA = "+919800000107";
+    const IMRAN = "+919800000108";
+    expect(msg.consent("cus_kavya", "whatsapp")).toBe("opted_out");
+    expect(msg.consent("cus_imran", "whatsapp")).toBeNull();
+    for (const mode of ["merchant_inbox", "via_razorpay"] as const) {
+      await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: KAVYA, senderMode: mode, ...check })).rejects.toSatisfy(code("OPTED_OUT"));
+      await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: IMRAN, senderMode: mode, ...check })).rejects.toSatisfy(code("NOT_OPTED_IN"));
+    }
+    expect(msg.thread(LEAFY, KAVYA)).toEqual([]);
+    expect(msg.thread(LEAFY, IMRAN)).toEqual([]);
+    // Imran opting in at checkout unblocks him.
+    msg.setConsent("cus_imran", "whatsapp", "opted_in", "checkout");
+    await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: IMRAN, senderMode: "merchant_inbox", ...check })).resolves.toBeTruthy();
   });
 
   it("an opt-out blocks every proactive message on that channel, but not replies", async () => {

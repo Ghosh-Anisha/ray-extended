@@ -55,13 +55,23 @@ describe("StoreConnector contract: simulated WooCommerce", () => {
   });
 
   it("creates an order tagged with the payment id, once per payment", async () => {
-    const o = await store.createOrderForPayment(LEAFY, { paymentId: "pay_new_1", customerId: "cus_priya", items: [{ name: "Chocolate box", qty: 2 }] });
+    const o = await store.createOrderForPayment(LEAFY, { paymentId: "pay_new_1", expectedTotal: 2 * 129_900, customerId: "cus_priya", items: [{ name: "Chocolate box", qty: 2 }] });
     expect(o).toMatchObject({ status: "processing", payment_id: "pay_new_1", total: 2 * 129_900, number: "#1236" });
     expect(store.stock(LEAFY, "Chocolate box")).toBe(10);
-    expect((await store.createOrderForPayment(LEAFY, { paymentId: "pay_new_1", items: [{ name: "Chocolate box", qty: 2 }] })).id).toBe(o.id);
+    expect((await store.createOrderForPayment(LEAFY, { paymentId: "pay_new_1", expectedTotal: 2 * 129_900, items: [{ name: "Chocolate box", qty: 2 }] })).id).toBe(o.id);
     expect(store.stock(LEAFY, "Chocolate box")).toBe(10);
-    await expect(store.createOrderForPayment(LEAFY, { paymentId: "pay_new_2", items: [{ name: "Chocolate box", qty: 99 }] })).rejects.toThrow(/Not enough stock/);
-    await expect(store.createOrderForPayment(LEAFY, { paymentId: "pay_new_3", items: [{ name: "Caviar", qty: 1 }] })).rejects.toThrow(/Unknown product/);
+    await expect(store.createOrderForPayment(LEAFY, { paymentId: "pay_new_2", expectedTotal: 99 * 129_900, items: [{ name: "Chocolate box", qty: 99 }] })).rejects.toThrow(/Not enough stock/);
+    await expect(store.createOrderForPayment(LEAFY, { paymentId: "pay_new_3", expectedTotal: 100, items: [{ name: "Caviar", qty: 1 }] })).rejects.toThrow(/Unknown product/);
+  });
+
+  it("refuses an order whose line items don't add up to the payment, and keeps stock", async () => {
+    const err = await store
+      .createOrderForPayment(LEAFY, { paymentId: "pay_new_4", expectedTotal: 129_900, items: [{ name: "Chocolate box", qty: 2 }] })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(StoreError);
+    expect((err as StoreError).mismatch).toEqual({ expected_total: 129_900, line_items_total: 259_800 });
+    expect(await store.getOrder(LEAFY, { paymentId: "pay_new_4" })).toBeNull();
+    expect(store.stock(LEAFY, "Chocolate box")).toBe(12);
   });
 
   it("cancels an unshipped order but never a shipped one", async () => {

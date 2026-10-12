@@ -22,6 +22,13 @@
       "when": 1791800246606,
       "tag": "0002_store_stock_consents_drafts",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791800689832,
+      "tag": "0003_case_events_seq",
+      "breakpoints": true
     }
   ]
 }

@@ -10,6 +10,7 @@ import type { RazorpayAdapter } from "./types";
 export * from "./types";
 export { createMockRazorpay, type MockRazorpay } from "./mock";
 export { assertTestKey, createTestClient } from "./test-client";
+export { DISPUTE_DRAFT_EVENT_KINDS, type DisputeDraftEventKind } from "./draft-log";
 
 // Keys sit behind a function so logging or serialising the config never shows them.
 export type RazorpayConfig = { mode: "mock" } | { mode: "test"; keys: () => RazorpayKeys };
