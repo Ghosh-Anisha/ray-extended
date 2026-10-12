@@ -473,3 +473,23 @@ describe("situation A: a chargeback threat before any dispute", () => {
     expect(w.proposals(c.id)[0].label).toBe("Contest dispute");
   });
 });
+
+describe("design language", () => {
+  it("merchant-facing words: no banned words, no percentages, no em dashes", async () => {
+    w.switchOn("contest");
+    for (const k of ["sanjay", "deepa", "meera"] as const) await w.open(DISPUTES[k]);
+    await w.engine.advanceBy(7 * DAY);
+    const all = w.repo.cases.list().flatMap((c) => w.events(c.id));
+    const texts = [
+      ...w.repo.alerts.list().map((x) => x.text),
+      ...all.filter((e) => e.payload.kind === "decided").map((e) => String(e.payload.summary)),
+      ...all.filter((e) => e.type === "finding").map((e) => String(e.payload.text)),
+      ...all.filter((e) => e.payload.kind === "actions_proposed").flatMap((e) => (e.payload.actions as { label: string }[]).map((p) => p.label)),
+    ];
+    expect(texts.length).toBeGreaterThan(10);
+    for (const t of texts) {
+      expect(bannedWordsIn(t), t).toEqual([]);
+      expect(t, t).not.toMatch(/%|—/);
+    }
+  });
+});

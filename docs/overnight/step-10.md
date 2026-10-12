@@ -12,8 +12,9 @@ All additive. No existing behaviour or existing test changed.
 | `src/guards/index.ts` | `GuardedCallContext.holdUntil?: number` (optional). When set and every guard passes, the action is held until then, exactly like the refund hold; Undo (Stop) and release reuse the existing hold code. Without it nothing changes. | The Stop window on the automatic dispute lanes. The UI already shows a held `contest_dispute`/`accept_dispute` as the Stop banner (`src/surfaces/views.ts` holdsOf). |
 | `src/adapters/webhooks/index.ts` | Three more Razorpay events in `WEBHOOK_EVENTS`: `payment.dispute.won`, `payment.dispute.lost`, `payment.dispute.closed` (ref `disputeId`, they report the dispute as it is). | The outcome of a dispute reaches the case through `handleEvent`, like every other event. The existing per-event test covers them. |
 | `src/engine/index.ts` | One line: `createChargebacksSpecialist()` in the registry. | Registers the flow. |
-| `src/db/seed.ts` | One line: `seedChargebacks(db, now)` from `src/db/seed/chargebacks.ts`. | Seed for this step. |
+| `src/db/seed.ts` | One call, `seedChargebacks(db, now)`, plus its import, from `src/db/seed/chargebacks.ts`. | Seed for this step. It only writes the flow's own tables. |
 | `src/db/migrations/1000_chargebacks.sql` + one entry in `meta/_journal.json` | Three new tables (below). | Rule 11: everything a case or guard reads lives in the database. |
+| `fixtures/ai/investigate/*.json` (6 new), `fixtures/ai/understand/*.json` (1 new) | New replay fixtures, labelled "recorded in Claude Code". | Written from `src/flows/chargebacks/fixtures.claude-code.json` by `npx tsx src/flows/chargebacks/record-fixtures.ts` (reuses `writeClaudeCodeFixtures`; the shared `fixtures/ai/sources/claude-code.json` is untouched, so parallel steps don't collide). |
 
 The new tables are declared in `src/flows/chargebacks/schema.ts`, not in
 `src/db/schema.ts`, so the seed test's "covers every table in the schema" and
@@ -21,10 +22,10 @@ row-count assertions stay exactly as they are.
 
 ## Plan: every rule from Step 10
 
-Files: `src/flows/chargebacks/{index,rules,evidence,lanes,lines,patterns,sim,schema,threat}.ts`,
-tests `chargebacks.test.ts` (scenarios) and `rules.test.ts` (unit), fixtures
-source `src/flows/chargebacks/fixtures.claude-code.json` written to `fixtures/ai/`
-by `npm run ai:fixtures:chargebacks`... (see Decisions: fixtures).
+Files: `src/flows/chargebacks/{index,rules,evidence,lanes,lines,patterns,sim,schema}.ts`,
+tests `chargebacks.test.ts` (scenarios, 27) and `rules.test.ts` (unit, 12),
+helpers `test-helpers.ts`, `threat-fixture.ts`, fixture source
+`fixtures.claude-code.json` and `record-fixtures.ts`.
 
 ### Situations (code decides the situation from the dispute record)
 
@@ -131,3 +132,132 @@ the merchant's sending address unless the customer's WhatsApp window is open.
 ## Decisions
 
 (what, why, the alternative not taken)
+
+1. **Lanes are playbook rules, proposed at runtime, not seeded.**
+   What: the first chargeback a merchant gets makes RAY propose both lanes
+   (status proposed). The merchant's Approve rule switches one on. Tests
+   switch Leafy's contest lane on with the same `setRuleStatus` the
+   playbook screen calls.
+   Why: the approval guard only lets an act run on a tap or an approved
+   playbook rule id, so a lane has to be one; and the seed test pins the
+   exact `playbook_rules` count (8), which "don't change existing tests"
+   rules out touching. Proposing on first use is also the honest opt-in.
+   Not taken: seeding Leafy's lanes as approved (edits the seed test), or a
+   lane approval kind in the guard (changes shared guard behaviour).
+
+2. **The Stop window is a held action (`holdUntil` on `guardedCall`).**
+   Why: the refund hold already gives Undo, release-time re-checks (kill
+   switch, rule still approved, amount cap) and the Stop banner in the UI.
+   Stop is the existing Undo route. Not taken: a flow-only timer that calls
+   `contest_dispute` later (the hold would not show, and Stop would need a
+   new path).
+
+3. **Bounds checked twice.** `checkLane` checks all of them in the flow
+   (opt-in, type, first stage, deducted, Sure, approval limit, time for a
+   window, two overrides); the guards check approval, amount cap and kill
+   switch again at release. A lane switched off during the window blocks
+   the filing (tested).
+
+4. **Wrong call = an automatically contested dispute that was lost.** It
+   switches that lane rule to `off` and alerts the merchant. For the accept
+   lane there is no outcome that proves it wrong in the prototype (an
+   accepted dispute is lost by definition), so it only goes off when the
+   merchant switches it off. Not taken: inventing a "that was wrong" tap,
+   which the engine's taps don't support outside Needs you.
+
+5. **Override = Stop (Undo of the held lane action) or taking the case
+   over while it is held.** Counted from the actions table each time (no
+   stored counter); two on a type move that type back to Ask.
+
+6. **RAY's deadline = the earlier of Razorpay's `respond_by` and onset + 3/2/1
+   business days (Mon to Fri, IST).** Why: never later than Razorpay's
+   date. The seeded respond-by dates (4 to 9 days) are later, so the guide's
+   T+3 applies.
+
+7. **The deadline submit is part of the contest lane opt-in.** "A few hours
+   before, a strong pack is submitted" would otherwise be money without a
+   tap. It runs only under an approved contest lane (proposed text says so,
+   `at_deadline: true`), with every lane bound (Sure, within the limit,
+   first stage) and still a Stop window. Otherwise the merchant is told and
+   the pack lapses. Meera (₹6,900, above the ₹2,000 limit) lapses; tested.
+
+8. **Odds come from code, not the model.** A table in `rules.ts` maps the
+   records (delivery confirmed, shipped, refund on file, single charge,
+   chats, Buyer Protection claim, Vulcan) to odds and Sure/Likely. The
+   investigate job adds findings only. Strong pack = odds ≥ 65%. Not taken:
+   model-estimated odds (they would decide money, rule 1).
+
+9. **Fees:** Visa USD 600, Mastercard USD 675, unknown networks the higher
+   one, at a fixed simulated ₹84 per USD. Pre-arbitration and arbitration
+   both use the arbitration fee; stage 1 is nil. ₹4,000 at Visa
+   arbitration needs over 92.6%.
+
+10. **Why Meera asks and Deepa gets outreach first.** Both are "not
+    received", shipped by courier, delivery not confirmed (Likely), so
+    neither can use the contest lane. Meera's ₹6,900 is above the approval
+    limit, so the card leads with the money decision (Contest dispute) and
+    keeps outreach as an option. Deepa's ₹1,850 is within the limit and the
+    deadline is more than 2 days out, so the card leads with "Send message
+    to Deepa" (dispute_outreach, the merchant's tap).
+
+11. **Outreach goes by email** unless the customer's WhatsApp window is
+    open: there is no approved WhatsApp template for disputes, and adding
+    one would change the shared messaging adapter. Non-fraud (situation C)
+    only; never to a cardholder on fraud.
+
+12. **Situation A delegates to the paid-no-order Specialist on the same
+    case** (moment chargeback, situation A). The paid-no-order hooks get the
+    case with their own situation letter from their notes (their A means
+    "authorised, not captured"). A threat never acts on a rule: a decide
+    that would act is turned into Needs you. A dispute that later arrives on
+    that payment joins the case and becomes B to E; it then asks.
+
+13. **New Razorpay events for outcomes** (`payment.dispute.won/lost/closed`).
+    A withdrawal is `closed`. The simulator (`sim.ts settleDispute`) sets
+    the dispute's status, then emits the webhook, so outcomes reach the case
+    through `handleEvent`. An outcome on a case in Needs you (it lapsed)
+    closes through `transition()` from the flow, because the orchestrator's
+    investigate path can't set the outcome fields.
+
+14. **Situation F is the weekly insight, not its own case.** A timer on the
+    case (next Monday 9 AM IST), once per merchant per week, groups the last
+    30 days' disputes by reason, product and unflagged fraud ("statement
+    name"). Each pattern is an alert with ₹ at stake and its fix as a
+    proposed playbook setting (`tool: none`, so it can never approve an
+    action). Leafy's two "not received" give: "2 chargebacks in the last 30
+    days say the order never arrived: ₹8,750 at stake."
+
+15. **Fraud signals and Buyer Protection claims are Simulated tables** in
+    the flow (`cb_fraud_signals`, `cb_buyer_protection_claims`), declared in
+    `src/flows/chargebacks/schema.ts` so the seed test's table list doesn't
+    change. Existing `bank_complaint` notes on the payment count as well.
+    Meera is seeded with an open claim; it lands in her pack.
+
+16. **Filing path is a per-merchant table (`cb_settings`)**, Leafy on
+    the Disputes API. Dispute Responder is a Simulated hand-off note, then
+    the same guarded submit; "manual" files nothing and says the pack is
+    ready to upload.
+
+17. **"Stop asking for this type"**: after 3 unchanged approvals of RAY's
+    recommendation on one type, a proposed lane rule for that type and an
+    alert (Rule card). Never applied until Approve rule.
+
+18. **No percentages on merchant screens.** Odds stay in the pack note;
+    cards say "the proof is strong" or "thin". A test checks every alert,
+    summary, finding and button label for banned words, % and em dashes.
+
+19. **Fixtures**: Claude Code acted as the model for the evidence finder on
+    the three seeded disputes and for understanding Rahul's threat. Scenario
+    disputes made inside tests miss replay on purpose and fall back
+    (Unsure for the model's part only; code findings and odds still apply).
+
+## Not done / left for later
+
+- No dev panel control for dispute outcomes; the new webhook events show in
+  the dev panel's list, but `settleDispute` (which also sets the status) is
+  only called from tests. Adding a button means touching `src/app`, which
+  is outside this step's folder.
+- Customer replies on a dispute case are recorded as evidence, not read by
+  the understand job (the bank's withdrawal is what closes it).
+- Lint: `npm run lint` also scans `.claude/worktrees/` (other parallel
+  sessions' checkouts) and reports one warning there; nothing from this step.

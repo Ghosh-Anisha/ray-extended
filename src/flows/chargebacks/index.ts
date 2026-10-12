@@ -267,13 +267,14 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
       if (p?.card_last4) proposals.push({ id: newId("prop"), label: `Block card ending ${p.card_last4}`, tool: "none", args: { choice: "block_card", card_last4: p.card_last4 }, covered: false });
     }
 
-    const odds = `${Math.round(pk.odds * 100)}% odds`;
+    // No percentages on merchant screens: the proof is described, the odds stay in the pack note.
+    const proof = pk.strong ? "the proof is strong" : "the proof is thin";
     const why =
       dn.situation === "E"
-        ? `This is ${d.phase === "arbitration" ? "arbitration" : "pre-arbitration"}; losing costs ${formatMoney(fee)} more, so ${evContest ? "contesting is still worth it" : "accepting costs less"} at ${odds}.`
+        ? `This is ${d.phase === "arbitration" ? "arbitration" : "pre-arbitration"}; losing costs ${formatMoney(fee)} more, so ${evContest ? "contesting is still worth it" : "accepting costs less"}: ${proof}.`
         : d.amount > merchant.approval_limit
           ? `${formatMoney(d.amount)} is above your approval limit of ${formatMoney(merchant.approval_limit)}, so this one is your call.`
-          : `${pk.strong ? "The proof is strong" : "The proof is thin"} (${odds}).`;
+          : `${proof[0].toUpperCase()}${proof.slice(1)}.`;
     const question = outreachFirst ? `Want me to message ${b.first} first and ask for the dispute to be withdrawn?` : recommend === "contest" ? "Contest it?" : "Accept it?";
     return {
       recommend,
