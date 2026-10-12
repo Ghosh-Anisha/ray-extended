@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "ff7f8603807ebdb23dd2ed8f",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_bank_declined",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Léa",
+      "amount": "€99",
+      "for": "order nn_team_monthly_311",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_team_monthly_311",
+      "sign_off": "Team NoteNest",
+      "what_happened": "your bank declined the card",
+      "never_the_same_card": true
+    },
+    "tone": "Warm",
+    "language": "fr"
+  },
+  "output": {
+    "draft": "Bonjour Léa,\n\nVotre paiement par carte de €99 à NoteNest (order nn_team_monthly_311) n'a pas abouti : votre banque a refusé la carte.\n\nVous pouvez payer avec une autre carte ou avec PayPal sur ce nouveau lien de paiement de NoteNest pour €99 : https://pay.sim.example/l/plinkref1\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}

@@ -46,7 +46,7 @@ const MERCHANT_SIDE: Partial<Record<Cause, { reason: string; source: string }>> 
   above_limit: { reason: "amount_exceeds_maximum_amount_allowed", source: "business" },
 };
 
-export type Buyer = { name: string; email: string; country: string; language?: string };
+export type Buyer = { name: string; email: string; country: string; language?: string; phone?: string };
 
 // The buyer opens checkout: a Razorpay order for them (the buyer is a
 // customer of the merchant; added if new).
@@ -55,7 +55,7 @@ export function openCheckout(a: Adapters, input: { merchantId: string; amount: n
   const email = normalizeEmail(input.buyer.email)!;
   const known = repo.customers.list(eq(s.customers.merchant_id, input.merchantId)).find((c) => normalizeEmail(c.email) === email);
   if (!known) {
-    repo.customers.insert({ id: newId("cus"), merchant_id: input.merchantId, name: input.buyer.name, email, country: input.buyer.country, language: input.buyer.language ?? "en" });
+    repo.customers.insert({ id: newId("cus"), merchant_id: input.merchantId, name: input.buyer.name, email, phone: input.buyer.phone ?? null, country: input.buyer.country, language: input.buyer.language ?? "en" });
   }
   return repo.rzpOrders.insert({
     id: newId("order"),
@@ -64,6 +64,7 @@ export function openCheckout(a: Adapters, input: { merchantId: string; amount: n
     amount: input.amount,
     currency: input.currency,
     email,
+    contact: input.buyer.phone ?? null,
     receipt: input.receipt,
     created_at: a.clock.now(),
   });
@@ -112,6 +113,7 @@ export async function payByCard(
     base_amount: order.currency === "INR" ? null : base,
     method: "card",
     email: order.email,
+    contact: order.contact,
     card_last4: input.cardLast4 ?? "4242",
     card_country: input.cardCountry ?? "US",
     error_code: err?.code ?? null,
@@ -140,7 +142,7 @@ export async function payWithPaypal(a: Adapters, input: { merchantId: string; or
   const now = a.clock.now();
   const p = repo.rzpPayments.insert({
     id: newId("pay"), merchant_id: input.merchantId, order_id: order.id, status: "captured", amount: order.amount, currency: order.currency,
-    base_amount: toInr(order.amount, order.currency), method: "paypal", email: order.email, receipt: order.receipt, created_at: now, captured_at: now,
+    base_amount: toInr(order.amount, order.currency), method: "paypal", email: order.email, contact: order.contact, receipt: order.receipt, created_at: now, captured_at: now,
   });
   repo.rzpOrders.update(order.id, { status: "paid" });
   await a.webhooks.emit({ merchantId: input.merchantId, event: "payment.captured", paymentId: p.id });

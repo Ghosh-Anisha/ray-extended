@@ -49,8 +49,11 @@ export const NO_PAY_MS = 72 * HOUR; // after the email: nothing paid -> Closed, 
 export const REQUEST_CHECK_MS = 24 * HOUR; // RAY tracks an approved request daily
 export const REQUEST_TRACK_MS = 7 * DAY;
 export const LOST_WINDOW_MS = 30 * DAY;
+// After a payment, RAY waits this long before closing, in case the buyer
+// paid twice (card and PayPal): then the merchant decides which to refund.
+export const DUPLICATE_WINDOW_MS = 30 * MIN;
 
-export const TIMERS = { leave: "leave_check", noPay: "no_pay", request: "request_check", refund: "refund_check", settle: "settle" } as const;
+export const TIMERS = { leave: "leave_check", noPay: "no_pay", request: "request_check", refund: "refund_check", settle: "settle", close: "close_check" } as const;
 
 // Events the simulated systems send through handleEvent (payload.event).
 export const SIM_EVENTS = {
@@ -149,7 +152,8 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     const sim = simOf(ctx);
     const merchant = ctx.repo.merchants.get(kase.merchant_id)!;
     const sit = lastNote(ctx, kase.id, N.situation)?.payload ?? {};
-    const p = await fetchPayment(a, kase.merchant_id, kase.payment_id);
+    // F has no failed payment: a payment_id the engine set later is the buyer's payment, not the case's.
+    const p = sit.situation === "F" ? null : await fetchPayment(a, kase.merchant_id, kase.payment_id);
     const link = typeof sit.link_id === "string" ? (ctx.repo.rzpLinks.get(sit.link_id) ?? null) : null;
     const orderId = p?.order_id ?? (typeof sit.order_id === "string" ? sit.order_id : null);
     const order = orderId ? ctx.repo.rzpOrders.get(orderId) : undefined;
@@ -257,7 +261,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     const q = paid[0] ?? l.paid[0];
     const o = outcomeOf(ctx, kase, c, q);
     const emailed = notes(ctx, kase.id, N.emailed).length > 0;
-    note(ctx, kase, { kind: N.outcome, outcome: o.outcome, saved: o.saved, payment_id: q.id }, q.id);
+    note(ctx, kase, { kind: N.outcome, outcome: o.outcome, saved: o.saved, payment_id: q.id, close_at: ctx.clock.now() + DUPLICATE_WINDOW_MS }, q.id);
     return { kind: "outcome", o, findings, fixedItself: !o.saved && !emailed };
   }
 
@@ -461,14 +465,25 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
 
   // A payment came in (or a transfer was matched): move toward closing from
   // wherever the case is.
-  function outcomeStep(kase: Case, o: Outcome, findings: Finding[], fixedItself: boolean): InvestigateResult {
+  function outcomeStep(ctx: EngineContext, kase: Case, o: Outcome, findings: Finding[], fixedItself: boolean): InvestigateResult {
     if (fixedItself) return { to: "fixed_itself", reason: `Fixed itself: ${o.line}`, findings };
     if (kase.state === "waiting_merchant") {
       // waiting_merchant can't go straight to verifying: through waiting_customer, then a settle check.
       return { to: "waiting_customer", reason: o.line, findings, timers: [{ kind: TIMERS.settle, inMs: 0 }] };
     }
-    return { to: "verifying", reason: o.line, findings };
+    return { to: "verifying", reason: o.line, findings, timers: closeTimer(ctx, kase) };
   }
+
+  // A payment outcome closes after the duplicate window; others at once.
+  const closeTimer = (ctx: EngineContext, kase: Case): TimerRequest[] => {
+    const at = Number(lastNote(ctx, kase.id, N.outcome)?.payload.close_at ?? 0);
+    return at > ctx.clock.now() ? [{ kind: TIMERS.close, inMs: at - ctx.clock.now() }] : [];
+  };
+  const readyToClose = (ctx: EngineContext, kase: Case) => {
+    const o = lastNote(ctx, kase.id, N.outcome);
+    // Paid twice: only the refund closes it.
+    return !!o && Number(o.payload.close_at ?? 0) <= ctx.clock.now() && !lastNote(ctx, kase.id, N.duplicate);
+  };
 
   async function onRetry(ctx: EngineContext, kase: Case, q: Payment): Promise<InvestigateResult> {
     const c = await load(ctx, kase);
@@ -488,7 +503,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     if (l.paid.length) {
       const r = await onPaid(ctx, kase, c, l);
       if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
-      return outcomeStep(kase, r.o, r.findings, r.fixedItself);
+      return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
     }
     const latest = l.attempts.at(-1);
     if (latest && latest.created_at > ctx.clock.now() - LEAVE_MS) {
@@ -519,7 +534,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     if (l.paid.length) {
       const r = await onPaid(ctx, kase, c, l);
       if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: [finding, ...r.findings], proposals: r.proposals };
-      return outcomeStep(kase, r.o, [finding, ...r.findings], r.fixedItself);
+      return outcomeStep(ctx, kase, r.o, [finding, ...r.findings], r.fixedItself);
     }
     const blocked = !c.email ? `RAY has no email for ${c.name}.` : null;
     if (blocked) return { to: "waiting_merchant", reason: `${c.first} wrote. ${blocked}`, findings: [finding] };
@@ -761,9 +776,15 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     return { to: "waiting_merchant" as const, reason: "RAY can't do that one." };
   }
 
+  // Every hand-back to the merchant asks one question; it shows on the case.
+  const asking = <R extends { to: string; reason: string }>(ctx: EngineContext, kase: Case, r: R): R => {
+    if (r.to === "waiting_merchant") note(ctx, kase, { kind: "merchant_question", text: r.reason }, kase.payment_id ?? kase.id);
+    return r;
+  };
+
   // ---- The Specialist
 
-  return {
+  const spec: Specialist = {
     id: "international",
     moment: "international",
 
@@ -862,7 +883,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
             if (l.paid.length) {
               const r = await onPaid(ctx, kase, c, l);
               if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
-              return outcomeStep(kase, r.o, r.findings, r.fixedItself);
+              return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
             }
             return { to: "unconfirmed", reason: `${c.first} hasn't paid in 72 hr.`, findings: [] };
           }
@@ -898,13 +919,13 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
         if (!l.paid.length) return stay(kase, "Nothing new.");
         const r = await onPaid(ctx, kase, c, l);
         if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
-        return outcomeStep(kase, r.o, r.findings, r.fixedItself);
+        return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
       }
       if (event === SIM_EVENTS.transfer) {
         const r = await onTransfer(ctx, kase, String(e.payload.transfer_id));
         if (r.outcome) {
           const o = { outcome: r.outcome, saved: true, ref: "", line: r.reason };
-          return outcomeStep(kase, o, r.findings, false);
+          return outcomeStep(ctx, kase, o, r.findings, false);
         }
         return { to: r.to, reason: r.reason, findings: r.findings, proposals: r.proposals };
       }
@@ -934,13 +955,13 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
 
     async verify(ctx, kase, e): Promise<VerifyResult> {
       const outcome = lastNote(ctx, kase.id, N.outcome);
-      if (!e) {
-        if (outcome) return { to: "closed", reason: "Done.", outcome: String(outcome.payload.outcome) };
-        return { to: "verifying", reason: "Checking it worked." };
+      if (!e || (e.kind === "timer" && e.payload.timer_kind === TIMERS.close)) {
+        if (outcome && readyToClose(ctx, kase)) return { to: "closed", reason: "Done.", outcome: String(outcome.payload.outcome) };
+        return { to: "verifying", reason: outcome ? "Checking it worked: RAY waits 30 min in case the buyer paid twice." : "Checking it worked." };
       }
       if (e.kind === "message_in") {
         const r = await onBuyerMessage(ctx, kase, e);
-        if (r.to === "verifying") return { to: "closed", reason: r.reason, outcome: String(lastNote(ctx, kase.id, N.outcome)?.payload.outcome ?? "paid") };
+        if (r.to === "verifying") return { to: "verifying", reason: r.reason, timers: closeTimer(ctx, kase) };
         return { to: r.to === "waiting_merchant" ? "waiting_merchant" : "verifying", reason: r.reason, proposals: r.proposals };
       }
       if (e.kind === "timer") {
@@ -991,7 +1012,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
         if (!l.paid.length) return { to: "verifying", reason: "Nothing new." };
         const r = await onPaid(ctx, kase, c, l);
         if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, proposals: r.proposals };
-        return { to: "closed", reason: r.o.line, outcome: r.o.outcome };
+        return { to: "verifying", reason: r.o.line, timers: closeTimer(ctx, kase) };
       }
       return { to: "verifying", reason: "Nothing new." };
     },
@@ -1034,4 +1055,12 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
       return { reason: "RAY redrafted it with your note.", proposals };
     },
   };
+
+  const investigate = spec.investigate.bind(spec);
+  const verify = spec.verify.bind(spec);
+  const onApproval = spec.onApproval.bind(spec);
+  spec.investigate = async (ctx, kase, e) => asking(ctx, kase, await investigate(ctx, kase, e));
+  spec.verify = async (ctx, kase, e) => asking(ctx, kase, await verify(ctx, kase, e));
+  spec.onApproval = async (ctx, kase, approval) => asking(ctx, kase, await onApproval(ctx, kase, approval));
+  return spec;
 }

@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "19539b0b6d59462beca1f4f5",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_bank_declined_fraud",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Emma",
+      "amount": "$49",
+      "for": "order nn_pro_annual_902",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_pro_annual_902",
+      "sign_off": "Team NoteNest",
+      "what_happened": "your bank declined the card",
+      "never_the_same_card": true
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Emma,\n\nYour payment of $49 to NoteNest for order nn_pro_annual_902 didn't go through: your bank declined the card.\n\nPlease pay with a different card or with PayPal on this fresh payment link from NoteNest for $49: https://pay.sim.example/l/plinkref1\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}

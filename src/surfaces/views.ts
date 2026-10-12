@@ -483,9 +483,16 @@ export function caseView(a: Adapters, caseId: string): CaseView {
   const changes = timeline.filter((e) => e.payload.kind === "change_requested").map((e) => ({ at: dateTime(e.at), text: String(e.payload.text) }));
 
   const primary = proposals[0] ?? null;
+  // A flow that hands the case back after deciding (Step 8: a near-match
+  // transfer, a buyer's reply) records its question as a merchant_question
+  // note; the newer of that and the decision is what the merchant is asked.
+  const asked = timeline.findLast((e) => e.payload.kind === "merchant_question");
+  const askedLatest = asked && (!decided || (asked.seq ?? 0) > (decided.seq ?? 0));
   const question = unsure
     ? String(lastInvestigated?.payload.reason ?? "RAY needs one answer before it can act.")
-    : String(decided?.payload.summary ?? "What should RAY do?");
+    : askedLatest
+      ? String(asked.payload.text)
+      : String(decided?.payload.summary ?? "What should RAY do?");
 
   const view: CaseView = {
     id: kase.id,

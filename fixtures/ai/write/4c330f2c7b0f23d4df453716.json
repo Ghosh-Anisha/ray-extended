@@ -1,0 +1,30 @@
+{
+  "job": "write",
+  "key": "4c330f2c7b0f23d4df453716",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "merchant",
+    "kind": "request_reason",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "PixelForge Studio",
+      "buyer": "Oliver Bennett",
+      "buyer_type": "b2b",
+      "amount": "£2,800 (₹3.1 lakh)",
+      "for": "invoice pf_inv_2041",
+      "what_happened": "It's above your international limit of ₹2 lakh.",
+      "current_limit": "₹2 lakh",
+      "ask": "raise the international card limit to at least ₹3.1 lakh",
+      "lost_so_far": "₹3.1 lakh",
+      "declined_payments": 1
+    },
+    "tone": "Plain",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Oliver Bennett, a business customer, tried to pay £2,800 (₹3.1 lakh) for invoice pf_inv_2041 by card, and Razorpay declined it. It's above your international limit of ₹2 lakh. Please raise the international card limit to at least ₹3.1 lakh on PixelForge Studio's account, so this payment and others like it can go through.",
+    "confidence": "sure"
+  }
+}
