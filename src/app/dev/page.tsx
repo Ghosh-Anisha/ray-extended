@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { connection } from "next/server";
-import { desc } from "drizzle-orm";
+import { desc, isNotNull } from "drizzle-orm";
 import { getAdapters } from "@/adapters";
 import { STORE_FAILURES } from "@/adapters/store";
 import { EVENT_REF, WEBHOOK_EVENTS } from "@/adapters/webhooks";
@@ -47,6 +47,29 @@ export default async function DevPanelPage() {
         state: c.state,
         openedAt: c.opened_at,
       })),
+    unmatched: [
+      ...a.db
+        .select()
+        .from(s.webhookDeliveries)
+        .where(isNotNull(s.webhookDeliveries.unmatched_reason))
+        .all()
+        .map((d) => ({ id: d.event_id, at: d.delivered_at, source: "Webhook" as const, what: d.event, merchant: d.merchant_id })),
+      ...a.db
+        .select()
+        .from(s.messages)
+        .where(isNotNull(s.messages.unmatched_reason))
+        .all()
+        .map((m) => ({
+          id: m.id,
+          at: m.at,
+          source: m.channel === "whatsapp" ? ("WhatsApp" as const) : ("Email" as const),
+          what: `From ${m.from}`,
+          merchant: a.messaging.senderLabel(m.to),
+        })),
+    ]
+      .map((u) => ({ ...u, merchant: merchants.find((m) => m.id === u.merchant)?.name ?? u.merchant }))
+      .sort((x, y) => y.at - x.at)
+      .slice(0, 10),
     merchants: merchants.map((m) => ({ id: m.id, name: m.name })),
     customers: repo.customers.list().map((c) => ({
       id: c.id,

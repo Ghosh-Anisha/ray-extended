@@ -6,14 +6,16 @@
 //   reply timer with no answer      -> unconfirmed
 //   customer message (unconfirmed)  -> likely
 //   customer message (likely/wait)  -> confirmed -> waiting_merchant
+//   on waiting_merchant              -> 2 h promised-time timer (recorded when reached)
 //   tap approve                     -> acting -> verifying (30 min check)
 //   check timer                     -> closed, counts as saved
 import type { Moment } from "@/db/schema";
 import type { EngineEvent } from "./events";
-import type { InvestigateResult, Specialist } from "./specialist";
+import { PROMISED_TIME_TIMER, type InvestigateResult, type Specialist } from "./specialist";
 
 export const DUMMY_REPLY_MS = 15 * 60_000;
 export const DUMMY_CHECK_MS = 30 * 60_000;
+export const DUMMY_PROMISED_MS = 2 * 60 * 60_000;
 
 export function createDummySpecialist(
   opts: { moment?: Moment; detectWhen?: (e: EngineEvent) => boolean; ruleId?: string } = {},
@@ -40,9 +42,8 @@ export function createDummySpecialist(
         return { to: "fixed_itself", reason: "The store processed the payment", findings: cite, confidence: "sure" };
       }
       if (e.kind === "timer") {
-        return kase.state === "waiting_customer"
-          ? { to: "unconfirmed", reason: "No reply in time", findings: cite }
-          : { to: kase.state, reason: "Timer had nothing to do", findings: cite };
+        if (kase.state === "waiting_customer") return { to: "unconfirmed", reason: "No reply in time", findings: cite };
+        return { to: kase.state, reason: "Timer had nothing to do", findings: cite };
       }
       if (e.kind === "message_in") {
         if (kase.state === "unconfirmed") return { to: "likely", reason: "Customer wrote again", findings: cite };
@@ -63,11 +64,19 @@ export function createDummySpecialist(
     async decide() {
       return opts.ruleId
         ? { to: "acting", reason: "An approved rule covers this", summary: "Fix it under the rule", ruleId: opts.ruleId }
-        : { to: "waiting_merchant", reason: "Needs the merchant's tap", summary: "Ask the merchant to fix it" };
+        : {
+            to: "waiting_merchant",
+            reason: "Needs the merchant's tap",
+            summary: "Ask the merchant to fix it",
+            timers: [{ kind: PROMISED_TIME_TIMER, inMs: DUMMY_PROMISED_MS }],
+          };
     },
 
     async proposeActions() {
-      return [{ id: "prop_dummy_1", label: "Mark paid & ship", tool: "mark_paid", args: {}, covered: false }];
+      return [
+        { id: "prop_dummy_1", label: "Mark paid & ship", tool: "mark_paid", args: {}, covered: false },
+        { id: "prop_dummy_2", label: "Refund the customer", tool: "refund", args: {}, covered: false },
+      ];
     },
 
     async onApproval() {
@@ -79,6 +88,11 @@ export function createDummySpecialist(
         return { to: "closed", reason: "Checked and it worked", outcome: "fixed" };
       }
       return { to: "verifying", reason: "Not checked yet" };
+    },
+
+    // Only records it; real flows send the holding message (Step 7 onward).
+    async onPromisedTime() {
+      return { reason: "Promised time reached; recorded" };
     },
 
     countsAsSaved: () => true,

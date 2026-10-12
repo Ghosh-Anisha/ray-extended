@@ -8,6 +8,7 @@ import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import type { CaseState } from "@/db/schema";
+import { HANDLED_BY_MERCHANT } from "./outcomes";
 
 export type Case = typeof s.cases.$inferSelect;
 
@@ -24,6 +25,15 @@ export const TRANSITIONS: Record<CaseState, readonly CaseState[]> = {
 };
 
 export const FINAL_STATES: readonly CaseState[] = ["closed", "fixed_itself"];
+
+// The merchant can take a case over from any open state. These extra moves to
+// closed exist only for that, and need the handled_by_merchant outcome.
+export const TAKEOVER_ONLY: Partial<Record<CaseState, readonly CaseState[]>> = {
+  likely: ["closed"],
+  confirmed: ["closed"],
+  waiting_customer: ["closed"],
+  acting: ["closed"],
+};
 export const isFinal = (state: CaseState) => FINAL_STATES.includes(state);
 
 export class IllegalTransitionError extends Error {
@@ -37,8 +47,9 @@ export class IllegalTransitionError extends Error {
   }
 }
 
-export function checkTransition(kase: Pick<Case, "state" | "confidence">, to: CaseState) {
-  if (!TRANSITIONS[kase.state].includes(to)) {
+export function checkTransition(kase: Pick<Case, "state" | "confidence">, to: CaseState, outcome?: string | null) {
+  const takeover = outcome === HANDLED_BY_MERCHANT && TAKEOVER_ONLY[kase.state]?.includes(to);
+  if (!TRANSITIONS[kase.state].includes(to) && !takeover) {
     throw new IllegalTransitionError(kase.state, to, "not an allowed move");
   }
   // CLAUDE.md rule 4: nothing acts on Unsure confidence.
@@ -61,7 +72,7 @@ export function transition(db: Db, clock: Clock, caseId: string, to: CaseState, 
   return db.transaction(() => {
     const kase = repo.cases.get(caseId);
     if (!kase) throw new Error(`Case ${caseId} not found`);
-    checkTransition(kase, to);
+    checkTransition(kase, to, input.patch?.outcome);
     repo.caseEvents.insert({
       id: newId("cev"),
       case_id: caseId,

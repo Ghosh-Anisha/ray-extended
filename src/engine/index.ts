@@ -1,8 +1,10 @@
 // The engine for this server process, wired to the adapters. Flows register
-// their specialists here as they are built (Step 7 onward).
+// their specialists here as they are built (Step 7 onward). On the real clock
+// it also starts the 30 s timer tick.
 import { getAdapters } from "@/adapters";
 import { createEngine, type Engine } from "./engine";
 import { createRegistry } from "./specialist";
+import { startRealClockTicker } from "./ticker";
 
 export { createEngine, type Engine, type HandleResult } from "./engine";
 export { createRegistry, type Specialist } from "./specialist";
@@ -13,6 +15,7 @@ export function getEngine(): Engine {
   if (!holder.__rayEngine) {
     const a = getAdapters();
     holder.__rayEngine = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry() });
+    startRealClockTicker(a.clockMode, holder.__rayEngine);
   }
   return holder.__rayEngine;
 }

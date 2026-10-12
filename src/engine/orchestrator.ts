@@ -2,13 +2,18 @@
 // fits its state. Hooks only return results; this file writes them to
 // case_events (each with an evidence reference) and moves the case through
 // the state machine. Stops when the case waits on someone or is final.
+import { and, eq, isNull } from "drizzle-orm";
 import { newId } from "@/adapters/ids";
+import * as s from "@/db/schema";
 import type { CaseState } from "@/db/schema";
 import { tapPayload, type EngineEvent } from "./events";
-import type { Approval, EngineContext, Finding, Registry, TimerRequest } from "./specialist";
+import { HANDLED_BY_MERCHANT } from "./outcomes";
+import { PROMISED_TIME_TIMER, type Approval, type EngineContext, type Finding, type ProposedAction, type Registry, type TimerRequest } from "./specialist";
 import { isFinal, transition, type Case } from "./state-machine";
 
 export const MAX_STEPS = 12;
+export const CHANGE_PROMPT = "What should I do instead?";
+export const HANDLE_MYSELF_LABEL = "I'll handle this myself";
 
 export class StepCapError extends Error {}
 
@@ -22,6 +27,7 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
   const setTimers = (kase: Case, timers: TimerRequest[] = []) => {
     for (const t of timers) {
       const timer = repo.timers.insert({ id: newId("tmr"), case_id: kase.id, kind: t.kind, due_at: clock.now() + t.inMs });
+      if (t.kind === PROMISED_TIME_TIMER) repo.cases.update(kase.id, { promised_by: timer.due_at });
       note(kase, { kind: "timer_set", timer_kind: t.kind, due_at: timer.due_at }, timer.id);
     }
   };
@@ -33,6 +39,45 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const kase = repo.cases.get(caseId)!;
+
+    // A merchant's tap is handled here, not by a hook, and before the
+    // finished-case check so a tap on a finished case is recorded as ignored.
+    if (trigger?.kind === "tap") {
+      const tap = tapPayload.parse(trigger.payload);
+      trigger = null;
+      // Taking over works from any open state. Events run one at a time, so
+      // an action that was running has already finished by now.
+      if (tap.choice === "handle_myself") {
+        takeOver(deps, kase, evidenceRef);
+        return repo.cases.get(caseId)!;
+      }
+      if (kase.state !== "waiting_merchant") {
+        note(kase, { kind: "tap_ignored", state: kase.state });
+        return kase;
+      }
+      const offered = openProposals(deps, kase.id);
+      if (!offered.some((p) => p.id === tap.proposalId)) {
+        note(kase, { kind: "tap_ignored", state: kase.state, proposal_id: tap.proposalId, why: "not an open proposal" });
+        return kase;
+      }
+      if (tap.choice === "decline") {
+        // A no is not the end: the case stays with the merchant, timers keep
+        // running, and the merchant sees the other options or can tell RAY
+        // what to do instead.
+        note(kase, {
+          kind: "proposal_declined",
+          proposal_id: tap.proposalId,
+          alternatives: offered.filter((p) => p.id !== tap.proposalId),
+          change_prompt: CHANGE_PROMPT,
+          handle_myself_label: HANDLE_MYSELF_LABEL,
+        });
+        return kase;
+      }
+      approval = { by: "tap", tap, evidenceRef };
+      move(kase, "acting", "Merchant tapped approve");
+      continue;
+    }
+
     if (isFinal(kase.state)) return kase;
     const spec = deps.registry.forMoment(kase.moment);
     if (!spec) {
@@ -40,26 +85,22 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
       return kase;
     }
 
-    // A merchant's tap is handled here, not by a hook.
-    if (trigger?.kind === "tap") {
-      const tap = tapPayload.parse(trigger.payload);
-      trigger = null;
-      if (kase.state !== "waiting_merchant") {
-        note(kase, { kind: "tap_ignored", state: kase.state });
-        return kase;
-      }
-      if (tap.choice === "decline") {
-        move(kase, "closed", "Merchant said no", { closed_at: clock.now(), outcome: "declined_by_merchant", counts_as_saved: false });
-        return repo.cases.get(caseId)!;
-      }
-      approval = { by: "tap", tap, evidenceRef };
-      move(kase, "acting", "Merchant tapped approve");
-      continue;
-    }
-
     const external = trigger;
     trigger = null;
     const before = kase.state;
+
+    // The promised time passed: every flow decides what that means for the
+    // customer (usually a holding message).
+    if (external?.kind === "timer" && external.payload.timer_kind === PROMISED_TIME_TIMER) {
+      note(kase, { kind: "promised_time_reached", promised_by: kase.promised_by, timer_id: external.sourceId });
+      const r = await spec.onPromisedTime(deps, kase, external);
+      note(kase, { kind: "promised_time_handled", reason: r.reason, to: r.to ?? kase.state });
+      setTimers(kase, r.timers);
+      if (r.to) move(kase, r.to, r.reason);
+      const after = repo.cases.get(caseId)!;
+      if (after.state === before) return after;
+      continue;
+    }
 
     switch (kase.state) {
       case "likely":
@@ -154,3 +195,63 @@ function writeFindings(deps: OrchestratorDeps, kase: Case, findings: Finding[], 
   }
 }
 
+
+// The latest proposals still on offer: the last actions_proposed note,
+// minus any the merchant declined since.
+export function openProposals(deps: EngineContext, caseId: string): ProposedAction[] {
+  const timeline = deps.repo.caseEvents.listByCase(caseId);
+  const lastIdx = timeline.findLastIndex((e) => e.payload.kind === "actions_proposed");
+  if (lastIdx < 0) return [];
+  const declined = new Set(
+    timeline
+      .slice(lastIdx + 1)
+      .filter((e) => e.payload.kind === "proposal_declined")
+      .map((e) => e.payload.proposal_id as string),
+  );
+  return (timeline[lastIdx].payload.actions as ProposedAction[]).filter((p) => !declined.has(p.id));
+}
+
+// The merchant takes the case over: call off everything RAY has queued for
+// it (pending timers, held actions such as a refund in its hold or a
+// scheduled call), record that, then close with handled_by_merchant.
+export function takeOver(deps: EngineContext, kase: Case, evidenceRef: string) {
+  const { db, repo, clock } = deps;
+  if (isFinal(kase.state)) {
+    note(deps, kase, { kind: "tap_ignored", state: kase.state, why: "case already finished" }, evidenceRef);
+    return;
+  }
+  db.transaction(() => {
+    const now = clock.now();
+    const timers = db
+      .select()
+      .from(s.timers)
+      .where(and(eq(s.timers.case_id, kase.id), isNull(s.timers.fired_at), isNull(s.timers.cancelled_at)))
+      .all();
+    for (const t of timers) repo.timers.update(t.id, { cancelled_at: now });
+    const held = db
+      .select()
+      .from(s.actions)
+      .where(and(eq(s.actions.case_id, kase.id), eq(s.actions.status, "held")))
+      .all();
+    for (const a of held) repo.actions.update(a.id, { status: "cancelled", result: { cancelled_because: HANDLED_BY_MERCHANT } });
+    note(
+      deps,
+      kase,
+      {
+        kind: "takeover_cancelled",
+        timers: timers.map((t) => ({ id: t.id, kind: t.kind, due_at: t.due_at })),
+        actions: held.map((a) => ({ id: a.id, tool: a.tool, run_after: a.run_after })),
+      },
+      evidenceRef,
+    );
+    transition(db, clock, kase.id, "closed", {
+      reason: "Merchant will handle it",
+      evidenceRef,
+      patch: { closed_at: now, outcome: HANDLED_BY_MERCHANT, counts_as_saved: false },
+    });
+  });
+}
+
+function note(deps: EngineContext, kase: Case, payload: Record<string, unknown>, evidenceRef: string) {
+  deps.repo.caseEvents.insert({ id: newId("cev"), case_id: kase.id, at: deps.clock.now(), type: "note", payload, evidence_ref: evidenceRef });
+}

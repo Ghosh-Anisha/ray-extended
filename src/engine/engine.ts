@@ -15,7 +15,7 @@ import type { ReceiveInput } from "@/adapters/messaging";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
-import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEventInput } from "./events";
+import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEvent, type EngineEventInput } from "./events";
 import { findCase } from "./grouping";
 import { orchestrate } from "./orchestrator";
 import type { EngineContext, Registry } from "./specialist";
@@ -50,6 +50,14 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     return run;
   };
 
+  // Webhook deliveries and inbound messages record which case took them.
+  function markSource(e: EngineEvent, mark: { handled_case_id: string | null; unmatched_reason: "no_flow" | null }) {
+    if (e.kind === "webhook") repo.webhookDeliveries.update(e.sourceId, mark);
+    if (e.kind === "message_in") {
+      repo.messages.update(e.sourceId, { ...mark, ...(mark.handled_case_id ? { case_id: mark.handled_case_id } : {}) });
+    }
+  }
+
   async function handle(raw: EngineEventInput): Promise<HandleResult> {
     const e = engineEvent.parse(raw);
     const type = CASE_EVENT_TYPE[e.kind];
@@ -68,7 +76,10 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
         detection = await spec.detect(ctx, e);
         if (detection) break;
       }
-      if (!detection) return { outcome: "unmatched" };
+      if (!detection) {
+        markSource(e, { handled_case_id: null, unmatched_reason: "no_flow" });
+        return { outcome: "unmatched" };
+      }
       kase = repo.cases.insert({
         id: newId("case"),
         merchant_id: e.merchantId,
@@ -99,7 +110,7 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
       payload: { source: e.kind, keys: e.keys, ...e.payload },
       evidence_ref: e.sourceId,
     });
-    if (e.kind === "message_in") repo.messages.update(e.sourceId, { case_id: kase.id });
+    markSource(e, { handled_case_id: kase.id, unmatched_reason: null });
 
     const merchant = repo.merchants.get(kase.merchant_id)!;
     const created = alertText !== null;
@@ -135,7 +146,7 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
       const t = db
         .select()
         .from(s.timers)
-        .where(and(isNull(s.timers.fired_at), lte(s.timers.due_at, clock.now())))
+        .where(and(isNull(s.timers.fired_at), isNull(s.timers.cancelled_at), lte(s.timers.due_at, clock.now())))
         .orderBy(asc(s.timers.due_at), sql`rowid`)
         .get();
       if (!t) return { fired };

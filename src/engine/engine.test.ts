@@ -8,10 +8,11 @@ import { createRepository } from "@/db/repository";
 import { CASE_STATES, type CaseState } from "@/db/schema";
 import * as s from "@/db/schema";
 import { SEED_NOW } from "@/db/seed";
-import { createDummySpecialist, DUMMY_CHECK_MS, DUMMY_REPLY_MS } from "./dummy-specialist";
+import { createDummySpecialist, DUMMY_CHECK_MS, DUMMY_PROMISED_MS, DUMMY_REPLY_MS } from "./dummy-specialist";
 import { createEngine, type Engine } from "./engine";
 import { fromWebhook } from "./events";
 import { GROUPING_WINDOW_MS } from "./grouping";
+import { HANDLED_BY_MERCHANT } from "./outcomes";
 import { createRegistry, type Specialist } from "./specialist";
 import { IllegalTransitionError, transition } from "./state-machine";
 
@@ -99,13 +100,70 @@ describe("engine: a dummy specialist moves cases through every state on the fake
     expect(statePath(repo, caseId)).toHaveLength(9);
   });
 
-  it("closes the case when the merchant declines", async () => {
+  it("keeps the case open when the merchant says no, with the other options and Change", async () => {
+    const { a, engine, repo } = setup();
+    await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
+    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+    expect(repo.cases.get(caseId)?.state).toBe("waiting_merchant");
+
+    await engine.handleEvent(tap(caseId, "decline", a.clock.now()));
+    expect(repo.cases.get(caseId)).toMatchObject({ state: "waiting_merchant", closed_at: null, outcome: null });
+    const declined = events(repo, caseId).find((e) => e.payload.kind === "proposal_declined")!;
+    expect(declined.payload).toMatchObject({
+      proposal_id: "prop_dummy_1",
+      alternatives: [{ id: "prop_dummy_2", label: "Refund the customer" }],
+      change_prompt: "What should I do instead?",
+      handle_myself_label: "I'll handle this myself",
+    });
+    expect(declined.evidence_ref).toBe(events(repo, caseId).find((e) => e.type === "approval")!.id);
+
+    // The promised-time timer keeps running, so the customer still gets the holding message.
+    a.clock.advance(DUMMY_PROMISED_MS);
+    const { fired } = await engine.tick();
+    expect(fired.map((f) => f.kind)).toContain("promised_time");
+    const timeline = events(repo, caseId);
+    const reached = timeline.findIndex((e) => e.payload.kind === "promised_time_reached");
+    expect(reached).toBeGreaterThan(-1);
+    expect(timeline[reached + 1].payload).toMatchObject({ kind: "promised_time_handled", reason: "Promised time reached; recorded" });
+    expect(repo.cases.get(caseId)?.state).toBe("waiting_merchant");
+
+    // The other option can still be approved.
+    await engine.handleEvent({ ...tap(caseId, "approve", a.clock.now()), sourceId: "tap_alt", payload: { choice: "approve", proposalId: "prop_dummy_2" } });
+    expect(repo.cases.get(caseId)?.state).toBe("verifying");
+  });
+
+  it("ignores a tap on a proposal that was already declined", async () => {
     const { a, engine, repo } = setup();
     await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
     const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
     await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
     await engine.handleEvent(tap(caseId, "decline", a.clock.now()));
-    expect(repo.cases.get(caseId)).toMatchObject({ state: "closed", outcome: "declined_by_merchant", counts_as_saved: false });
+    await engine.handleEvent({ ...tap(caseId, "approve", a.clock.now()), sourceId: "tap_late" });
+    expect(repo.cases.get(caseId)?.state).toBe("waiting_merchant");
+    expect(events(repo, caseId).at(-1)?.payload).toMatchObject({ kind: "tap_ignored", proposal_id: "prop_dummy_1" });
+  });
+
+  it("closes only on 'I'll handle this myself': no more messages, not counted as saved", async () => {
+    const { a, engine, repo } = setup();
+    await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
+    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+    await engine.handleEvent({ ...tap(caseId, "decline", a.clock.now()), sourceId: "tap_own", payload: { choice: "handle_myself" } });
+    expect(repo.cases.get(caseId)).toMatchObject({ state: "closed", outcome: HANDLED_BY_MERCHANT, counts_as_saved: false });
+
+    await expect(
+      a.messaging.send({ merchantId: LEAFY, caseId, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", body: "Update on your order" }),
+    ).rejects.toMatchObject({ code: "MERCHANT_HANDLING" });
+
+    // Its timers were called off, so nothing fires later.
+    const cancelled = events(repo, caseId).find((e) => e.payload.kind === "takeover_cancelled")!;
+    expect((cancelled.payload.timers as { kind: string }[]).map((t) => t.kind).sort()).toEqual(["customer_reply", "promised_time"]);
+    const before = events(repo, caseId).length;
+    a.clock.advance(DUMMY_PROMISED_MS);
+    expect((await engine.tick()).fired).toEqual([]);
+    expect(events(repo, caseId)).toHaveLength(before);
+    expect(repo.cases.get(caseId)?.state).toBe("closed");
   });
 
   it("acts without a tap only under an approved playbook rule", async () => {
@@ -122,6 +180,139 @@ describe("engine: a dummy specialist moves cases through every state on the fake
       a.db.$client.close();
       world = undefined;
     }
+  });
+});
+
+describe("engine: the merchant takes a case over", () => {
+  const takeOverTap = (caseId: string, at: number, sourceId = `tap_${caseId}_own`) => ({
+    kind: "tap" as const, merchantId: LEAFY, caseId, at, sourceId, payload: { choice: "handle_myself" },
+  });
+  const seedCase = (repo: World["repo"], state: CaseState) =>
+    repo.cases.insert({ id: `case_${state}`, merchant_id: LEAFY, moment: "paid_no_order", state, confidence: "likely", opened_at: SEED_NOW });
+
+  it("works from every open state, and does nothing to a finished case", async () => {
+    const { a, engine, repo } = setup();
+    const open = CASE_STATES.filter((st) => st !== "closed" && st !== "fixed_itself");
+    for (const st of open) {
+      const kase = seedCase(repo, st);
+      await engine.handleEvent(takeOverTap(kase.id, a.clock.now()));
+      expect(repo.cases.get(kase.id)).toMatchObject({ state: "closed", outcome: HANDLED_BY_MERCHANT, counts_as_saved: false });
+      const kinds = events(repo, kase.id).map((e) => e.payload.kind ?? e.type);
+      expect(kinds.slice(-3)).toEqual(["approval", "takeover_cancelled", "state_changed"]);
+    }
+    for (const st of ["closed", "fixed_itself"] as const) {
+      const kase = seedCase(repo, st);
+      await engine.handleEvent(takeOverTap(kase.id, a.clock.now()));
+      expect(repo.cases.get(kase.id)?.state).toBe(st);
+      expect(events(repo, kase.id).at(-1)?.payload).toMatchObject({ kind: "tap_ignored" });
+    }
+  });
+
+  it("during the refund hold: cancels the held refund and the hold timer, then closes", async () => {
+    const holdMs = 10 * MIN;
+    // A specialist whose approved action is a refund held for 10 minutes.
+    const spec = createDummySpecialist();
+    const refunder: Specialist = {
+      ...spec,
+      async onApproval(ctx, kase) {
+        ctx.repo.actions.insert({
+          id: "act_refund", case_id: kase.id, tool: "refund", args: { amount: 129_900 }, approved_by: "tap",
+          idempotency_key: `refund_${kase.id}`, status: "held", run_after: ctx.clock.now() + holdMs,
+        });
+        return { to: "verifying", reason: "Refund held for 10 minutes", timers: [{ kind: "refund_hold", inMs: holdMs }] };
+      },
+    };
+    const { a, engine, repo } = setup([refunder]);
+    await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
+    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+    await engine.handleEvent(tap(caseId, "approve", a.clock.now()));
+    expect(repo.cases.get(caseId)?.state).toBe("verifying");
+    expect(repo.actions.get("act_refund")?.status).toBe("held");
+
+    a.clock.advance(4 * MIN); // still inside the hold
+    await engine.handleEvent(takeOverTap(caseId, a.clock.now()));
+
+    expect(repo.cases.get(caseId)).toMatchObject({ state: "closed", outcome: HANDLED_BY_MERCHANT, counts_as_saved: false });
+    expect(repo.actions.get("act_refund")).toMatchObject({ status: "cancelled", result: { cancelled_because: HANDLED_BY_MERCHANT } });
+    const cancelled = events(repo, caseId).find((e) => e.payload.kind === "takeover_cancelled")!;
+    expect(cancelled.payload.actions).toEqual([{ id: "act_refund", tool: "refund", run_after: SEED_NOW + holdMs }]);
+    expect((cancelled.payload.timers as { kind: string }[]).map((t) => t.kind)).toContain("refund_hold");
+    expect(repo.timers.list(eq(s.timers.case_id, caseId)).filter((t) => t.fired_at === null).every((t) => t.cancelled_at !== null)).toBe(true);
+
+    a.clock.advance(holdMs);
+    expect((await engine.tick()).fired).toEqual([]);
+  });
+
+  it("waits for a running action to finish, then closes", async () => {
+    let finish: () => void = () => {};
+    const spec = createDummySpecialist();
+    const slow: Specialist = {
+      ...spec,
+      onApproval: (ctx, kase, approval) =>
+        new Promise((resolve) => {
+          finish = () => resolve(spec.onApproval(ctx, kase, approval));
+        }),
+    };
+    const { a, engine, repo } = setup([slow]);
+    await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
+    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+
+    const approving = engine.handleEvent(tap(caseId, "approve", a.clock.now()));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(repo.cases.get(caseId)?.state).toBe("acting");
+    const takingOver = engine.handleEvent(takeOverTap(caseId, a.clock.now()));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(repo.cases.get(caseId)?.state).toBe("acting"); // still running the action
+
+    finish();
+    await approving;
+    await takingOver;
+    const kinds = events(repo, caseId).map((e) => e.payload.kind ?? e.type);
+    expect(kinds.indexOf("approval_handled")).toBeLessThan(kinds.indexOf("takeover_cancelled"));
+    expect(repo.cases.get(caseId)).toMatchObject({ state: "closed", outcome: HANDLED_BY_MERCHANT });
+  });
+
+  it("only a takeover may close a case from likely, confirmed, waiting_customer or acting", () => {
+    const { a, repo } = setup([]);
+    for (const st of ["likely", "confirmed", "waiting_customer", "acting"] as const) {
+      const kase = seedCase(repo, st);
+      expect(() => transition(a.db, a.clock, kase.id, "closed", { reason: "x", evidenceRef: "ev", patch: { outcome: "fixed" } })).toThrow(
+        IllegalTransitionError,
+      );
+      expect(transition(a.db, a.clock, kase.id, "closed", { reason: "x", evidenceRef: "ev", patch: { outcome: HANDLED_BY_MERCHANT } }).state).toBe(
+        "closed",
+      );
+    }
+  });
+});
+
+describe("engine: promised time", () => {
+  it("records promised_time_reached, calls onPromisedTime, and sets promised_by", async () => {
+    const calls: string[] = [];
+    const spec = createDummySpecialist();
+    const watching: Specialist = {
+      ...spec,
+      async onPromisedTime(ctx, kase, e) {
+        calls.push(`${kase.state}:${e.sourceId}`);
+        return spec.onPromisedTime(ctx, kase, e);
+      },
+    };
+    const { a, engine, repo } = setup([watching]);
+    await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0].id;
+    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+    const promisedBy = repo.cases.get(caseId)!.promised_by;
+    expect(promisedBy).toBe(a.clock.now() + DUMMY_PROMISED_MS);
+
+    a.clock.advance(DUMMY_PROMISED_MS);
+    const { fired } = await engine.tick();
+    const timer = fired.find((f) => f.kind === "promised_time")!;
+    expect(calls).toEqual([`waiting_merchant:${timer.timerId}`]);
+    const reached = events(repo, caseId).find((e) => e.payload.kind === "promised_time_reached")!;
+    expect(reached.payload).toMatchObject({ promised_by: promisedBy, timer_id: timer.timerId });
+    expect(reached.evidence_ref).toBe(events(repo, caseId).find((e) => e.type === "timer" && e.evidence_ref === timer.timerId)!.id);
   });
 });
 
@@ -199,6 +390,25 @@ describe("engine: intake", () => {
     const d = await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
     expect(repo.cases.list()).toHaveLength(0);
     expect(repo.webhookDeliveries.get(d.event.id)).toBeDefined();
+  });
+
+  it("marks unmatched webhooks and messages with why, and matched ones with their case", async () => {
+    const { a, engine, repo } = setup([]);
+    const d = await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });
+    expect(repo.webhookDeliveries.get(d.event.id)).toMatchObject({ handled_case_id: null, unmatched_reason: "no_flow" });
+    const r = await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: PRIYA, body: "hello" });
+    expect(r.outcome).toBe("unmatched");
+    expect(repo.messages.list(eq(s.messages.unmatched_reason, "no_flow"))).toHaveLength(1);
+    engine.stop();
+
+    const withFlow = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry([createDummySpecialist()]) });
+    const d2 = await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1235RAHUL1" });
+    const caseId = repo.cases.list(eq(s.cases.payment_id, "pay_LB1235RAHUL1"))[0].id;
+    expect(repo.webhookDeliveries.get(d2.event.id)).toMatchObject({ handled_case_id: caseId, unmatched_reason: null });
+    const m = await withFlow.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: "+919800000102", body: "hi" });
+    expect(m).toMatchObject({ outcome: "handled", caseId });
+    expect(repo.messages.list(eq(s.messages.handled_case_id, caseId))).toMatchObject([{ case_id: caseId, unmatched_reason: null }]);
+    withFlow.stop();
   });
 });
 

@@ -28,7 +28,8 @@ export const CASE_EVENT_TYPES = [
   "finding",
   "note",
 ] as const;
-export const ACTION_STATUSES = ["held", "done", "undone", "failed"] as const;
+// cancelled: a held action that never ran, e.g. when the merchant takes over.
+export const ACTION_STATUSES = ["held", "done", "undone", "failed", "cancelled"] as const;
 export const CHANNELS = ["whatsapp", "email"] as const;
 export const DIRECTIONS = ["in", "out"] as const;
 export const SENDER_MODES = ["merchant_inbox", "verified_domain", "via_razorpay"] as const;
@@ -51,6 +52,8 @@ export const DISPUTE_DRAFT_STATUSES = ["draft", "submitted"] as const;
 export const STORE_FAILURE_MODES = ["none", "dropped_200", "site_down", "webhook_disabled", "wrong_settings"] as const;
 export const SITE_STATUSES = ["up", "down"] as const;
 export const CONSENT_STATUSES = ["opted_in", "opted_out"] as const;
+// Why an inbound event has no case. no_flow: no detector picked it up.
+export const UNMATCHED_REASONS = ["no_flow"] as const;
 
 export type Moment = (typeof MOMENTS)[number];
 export type CaseState = (typeof CASE_STATES)[number];
@@ -146,6 +149,8 @@ export const timers = sqliteTable("timers", {
   kind: text("kind").notNull(),
   due_at: integer("due_at").notNull(),
   fired_at: integer("fired_at"),
+  // Set when the timer is called off before it fires (migration 0006).
+  cancelled_at: integer("cancelled_at"),
 });
 
 export const messages = sqliteTable("messages", {
@@ -160,6 +165,9 @@ export const messages = sqliteTable("messages", {
   template_id: text("template_id"),
   within_24h: bool("within_24h"),
   at: integer("at").notNull(),
+  // Inbound only, set by the engine (migration 0005).
+  handled_case_id: text("handled_case_id"),
+  unmatched_reason: text("unmatched_reason", { enum: UNMATCHED_REASONS }),
 });
 
 // One row per customer and channel (migration 0002). An opt-out blocks every
@@ -302,6 +310,10 @@ export const webhookDeliveries = sqliteTable("webhook_deliveries", {
   processed: bool("processed").notNull(),
   cron_note: text("cron_note"),
   payment_id: text("payment_id"),
+  // Set by the engine (migration 0005): the case that took the event, or why
+  // none did.
+  handled_case_id: text("handled_case_id"),
+  unmatched_reason: text("unmatched_reason", { enum: UNMATCHED_REASONS }),
 });
 
 // Simulated store state per merchant (migration 0002). The mock store reads

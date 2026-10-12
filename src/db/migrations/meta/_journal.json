@@ -36,6 +36,20 @@
       "when": 1791803101543,
       "tag": "0004_cases_state_change_logged",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791804192219,
+      "tag": "0005_unmatched_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791804582648,
+      "tag": "0006_timers_cancelled_at",
+      "breakpoints": true
     }
   ]
 }

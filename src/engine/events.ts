@@ -27,10 +27,16 @@ export const engineEvent = z
 export type EngineEvent = z.infer<typeof engineEvent>;
 export type EngineEventInput = z.input<typeof engineEvent>;
 
-export const tapPayload = z.object({
-  choice: z.enum(["approve", "decline"]),
-  proposalId: z.string().optional(),
-});
+// approve: do the proposed action. decline: not this one; the case stays
+// open and the merchant sees the other options. handle_myself: the merchant
+// takes the case over; it closes and RAY stops messaging the customer.
+export const TAP_CHOICES = ["approve", "decline", "handle_myself"] as const;
+export const tapPayload = z
+  .object({
+    choice: z.enum(TAP_CHOICES),
+    proposalId: z.string().optional(),
+  })
+  .refine((t) => t.choice === "handle_myself" || t.proposalId, "Approve and decline name the proposal");
 export type TapPayload = z.infer<typeof tapPayload>;
 
 export const CASE_EVENT_TYPE: Record<EngineEventKind, CaseEventType> = {

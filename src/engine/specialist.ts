@@ -57,6 +57,13 @@ export type ProposedAction = {
 
 export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string };
 
+// A flow sets a timer of this kind for the time it promised the customer.
+// When it fires, the orchestrator records promised_time_reached and calls
+// onPromisedTime. Setting it also sets cases.promised_by.
+export const PROMISED_TIME_TIMER = "promised_time";
+
+export type PromisedTimeResult = { reason: string; to?: CaseState; timers?: TimerRequest[] };
+
 export type ApprovalResult = Step<"verifying" | "waiting_merchant">;
 export type VerifyResult = Step<"closed" | "verifying" | "acting" | "waiting_merchant"> & { outcome?: string };
 
@@ -71,6 +78,8 @@ export interface Specialist {
   // Runs while the case is acting, after a tap or under an approved rule.
   onApproval(ctx: EngineContext, kase: Case, approval: Approval): Promise<ApprovalResult>;
   verify(ctx: EngineContext, kase: Case, event: EngineEvent | null): Promise<VerifyResult>;
+  // Required: what to do when the time promised to the customer has passed.
+  onPromisedTime(ctx: EngineContext, kase: Case, event: EngineEvent): Promise<PromisedTimeResult>;
   countsAsSaved(ctx: EngineContext, kase: Case): boolean | Promise<boolean>;
 }
 

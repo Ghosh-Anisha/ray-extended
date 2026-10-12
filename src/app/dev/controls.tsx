@@ -9,6 +9,7 @@ export type DevData = {
   now: number;
   clockMode: "fake" | "real";
   cases: { id: string; merchant: string; moment: string; state: string; openedAt: number }[];
+  unmatched: { id: string; at: number; source: "Webhook" | "WhatsApp" | "Email"; what: string; merchant: string }[];
   merchants: { id: string; name: string }[];
   customers: { id: string; label: string; hasPhone: boolean; hasEmail: boolean }[];
   stores: { id: string; name: string; failure: string }[];
@@ -54,8 +55,10 @@ const row = { display: "flex", gap: 8, flexWrap: "wrap" as const, alignItems: "c
 
 async function post(url: string, body: unknown): Promise<string> {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const json = (await res.json()) as { ok: boolean; error?: string };
-  return json.ok ? "Done" : `Not done: ${json.error}`;
+  const json = (await res.json()) as { ok: boolean; error?: string; result?: { outcome?: string; caseId?: string | null } };
+  if (!json.ok) return `Not done: ${json.error}`;
+  if (json.result?.outcome === "unmatched") return "No flow handles this yet";
+  return json.result?.caseId ? `Done. Case ${json.result.caseId}` : "Done";
 }
 
 export function DevControls({ data }: { data: DevData }) {
@@ -208,6 +211,22 @@ export function DevControls({ data }: { data: DevData }) {
             {data.cases.map((c) => (
               <li key={c.id}>
                 {time(c.openedAt)} · {c.merchant} · {c.moment} · {c.state} · {c.id}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "12px 16px", margin: "16px 0", maxWidth: 720 }}>
+        <h2 style={{ marginTop: 0, fontSize: 18 }}>Unmatched</h2>
+        <p>Events no flow handles yet. They are kept, not dropped.</p>
+        {data.unmatched.length === 0 ? (
+          <p>Nothing unmatched.</p>
+        ) : (
+          <ul>
+            {data.unmatched.map((u) => (
+              <li key={u.id}>
+                {time(u.at)} · {u.merchant} · {u.source} · {u.what} · No flow handles this yet
               </li>
             ))}
           </ul>

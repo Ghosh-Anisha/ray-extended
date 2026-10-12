@@ -13,6 +13,7 @@ import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import type { Clock } from "../clock";
+import { HANDLED_BY_MERCHANT } from "@/engine/outcomes";
 import { newId } from "../ids";
 
 export type Message = typeof s.messages.$inferSelect;
@@ -84,6 +85,7 @@ export type MessagingErrorCode =
   | "TEMPLATE_PARAMS"
   | "NOT_OPTED_IN"
   | "OPTED_OUT"
+  | "MERCHANT_HANDLING"
   | "UNKNOWN_ADDRESS";
 
 export class MessagingError extends Error {
@@ -202,6 +204,13 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       const input = sendInput.parse(raw);
       const merchant = repo.merchants.get(input.merchantId);
       if (!merchant) throw new MessagingError("UNKNOWN_ADDRESS", `Merchant ${input.merchantId} not found`);
+      // Once the merchant takes a case over, RAY sends nothing more on it.
+      if (input.caseId) {
+        const kase = repo.cases.get(input.caseId);
+        if (kase?.outcome === HANDLED_BY_MERCHANT) {
+          throw new MessagingError("MERCHANT_HANDLING", "The merchant is handling this case, so RAY sends nothing more on it");
+        }
+      }
       const from = address(input.merchantId, input.channel, input.senderMode);
       if (!from) throw new MessagingError("BAD_SENDER_MODE", `${input.senderMode} cannot send on ${input.channel}`);
 
