@@ -1,0 +1,197 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent, type ReactNode } from "react";
+import type { webhookDeliveries, messages } from "@/db/schema";
+
+export type DevData = {
+  now: number;
+  merchants: { id: string; name: string }[];
+  customers: { id: string; label: string; hasPhone: boolean; hasEmail: boolean }[];
+  stores: { id: string; name: string; failure: string }[];
+  events: { name: string; ref: string }[];
+  failures: string[];
+  ids: Record<string, Record<string, string[]>>;
+  deliveries: (typeof webhookDeliveries.$inferSelect)[];
+  messages: (typeof messages.$inferSelect & { fromLabel: string; toLabel: string })[];
+};
+
+const REF_LABEL: Record<string, string> = {
+  paymentId: "Payment ID",
+  refundId: "Refund ID",
+  disputeId: "Dispute ID",
+  subscriptionId: "Subscription ID",
+  tokenId: "Token ID",
+  linkId: "Payment link ID",
+  downtime: "Downtime ID",
+};
+
+const FAILURE_LABEL: Record<string, string> = {
+  none: "Working",
+  dropped_200: "Answers 200 but drops the order update",
+  site_down: "Site down (503)",
+  webhook_disabled: "Webhook turned off",
+  settings_wrong: "Wrong webhook secret",
+};
+
+const time = (ms: number) => new Date(ms).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+
+function Simulated({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "12px 16px", margin: "16px 0", maxWidth: 720 }}>
+      <h2 style={{ marginTop: 0, fontSize: 18 }}>
+        {title} <span style={{ fontSize: 12, background: "#eee", borderRadius: 4, padding: "2px 6px", marginLeft: 6 }}>Simulated</span>
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+const row = { display: "flex", gap: 8, flexWrap: "wrap" as const, alignItems: "center", margin: "8px 0" };
+
+async function post(url: string, body: unknown): Promise<string> {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const json = (await res.json()) as { ok: boolean; error?: string };
+  return json.ok ? "Done" : `Not done: ${json.error}`;
+}
+
+export function DevControls({ data }: { data: DevData }) {
+  const router = useRouter();
+  const [status, setStatus] = useState("");
+  const [merchantId, setMerchantId] = useState(data.merchants[0]?.id ?? "");
+  const [event, setEvent] = useState(data.events[0]?.name ?? "");
+  const ref = data.events.find((e) => e.name === event)?.ref ?? "paymentId";
+  const [refId, setRefId] = useState("");
+  const [method, setMethod] = useState("upi");
+  const [bank, setBank] = useState("");
+  const [customerId, setCustomerId] = useState(data.customers[0]?.id ?? "");
+  const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
+  const [body, setBody] = useState("");
+
+  async function run(e: FormEvent, url: string, payload: unknown) {
+    e.preventDefault();
+    setStatus("Sending...");
+    setStatus(await post(url, payload));
+    router.refresh();
+  }
+
+  const webhookPayload = () => {
+    if (ref === "downtime") return { merchantId, event, downtime: { method, bank: bank || undefined, id: refId || undefined } };
+    return { merchantId, event, [ref]: refId };
+  };
+
+  return (
+    <div>
+      <p>Clock: {time(data.now)}</p>
+      {status && <p role="status">{status}</p>}
+
+      <Simulated title="Fire a Razorpay webhook">
+        <form onSubmit={(e) => run(e, "/api/dev/webhooks", webhookPayload())}>
+          <div style={row}>
+            <label>
+              Merchant{" "}
+              <select value={merchantId} onChange={(e) => setMerchantId(e.target.value)}>
+                {data.merchants.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Event{" "}
+              <select value={event} onChange={(e) => { setEvent(e.target.value); setRefId(""); }}>
+                {data.events.map((ev) => (
+                  <option key={ev.name} value={ev.name}>{ev.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div style={row}>
+            <label>
+              {REF_LABEL[ref]}
+              {ref === "downtime" && event === "payment.downtime.started" ? " (optional)" : ""}{" "}
+              <input list="ref-ids" value={refId} onChange={(e) => setRefId(e.target.value)} />
+            </label>
+            <datalist id="ref-ids">
+              {(data.ids[merchantId]?.[ref] ?? []).map((id) => (
+                <option key={id} value={id} />
+              ))}
+            </datalist>
+            {ref === "downtime" && (
+              <>
+                <label>Method <input value={method} onChange={(e) => setMethod(e.target.value)} /></label>
+                <label>Bank <input value={bank} onChange={(e) => setBank(e.target.value)} /></label>
+              </>
+            )}
+          </div>
+          <button type="submit">Fire {event}</button>
+        </form>
+      </Simulated>
+
+      <Simulated title="Customer sends a message">
+        <form onSubmit={(e) => run(e, "/api/dev/messages", { customerId, channel, body })}>
+          <div style={row}>
+            <label>
+              Customer{" "}
+              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+                {data.customers.map((c) => (
+                  <option key={c.id} value={c.id}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Channel{" "}
+              <select value={channel} onChange={(e) => setChannel(e.target.value as "whatsapp" | "email")}>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="email">Email</option>
+              </select>
+            </label>
+          </div>
+          <div style={row}>
+            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} cols={60} placeholder="I paid but my order still says pending" />
+          </div>
+          <button type="submit" disabled={!body.trim()}>Send as customer</button>
+        </form>
+      </Simulated>
+
+      <Simulated title="Store plugin">
+        {data.stores.map((st) => (
+          <div key={st.id} style={row}>
+            <span>{st.name}</span>
+            <select
+              value={st.failure}
+              onChange={async (e) => {
+                setStatus(await post("/api/dev/store", { merchantId: st.id, failure: e.target.value }));
+                router.refresh();
+              }}
+            >
+              {data.failures.map((f) => (
+                <option key={f} value={f}>{FAILURE_LABEL[f] ?? f}</option>
+              ))}
+            </select>
+          </div>
+        ))}
+      </Simulated>
+
+      <Simulated title="Latest webhook deliveries">
+        <ul>
+          {data.deliveries.map((d) => (
+            <li key={d.event_id}>
+              {time(d.delivered_at)} · {d.event} · {d.http_status ?? "not sent"} · {d.processed ? "processed" : "not processed"}
+              {d.cron_note ? ` · ${d.cron_note}` : ""}
+            </li>
+          ))}
+        </ul>
+      </Simulated>
+
+      <Simulated title="Latest messages">
+        <ul>
+          {data.messages.map((m) => (
+            <li key={m.id}>
+              {time(m.at)} · {m.channel === "whatsapp" ? "WhatsApp" : "Email"} · {m.fromLabel} to {m.toLabel}: {m.body}
+            </li>
+          ))}
+        </ul>
+      </Simulated>
+    </div>
+  );
+}
