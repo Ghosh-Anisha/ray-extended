@@ -1,13 +1,5 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
-export default function MerchantPage() {
-  return (
-    <main>
-      <p>
-        <Link href="/">Home</Link>
-      </p>
-      <h1>Merchant</h1>
-      <p>Nothing here yet.</p>
-    </main>
-  );
+export default function MerchantHome() {
+  redirect("/merchant/m_leafy_bakes");
 }

@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import "@razorpay/blade/fonts.css";
+import "./globals.css";
+import { Providers } from "./providers";
+import { StyledRegistry } from "./registry";
 
 export const metadata: Metadata = {
   title: "RAY",
@@ -9,8 +13,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body style={{ fontFamily: "system-ui, sans-serif", margin: "2rem", lineHeight: 1.5 }}>
-        {children}
+      {/* Browser extensions add attributes to body before React loads. */}
+      <body suppressHydrationWarning>
+        <StyledRegistry>
+          <Providers>{children}</Providers>
+        </StyledRegistry>
       </body>
     </html>
   );

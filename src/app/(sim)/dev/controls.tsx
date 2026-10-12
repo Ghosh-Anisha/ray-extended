@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { webhookDeliveries, messages } from "@/db/schema";
+import { SimulatedTag } from "@/ui/bits";
 import { CLOCK_PRESETS } from "./clock-presets";
 
 export type DevData = {
@@ -10,7 +11,8 @@ export type DevData = {
   clockMode: "fake" | "real";
   cases: { id: string; merchant: string; moment: string; state: string; openedAt: number }[];
   unmatched: { id: string; at: number; source: "Webhook" | "WhatsApp" | "Email"; what: string; merchant: string }[];
-  merchants: { id: string; name: string }[];
+  merchants: { id: string; name: string; killSwitch: boolean }[];
+  globalKillSwitch: boolean;
   customers: { id: string; label: string; hasPhone: boolean; hasEmail: boolean }[];
   stores: { id: string; name: string; failure: string }[];
   events: { name: string; ref: string }[];
@@ -44,7 +46,7 @@ function Simulated({ title, children }: { title: string; children: ReactNode }) 
   return (
     <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "12px 16px", margin: "16px 0", maxWidth: 720 }}>
       <h2 style={{ marginTop: 0, fontSize: 18 }}>
-        {title} <span style={{ fontSize: 12, background: "#eee", borderRadius: 4, padding: "2px 6px", marginLeft: 6 }}>Simulated</span>
+        {title} <SimulatedTag />
       </h2>
       {children}
     </section>
@@ -111,6 +113,38 @@ export function DevControls({ data }: { data: DevData }) {
             >
               Move forward {p.label}
             </button>
+          ))}
+        </div>
+      </Simulated>
+
+      <Simulated title="Kill switch">
+        <p>Blocks every action RAY can take; reading still works.</p>
+        <div style={row}>
+          <label>
+            <input
+              type="checkbox"
+              checked={data.globalKillSwitch}
+              onChange={async (e) => {
+                setStatus(await post("/api/dev/kill-switch", { scope: "global", on: e.target.checked }));
+                router.refresh();
+              }}
+            />{" "}
+            Every account
+          </label>
+        </div>
+        <div style={row}>
+          {data.merchants.map((m) => (
+            <label key={m.id}>
+              <input
+                type="checkbox"
+                checked={m.killSwitch}
+                onChange={async (e) => {
+                  setStatus(await post("/api/dev/kill-switch", { scope: { merchantId: m.id }, on: e.target.checked }));
+                  router.refresh();
+                }}
+              />{" "}
+              {m.name}
+            </label>
           ))}
         </div>
       </Simulated>

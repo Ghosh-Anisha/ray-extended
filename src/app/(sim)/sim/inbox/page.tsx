@@ -1,16 +1,9 @@
-import Link from "next/link";
+import { connection } from "next/server";
+import { getAdapters } from "@/adapters";
+import { customerInbox } from "@/surfaces/sims";
+import { PeopleInbox } from "@/ui/sim/inbox";
 
-export default function CustomerInboxPage() {
-  return (
-    <main>
-      <p>
-        <Link href="/">Home</Link>
-      </p>
-      <h1>Customer inbox</h1>
-      <p>
-        <strong>Simulated</strong>
-      </p>
-      <p>Nothing here yet.</p>
-    </main>
-  );
+export default async function CustomerInboxPage() {
+  await connection();
+  return <PeopleInbox title="Customer inbox" kind="customer" people={customerInbox(getAdapters())} />;
 }

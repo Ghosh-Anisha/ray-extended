@@ -13,6 +13,14 @@ import type { Moment } from "@/db/schema";
 import type { EngineEvent } from "./events";
 import { PROMISED_TIME_TIMER, type InvestigateResult, type Specialist } from "./specialist";
 
+const SAW: Record<EngineEvent["kind"], string> = {
+  webhook: "Razorpay sent a payment update",
+  store: "Your store sent an order update",
+  message_in: "The customer wrote in",
+  tap: "You tapped",
+  timer: "A follow-up time came up",
+};
+
 export const DUMMY_REPLY_MS = 15 * 60_000;
 export const DUMMY_CHECK_MS = 30 * 60_000;
 export const DUMMY_PROMISED_MS = 2 * 60 * 60_000;
@@ -37,7 +45,8 @@ export function createDummySpecialist(
     },
 
     async investigate(_ctx, kase, e): Promise<InvestigateResult> {
-      const cite = [{ text: `Saw a ${e.kind} event`, evidenceRef: e.sourceId }];
+      // Merchant words: findings show on the case page (Step 6).
+      const cite = [{ text: SAW[e.kind], evidenceRef: e.sourceId }];
       if (e.kind === "webhook" && processed(e)) {
         return { to: "fixed_itself", reason: "The store processed the payment", findings: cite, confidence: "sure" };
       }

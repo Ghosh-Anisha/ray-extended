@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { connection } from "next/server";
 import { desc, isNotNull } from "drizzle-orm";
 import { getAdapters } from "@/adapters";
@@ -6,6 +5,8 @@ import { STORE_FAILURES } from "@/adapters/store";
 import { EVENT_REF, WEBHOOK_EVENTS } from "@/adapters/webhooks";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
+import { GLOBAL_SETTINGS_ID } from "@/guards/kill-switch";
+import { SimTitle } from "@/ui/sim/sim-bar";
 import { DevControls, type DevData } from "./controls";
 
 export default async function DevPanelPage() {
@@ -70,7 +71,8 @@ export default async function DevPanelPage() {
       .map((u) => ({ ...u, merchant: merchants.find((m) => m.id === u.merchant)?.name ?? u.merchant }))
       .sort((x, y) => y.at - x.at)
       .slice(0, 10),
-    merchants: merchants.map((m) => ({ id: m.id, name: m.name })),
+    merchants: merchants.map((m) => ({ id: m.id, name: m.name, killSwitch: m.kill_switch })),
+    globalKillSwitch: repo.globalSettings.get(GLOBAL_SETTINGS_ID)?.kill_switch ?? false,
     customers: repo.customers.list().map((c) => ({
       id: c.id,
       label: `${c.name} (${merchants.find((m) => m.id === c.merchant_id)?.name})`,
@@ -92,12 +94,9 @@ export default async function DevPanelPage() {
   };
 
   return (
-    <main>
-      <p>
-        <Link href="/">Home</Link>
-      </p>
-      <h1>Dev panel</h1>
+    <div className="stack">
+      <SimTitle>Dev panel</SimTitle>
       <DevControls data={data} />
-    </main>
+    </div>
   );
 }

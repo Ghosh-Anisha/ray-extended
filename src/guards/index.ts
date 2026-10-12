@@ -23,7 +23,11 @@ export { BANK_COMPLAINT, caseKnows, MATCH_WINDOW_MS, type Failure } from "./chec
 export { caseFacts } from "./facts";
 export { formatDate, formatMoney, formatTime } from "./format";
 export { GLOBAL_SETTINGS_ID, killSwitchOn, setKillSwitch, type KillSwitchScope } from "./kill-switch";
-export { REFUND_HOLD_MS } from "@/tools/act";
+export { AUTO_CUSTOMER_MESSAGES, REFUND_HOLD_MS } from "@/tools/act";
+
+// The merchant-facing name of an act tool ("the refund"), for screens.
+// Read only: the tools themselves stay behind guardedCall.
+export const actLabel = (tool: string): string => ACT_TOOL_SPECS[tool as ActToolName]?.label ?? "the action";
 
 export type Action = typeof s.actions.$inferSelect;
 
