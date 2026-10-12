@@ -2,6 +2,8 @@
 // - Taps and timers name their case.
 // - A new query never joins; it opens a new case.
 // - Same payment: joins. A case with a different payment never joins.
+// - Same subscription (Step 9): joins the open case that already has an
+//   event for it. Only subscription and token events carry this key.
 // - Same email or phone, with case activity within 7 days of the event
 //   (by source time): joins. The most recently active case wins.
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
@@ -27,7 +29,24 @@ export function findCase(db: Db, e: EngineEvent): Case | null {
     .from(s.cases)
     .where(and(eq(s.cases.merchant_id, e.merchantId), notInArray(s.cases.state, [...FINAL_STATES])))
     .all();
-  const { paymentId, email, phone } = e.keys;
+  const { paymentId, email, phone, subscriptionId } = e.keys;
+  if (subscriptionId && open.length) {
+    const same = db
+      .select({ caseId: s.caseEvents.case_id })
+      .from(s.caseEvents)
+      .where(
+        and(
+          inArray(
+            s.caseEvents.case_id,
+            open.map((c) => c.id),
+          ),
+          sql`json_extract(${s.caseEvents.payload}, '$.keys.subscriptionId') = ${subscriptionId}`,
+        ),
+      )
+      .orderBy(sql`${s.caseEvents.at} desc`)
+      .get();
+    if (same) return open.find((c) => c.id === same.caseId)!;
+  }
   if (paymentId) {
     const same = open.find((c) => c.payment_id === paymentId);
     if (same) return same;

@@ -13,6 +13,8 @@ const MONEY = new Set(["amount", "base_amount", "total", "price", "paid_amount",
 const TIME = new Set([
   "created_at", "captured_at", "at", "due_at", "promised_by", "respond_by", "due_date", "issued_at", "accepted_at", "date",
   "billing_start", "billing_end", "promised_date", "made_at", "opened_at", "start", "end", "reported_at", "delivered_at", "expires_at",
+  // Subscriptions (Step 9): mandate approval and pre-debit notice.
+  "authorised_at", "notified_at",
 ]);
 // Fields that are internal and never quoted, so their numbers don't count.
 const SKIP = new Set(["id", "seq", "merchant_id", "customer_id", "case_id", "token_id"]);
@@ -76,6 +78,7 @@ export function caseFacts(db: Db, caseId: string): Row {
     if (sub && add(sub)) {
       add(repo.customers.get(sub.customer_id));
       for (const i of db.select().from(s.subInvoices).where(eq(s.subInvoices.subscription_id, id)).all()) add(i);
+      for (const m of db.select().from(s.mandates).where(eq(s.mandates.subscription_id, id)).all()) add(m);
       return;
     }
     const subInvoice = repo.subInvoices.get(id);

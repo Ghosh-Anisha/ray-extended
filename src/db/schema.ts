@@ -93,6 +93,11 @@ export const merchants = sqliteTable("merchants", {
   calling_hours_start: integer("calling_hours_start").notNull().default(600),
   calling_hours_end: integer("calling_hours_end").notNull().default(1140),
   urgent_call_opt_in: bool("urgent_call_opt_in").notNull().default(false),
+  // Subscriptions playbook (migration 0900): RAY may call a subscriber whose
+  // value is above this (paise; null: no calls), and a pause lasts this many
+  // days before RAY resumes it (null: 30).
+  sub_call_value_limit: integer("sub_call_value_limit"),
+  sub_pause_days: integer("sub_pause_days"),
 });
 
 // One row, id "global" (migration 0007). The global kill switch: when on,
@@ -412,6 +417,9 @@ export const mandates = sqliteTable("mandates", {
   status: text("status").notNull(),
   max_amount: integer("max_amount").notNull(),
   expires_at: integer("expires_at"),
+  // When the subscriber approved the mandate, and its reference (migration 0900).
+  authorised_at: integer("authorised_at"),
+  auth_ref: text("auth_ref"),
 });
 
 export const subInvoices = sqliteTable("sub_invoices", {
@@ -424,6 +432,8 @@ export const subInvoices = sqliteTable("sub_invoices", {
   error_reason: text("error_reason"),
   billing_start: integer("billing_start").notNull(),
   billing_end: integer("billing_end").notNull(),
+  // When Razorpay sent the pre-debit notice for this cycle (migration 0900).
+  notified_at: integer("notified_at"),
 });
 
 // Chargebacks
