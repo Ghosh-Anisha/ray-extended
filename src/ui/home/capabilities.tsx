@@ -34,8 +34,8 @@ export function Capabilities({ merchantId, rayOn, dashboardSet }: { merchantId: 
   const base = `/merchant/${merchantId}`;
   const status = (c: Capability): CapabilityStatus => (c.moment && rayOn ? "on" : c.key === "dash" && dashboardSet ? "on" : "try");
   return (
-    <section className="stack" style={{ gap: 12 }} aria-label="What RAY can do for you" data-coach="capabilities">
-      <div className="section-head">
+    <section className="stack" style={{ gap: 12 }} aria-label="What RAY can do for you">
+      <div className="section-head" data-coach="capabilities">
         <h2>What RAY can do for you</h2>
       </div>
       <div className="grid-3">

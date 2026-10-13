@@ -134,6 +134,18 @@ function refundsIn(a: Adapters, merchantId: string, from: number, to: number) {
     .all();
 }
 
+// The product a refund was for: the store order of its payment, found by
+// payment id or, when the store did not record it, by the order receipt.
+function productOf(a: Adapters, merchantId: string) {
+  const orders = a.db.select().from(s.storeOrders).where(eq(s.storeOrders.merchant_id, merchantId)).all();
+  const payments = new Map(a.db.select().from(s.rzpPayments).where(eq(s.rzpPayments.merchant_id, merchantId)).all().map((p) => [p.id, p]));
+  return (r: { payment_id: string }) => {
+    const receipt = payments.get(r.payment_id)?.receipt;
+    const order = orders.find((o) => o.payment_id === r.payment_id) ?? orders.find((o) => receipt && o.receipt === receipt);
+    return order?.items[0]?.name ?? "Not linked to a product";
+  };
+}
+
 export function widgetData(a: Adapters, merchantId: string, kind: WidgetKind, st: MerchantStats = merchantStats(a, merchantId)): WidgetData {
   const base = `/merchant/${merchantId}`;
   const now = st.now;
@@ -174,16 +186,15 @@ export function widgetData(a: Adapters, merchantId: string, kind: WidgetKind, st
       return { value: String(st.subscriptionsAtRisk), note: "Last charge failed or pending", href: `${base}/cases?moment=subscription` };
     case "refunds_by_product": {
       const refunds = refundsIn(a, merchantId, now - 30 * DAY, now + 1);
-      const orders = a.db.select().from(s.storeOrders).where(eq(s.storeOrders.merchant_id, merchantId)).all();
+      const productName = productOf(a, merchantId);
       const byProduct = new Map<string, { n: number; amount: number }>();
       for (const r of refunds) {
-        const order = orders.find((o) => o.payment_id === r.payment_id);
-        const name = order?.items[0]?.name ?? "Not linked to a product";
+        const name = productName(r);
         const cur = byProduct.get(name) ?? { n: 0, amount: 0 };
         byProduct.set(name, { n: cur.n + 1, amount: cur.amount + r.amount });
       }
       const rows = [...byProduct].sort((x, y) => y[1].amount - x[1].amount).map(([label, v]) => ({ label, value: rupees(v.amount), sub: `${v.n} ${v.n === 1 ? "refund" : "refunds"}` }));
-      return { value: rows.length ? rows[0].label : "No refunds", note: `${refunds.length} refunds in 30 days`, rows };
+      return { value: rupees(refunds.reduce((sum, r) => sum + r.amount, 0)), note: `${refunds.length} refunds in 30 days`, rows };
     }
     case "success_by_bank": {
       const rows = bankRows(a, merchantId, now - 7 * DAY, now + 1);
@@ -403,8 +414,8 @@ export function buildReport(a: Adapters, merchantId: string, text: string): Repo
   }
   if (/refund/.test(t)) {
     const refunds = refundsIn(a, merchantId, from, to);
-    const orders = a.db.select().from(s.storeOrders).where(eq(s.storeOrders.merchant_id, merchantId)).all();
-    const rows = refunds.map((r) => [formatDate(r.created_at), orders.find((o) => o.payment_id === r.payment_id)?.items[0]?.name ?? "Not linked to a product", rupees(r.amount)]);
+    const productName = productOf(a, merchantId);
+    const rows = refunds.map((r) => [formatDate(r.created_at), productName(r), rupees(r.amount)]);
     const total = refunds.reduce((x, r) => x + r.amount, 0);
     return {
       id: `report_refunds_${MONTHS[m]}`,
