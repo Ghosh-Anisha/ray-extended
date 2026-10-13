@@ -34,7 +34,7 @@ import { CallScreen } from "@/ui/sim/calls";
 import { PeopleInbox } from "@/ui/sim/inbox";
 import { StoreAdmin } from "@/ui/sim/store";
 import { Shell } from "@/ui/shell/shell";
-import { inboxCountForTab } from "@/ui/merchant/inbox-count";
+import { inboxCountForTab, inboxRowsForTab } from "@/ui/merchant/inbox-count";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh() {}, push() {} }),
@@ -182,11 +182,15 @@ describe("the dummy case on every surface", () => {
     expect(inboxView(a!, LEAFY).tabs[2].rows.map((x) => x.state.label)).toEqual(["Resolved"]);
   });
 
-  it("scopes moment badges to the active case-state tab", () => {
+  it("shows every moment by default and scopes counts when a status tab is selected", () => {
     const visibleRows = [{ momentKey: "international" as const }, { momentKey: "paid_no_order" as const }];
     expect(inboxCountForTab(visibleRows, "international")).toBe(1);
     expect(inboxCountForTab(visibleRows, "chargeback")).toBe(0);
     expect(inboxCountForTab(visibleRows, null)).toBe(visibleRows.length);
+    const tabs = [{ key: "needs_you" as const, rows: [visibleRows[0]!] }, { key: "handling" as const, rows: [visibleRows[1]!] }, { key: "closed" as const, rows: [] }];
+    expect(inboxRowsForTab(tabs, "all")).toEqual(visibleRows);
+    expect(inboxRowsForTab(tabs, "all").filter((r) => r.momentKey === "international")).toHaveLength(1);
+    expect(inboxRowsForTab(tabs, "needs_you")).toEqual([visibleRows[0]]);
   });
 
   it("Change records the merchant's words on the case and the same card comes back", async () => {

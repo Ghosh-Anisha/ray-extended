@@ -14,6 +14,7 @@ import type { MorningList, MorningRow } from "./morning";
 export function MorningListView({ list }: { list: MorningList }) {
   const { view } = useView();
   const { busy, error, run } = useAction();
+  const [runNotice, setRunNotice] = useState<string | null>(null);
   const caseHref = (r: MorningRow) => `/merchant/${list.merchantId}/cases/${r.caseId}`;
   return (
     <section className="stack" aria-label="Invoice overdue" data-guided="collect">
@@ -29,13 +30,17 @@ export function MorningListView({ list }: { list: MorningList }) {
         </div>
       ) : (
         <div className="row">
-          <Button size="small" isLoading={busy === "morning"} onClick={() => run("morning", "/api/merchant/collect", { action: "morning", merchantId: list.merchantId })}>
+          <Button size="small" isLoading={busy === "morning"} onClick={async () => {
+            const result = await run("morning", "/api/merchant/collect", { action: "morning", merchantId: list.merchantId });
+            if (result.ok) setRunNotice("Run completed through the Collect workflow. Open a case to review its simulated messages, status and any approval needed.");
+          }}>
             {"Run today's chase"}
           </Button>
           <span className="muted">Payments come from Banking+ credits</span> <SimulatedTag />
         </div>
       )}
       {error && <span className="error">{error}</span>}
+      {runNotice && <div className="banner" role="status">{runNotice}</div>}
       {list.posted.map((p) => (
         <div key={p.actionId} className="banner hold" role="status">
           <span>

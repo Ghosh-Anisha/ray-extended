@@ -48,7 +48,7 @@ export const INBOX_TABS = [
   { key: "handling", label: "RAY is handling", states: ["likely", "confirmed", "waiting_customer", "acting", "verifying"] },
   { key: "closed", label: "Closed", states: ["closed", "fixed_itself", "unconfirmed"] },
 ] as const satisfies readonly { key: string; label: string; states: readonly CaseState[] }[];
-export type InboxTab = (typeof INBOX_TABS)[number]["key"];
+export type InboxTab = "all" | (typeof INBOX_TABS)[number]["key"];
 
 export const tabFor = (state: CaseState): InboxTab => INBOX_TABS.find((t) => (t.states as readonly CaseState[]).includes(state))!.key;
 

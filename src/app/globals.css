@@ -178,6 +178,7 @@ button { font: inherit; }
 .chip.notice { background: var(--warning-soft); color: var(--warning); }
 .chip.positive { background: var(--success-soft); color: var(--success); }
 .chip.negative { background: var(--critical-soft); color: var(--critical); }
+.negative-value { color: var(--critical); }
 .chip.simulated { background: var(--sim-soft); color: var(--sim); }
 .chip.prototype { flex: none; background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.9); font-weight: 500; }
 

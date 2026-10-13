@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Moment } from "@/db/schema";
 import type { CaseRow, InboxView } from "@/surfaces/views";
-import { inboxCountForTab } from "./inbox-count";
+import { inboxCountForTab, inboxRowsForTab } from "./inbox-count";
 import { DOING_IT, EMPTY, MOMENT_LABEL, type InboxTab } from "@/surfaces/words";
 import { ApprovalLabel, Chip, Empty, HoldBanner, useAction } from "../bits";
 import { NudgeBar } from "../nudge";
@@ -82,7 +82,7 @@ function RowItem({ r, merchantId, unread, href }: { r: CaseRow; merchantId: stri
 export function Inbox({
   merchantId,
   inbox,
-  initialTab = "needs_you",
+  initialTab = "all",
   initialMoment = null,
 }: {
   merchantId: string;
@@ -93,10 +93,11 @@ export function Inbox({
   const { view } = useView();
   const [tab, setTab] = useState<InboxTab>(initialTab);
   const [moment, setMoment] = useState<Moment | null>(initialMoment);
-  const current = inbox.tabs.find((t) => t.key === tab)!;
-  const rows = moment ? current.rows.filter((r) => r.momentKey === moment) : current.rows;
+  const allRows = inbox.tabs.flatMap((t) => t.rows);
+  const currentRows = inboxRowsForTab(inbox.tabs, tab);
+  const rows = moment ? currentRows.filter((r) => r.momentKey === moment) : currentRows;
   const listParams = new URLSearchParams();
-  if (tab !== "needs_you") listParams.set("tab", tab);
+  if (tab !== "all") listParams.set("tab", tab);
   if (moment) listParams.set("moment", moment);
   const listHref = `/merchant/${merchantId}/cases${listParams.size ? `?${listParams}` : ""}`;
   const href = (r: CaseRow) => `/merchant/${merchantId}/cases/${r.id}?returnTo=${encodeURIComponent(listHref)}`;
@@ -105,17 +106,20 @@ export function Inbox({
     setTab(nextTab);
     setMoment(nextMoment);
     const q = new URLSearchParams();
-    if (nextTab !== "needs_you") q.set("tab", nextTab);
+    if (nextTab !== "all") q.set("tab", nextTab);
     if (nextMoment) q.set("moment", nextMoment);
     window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
   }
 
-  // Counts stay scoped to the active state tab; no hidden cases are implied.
-  const momentCount = (m: Moment) => inboxCountForTab(current.rows, m);
+  // Moment counts describe all cases by default; status tabs remain an explicit filter.
+  const momentCount = (m: Moment) => inboxCountForTab(tab === "all" ? allRows : currentRows, m);
   const top = inbox.tabs[0].rows[0];
   const needs = inbox.tabs[0].rows.length;
   const nav = (
     <div className="inbox-nav" role="tablist" aria-label="Cases">
+      <button role="tab" type="button" aria-selected={tab === "all"} onClick={() => remember("all", moment)}>
+        <span className="grow">All cases</span><span className="count">{inboxCountForTab(allRows, moment)}</span>
+      </button>
       {inbox.tabs.map((t) => (
         <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
           <span className="grow">{t.label}</span>
@@ -146,6 +150,7 @@ export function Inbox({
         {view === "phone" ? (
           <>
             <div className="tabs" role="tablist">
+              <button role="tab" type="button" aria-selected={tab === "all"} onClick={() => remember("all", moment)}>All ({inboxCountForTab(allRows, moment)})</button>
               {inbox.tabs.map((t) => (
                 <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
                   {t.label} ({inboxCountForTab(t.rows, moment)})
@@ -174,7 +179,7 @@ export function Inbox({
             {moment && <span className="chip information">Showing: {MOMENT_LABEL[moment]}</span>}
           </div>
           {rows.length === 0 ? (
-            <Empty>{moment ? `Nothing here for ${MOMENT_LABEL[moment]}. Choose All moments to see every case.` : EMPTY[tab]}</Empty>
+          <Empty>{moment ? `Nothing here for ${MOMENT_LABEL[moment]}${tab === "all" ? ". Choose another moment to see other seeded cases." : " in this status. Choose All cases to include other statuses."}` : tab === "all" ? "No seeded cases are available for this account." : EMPTY[tab]}</Empty>
           ) : view === "phone" ? (
             <div className="stack">
               {rows.map((r) => (

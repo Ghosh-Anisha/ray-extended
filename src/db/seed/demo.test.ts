@@ -57,6 +57,15 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     }
   });
 
+  it("connects the failed international payment to its openable card-declined case", () => {
+    const repo = createRepository(db);
+    const payment = repo.rzpPayments.get("pay_LB_emma_failed");
+    expect(payment).toMatchObject({ merchant_id: LEAFY, status: "failed", error_reason: "international_transaction_not_allowed" });
+    const related = repo.cases.list(eq(s.cases.payment_id, "pay_LB_emma_failed")).find((c) => c.merchant_id === LEAFY);
+    expect(related).toMatchObject({ id: "case_demo_emma", moment: "international", merchant_id: LEAFY });
+    expect(caseView(a, related!.id).moment).toBe("Card declined abroad");
+  });
+
   it("computes Home's numbers from the rows", () => {
     const st = merchantStats(a, LEAFY);
     expect(rupees(st.saved.amount)).toBe("₹1,84,300");
