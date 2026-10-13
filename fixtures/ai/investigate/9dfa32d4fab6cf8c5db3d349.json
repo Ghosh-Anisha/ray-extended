@@ -1,0 +1,89 @@
+{
+  "job": "investigate",
+  "key": "9dfa32d4fab6cf8c5db3d349",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "chargeback",
+      "merchant": "Leafy Bakes",
+      "dispute_id": "disp_LB_deepa",
+      "payment_id": "pay_LB1221DEEPA",
+      "amount": "₹1,850",
+      "reason": "Product not received",
+      "type": "not_received",
+      "phase": "chargeback",
+      "looking_for": [
+        "delivery proof",
+        "chats",
+        "past orders",
+        "earlier RAY case",
+        "refund or single charge",
+        "Buyer Protection claim"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "so_leafy_1221",
+        "type": "store_order",
+        "summary": "Order #1221 is completed (Shipped by courier)"
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_dispute",
+        "id": "disp_LB_deepa",
+        "result": {
+          "evidence_ids": [
+            "disp_LB_deepa"
+          ],
+          "data": {
+            "id": "disp_LB_deepa",
+            "payment_id": "pay_LB1221DEEPA",
+            "status": "open",
+            "phase": "chargeback",
+            "amount": 185000,
+            "currency": "INR",
+            "reason_code": "13.1",
+            "reason": "Product not received",
+            "network": "Visa",
+            "deducted": true,
+            "respond_by": 1792557000000,
+            "created_at": 1791779400000,
+            "evidence": null
+          }
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Razorpay's dispute record: ₹1,850 for not received, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+        "evidence_id": "disp_LB_deepa",
+        "supports": "not_received"
+      }
+    ],
+    "next": null,
+    "cause": "not_received",
+    "side": "customer_or_bank",
+    "situation": "C",
+    "confidence": "likely"
+  }
+}

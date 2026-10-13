@@ -2,6 +2,7 @@
 // their specialists here as they are built (Step 7 onward). On the real clock
 // it also starts the 30 s timer tick.
 import { getAdapters } from "@/adapters";
+import { createChargebacksSpecialist } from "@/flows/chargebacks";
 import { createPaidNoOrderSpecialist } from "@/flows/paid-no-order";
 import { createInternationalSpecialist } from "@/flows/international";
 import { createSubscriptionsSpecialist } from "@/flows/subscriptions";
@@ -15,7 +16,7 @@ export { createRegistry, type Specialist } from "./specialist";
 const holder = globalThis as unknown as { __rayEngine?: Engine };
 
 export function buildRegistry(): Registry {
-  return createRegistry([createPaidNoOrderSpecialist(), createInternationalSpecialist(), createSubscriptionsSpecialist()]);
+  return createRegistry([createPaidNoOrderSpecialist(), createInternationalSpecialist(), createSubscriptionsSpecialist(), createChargebacksSpecialist()]);
 }
 
 export function getEngine(): Engine {

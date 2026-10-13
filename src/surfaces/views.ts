@@ -244,7 +244,9 @@ export type ConversationItem = {
 };
 // then: the action's own follow-ups, done on the same tap and covered by the
 // same approval (a confirmation, the email after a request), listed on the card.
-export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; then: string[] };
+// alsoDoes: the same follow-ups as bare labels (a follow-up's own label when
+// it has one, e.g. "Block card ending 4417 (Simulated)").
+export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; then: string[]; alsoDoes: string[] };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
@@ -411,8 +413,9 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  const then = (p.followUps ?? []).map((f) => `Also on this tap: ${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`);
-  return { id: p.id, label: p.label, covered: p.covered, draft, then };
+  const then = (p.followUps ?? []).map((f) => `Also on this tap: ${f.label ?? `${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`}`);
+  const alsoDoes = (p.followUps ?? []).map((f) => f.label ?? (f.tool === "send_message" ? "Send the message below" : actLabel(f.tool)));
+  return { id: p.id, label: p.label, covered: p.covered, draft, then, alsoDoes };
 }
 
 export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };
