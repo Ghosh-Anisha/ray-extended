@@ -2,7 +2,7 @@
   "job": "understand",
   "key": "5e6c2bb0cc4e6dbdb8008483",
   "label": "recorded in Claude Code",
-  "prompt_version": "understand.v1",
+  "prompt_version": "understand.v2",
   "model": null,
   "input": {
     "text": "I was charged 499 twice for one banana bread, UTR 628514730119. Refund the extra one or I'll raise a chargeback with my bank."

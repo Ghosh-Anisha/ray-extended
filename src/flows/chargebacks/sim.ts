@@ -28,17 +28,13 @@ export const FILING_LABEL: Record<FilingPath, string> = {
 };
 
 export type Outcome = "won" | "lost" | "withdrawn";
+export const OUTCOME_EVENT = { won: "payment.dispute.won", lost: "payment.dispute.lost", withdrawn: "payment.dispute.closed" } as const;
 
-// The network decides (Simulated). A withdrawal closes the dispute in the
-// merchant's favour. Then Razorpay's webhook goes out.
-export async function settleDispute(a: Adapters, merchantId: string, disputeId: string, outcome: Outcome) {
-  const repo = createRepository(a.db);
-  const d = repo.disputes.get(disputeId);
-  if (!d || d.merchant_id !== merchantId) throw new Error(`Dispute ${disputeId} not found`);
-  const status = outcome === "withdrawn" ? "closed" : outcome;
-  repo.disputes.update(disputeId, { status });
-  const event = outcome === "won" ? "payment.dispute.won" : outcome === "lost" ? "payment.dispute.lost" : "payment.dispute.closed";
-  return a.webhooks.emit({ merchantId, event, disputeId });
+// The network decides (Simulated): Razorpay's outcome webhook goes out, the
+// same event the dev panel fires. The flow's handler updates the dispute
+// and closes the case; nothing is set here.
+export function fireOutcome(a: Adapters, merchantId: string, disputeId: string, outcome: Outcome) {
+  return a.webhooks.emit({ merchantId, event: OUTCOME_EVENT[outcome], disputeId });
 }
 
 // The cardholder's bank takes it to pre-arbitration (Simulated).

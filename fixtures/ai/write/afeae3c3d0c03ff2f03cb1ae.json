@@ -1,0 +1,130 @@
+{
+  "job": "write",
+  "key": "afeae3c3d0c03ff2f03cb1ae",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "dispute_outreach_redraft",
+    "first_customer_message": true,
+    "facts": {
+      "case": {
+        "moment": "chargeback",
+        "situation": "C",
+        "state": "waiting_merchant",
+        "confidence": "likely",
+        "side": "customer_or_bank",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1,850",
+        "payment_id": "pay_LB1221DEEPA",
+        "cause": "not_received",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1221",
+          "status": "captured",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "method": "card",
+          "contact": "+919800000106",
+          "email": "deepa.nair@example.com",
+          "card_last4": "4093",
+          "card_country": "IN",
+          "receipt": "wc_1221",
+          "created_at": "10:00 AM on 24 Sep",
+          "captured_at": "10:00 AM on 24 Sep"
+        },
+        {
+          "status": "paid",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "receipt": "wc_1221",
+          "created_at": "10:00 AM on 24 Sep"
+        },
+        {
+          "payment_id": "pay_LB1221DEEPA",
+          "reason_code": "13.1",
+          "reason": "Product not received",
+          "network": "Visa",
+          "phase": "chargeback",
+          "amount": "₹1,850",
+          "deducted": true,
+          "respond_by": "10:00 AM on 21 Oct",
+          "status": "open",
+          "created_at": "10:00 AM on 12 Oct",
+          "draft_status": "draft"
+        },
+        {
+          "number": "#1221",
+          "status": "completed",
+          "razorpay_order_id": "order_LB1221",
+          "receipt": "wc_1221",
+          "payment_id": "pay_LB1221DEEPA",
+          "total": "₹1,850",
+          "stock": 5,
+          "created_at": "10:00 AM on 24 Sep"
+        },
+        {
+          "name": "Cookie hamper",
+          "qty": 1,
+          "price": "₹1,850",
+          "stock": 5
+        },
+        {
+          "name": "Deepa Nair",
+          "email": "deepa.nair@example.com",
+          "phone": "+919800000106",
+          "language": "en",
+          "country": "IN"
+        },
+        {
+          "payment_id": "pay_LB1221DEEPA",
+          "status": "open",
+          "phase": "chargeback",
+          "amount": "₹1,850",
+          "currency": "INR",
+          "reason_code": "13.1",
+          "reason": "Product not received",
+          "network": "Visa",
+          "deducted": true,
+          "respond_by": "10:00 AM on 21 Oct",
+          "created_at": "10:00 AM on 12 Oct"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "cb_deadline_eve",
+          "due": "10:00 AM on 14 Oct"
+        },
+        {
+          "kind": "cb_deadline_final",
+          "due": "6:00 AM on 15 Oct"
+        },
+        {
+          "kind": "cb_deadline",
+          "due": "10:00 AM on 15 Oct"
+        },
+        {
+          "kind": "cb_weekly",
+          "due": "9:00 AM on 19 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "current_draft": "Hi Deepa, this is Leafy Bakes about your payment of ₹1,850 at 10:00 AM on 24 Sep (card ending 4093) for order #1221. Your bank told us your order hasn't reached you. Our records show it was sent. If something's wrong, reply here and we'll fix it or give your money back. If it's sorted, please ask your bank to withdraw the dispute. Team Leafy Bakes",
+      "merchant_change": "add that we can send a new hamper if it came damaged"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Deepa, this is Leafy Bakes about your payment of ₹1,850 at 10:00 AM on 24 Sep (card ending 4093) for order #1221. Your bank told us your order hasn't reached you. Our records show it was sent. If something's wrong, reply here and we'll fix it or give your money back. If it arrived damaged, we can send you a new Cookie hamper instead. If it's sorted, please ask your bank to withdraw the dispute. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

@@ -35,6 +35,7 @@ export type Pack = {
   candidates: CaseEvidence[];
   customer: typeof s.customers.$inferSelect | null;
   orderNumber: string | null;
+  item: string | null; // what was ordered, for a replacement
   agentSteps: number;
 };
 
@@ -191,6 +192,7 @@ export async function findEvidence(ctx: EngineContext, a: Adapters, ai: Ai, kase
     candidates,
     customer,
     orderNumber: order?.number ?? null,
+    item: order?.items[0]?.name ?? null,
     agentSteps: agent.steps,
   };
 }

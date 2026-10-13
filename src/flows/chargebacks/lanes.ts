@@ -24,7 +24,10 @@ export type Lane = (typeof LANES)[number];
 export const LANE_TOOL: Record<Lane, "contest_dispute" | "accept_dispute"> = { contest: "contest_dispute", accept: "accept_dispute" };
 export const LANE_NAME: Record<Lane, string> = { contest: "Contest without asking", accept: "Accept without asking" };
 
-export type LaneRuleJson = { lane: Lane; tool: string; types: DisputeType[]; at_deadline?: boolean };
+// max_amount: the merchant's threshold ("without asking up to ₹X"), in
+// paise. The threshold is part of the rule: an action under it is approved
+// by the lane rule's id, like any rule.
+export type LaneRuleJson = { lane: Lane; tool: string; types: DisputeType[]; at_deadline?: boolean; max_amount?: number };
 type Rule = typeof s.playbookRules.$inferSelect;
 
 export const OVERRIDES_BACK_TO_ASK = 2;
@@ -115,12 +118,36 @@ export function checkLane(db: Db, x: LaneInput): LaneCheck {
   if (x.phase !== "chargeback") why.push("Only the first stage can go without asking.");
   if (!x.deducted) why.push("The amount hasn't been deducted yet, so this would move new money.");
   if (x.confidence !== "sure") why.push("RAY isn't Sure.");
+  const max = rule?.rule_json.max_amount;
+  if (typeof max === "number" && x.amount > max) why.push(`${formatMoney(x.amount)} is above the ${formatMoney(max)} you set for ${name}.`);
   if (x.amount > x.approvalLimit) why.push(`${formatMoney(x.amount)} is above your approval limit of ${formatMoney(x.approvalLimit)}.`);
   if (overridesOn(db, x.merchantId, x.type) >= OVERRIDES_BACK_TO_ASK) why.push(`You stopped RAY on ${label} disputes twice, so RAY asks you about them now.`);
   const holdUntil = stopWindowEnd(x.now, x.deadline);
   if (holdUntil === null) why.push("There isn't time left for a Stop window.");
   if (why.length || !rule || holdUntil === null) return { ok: false, why };
   return { ok: true, rule, holdUntil };
+}
+
+// The merchant sets (or clears) a lane's amount threshold in the playbook.
+export function setLaneThreshold(db: Db, merchantId: string, lane: Lane, maxAmount: number | null) {
+  const repo = createRepository(db);
+  const id = laneRuleId(merchantId, lane);
+  const rule = repo.playbookRules.get(id);
+  if (!rule) throw new Error(`${LANE_NAME[lane]} isn't set up for ${merchantId}`);
+  const { max_amount: _old, ...rest } = rule.rule_json as LaneRuleJson;
+  void _old;
+  return repo.playbookRules.update(id, { rule_json: maxAmount === null ? rest : { ...rest, max_amount: maxAmount } });
+}
+
+// How often an automatic lane got it right, from the outcomes on the
+// timeline (written when each dispute closes).
+export function laneAccuracy(db: Db, ruleId: string): { calls: number; wrong: number } {
+  const rows = db
+    .select({ payload: s.caseEvents.payload })
+    .from(s.caseEvents)
+    .where(and(sql`json_extract(${s.caseEvents.payload}, '$.kind') = 'cb_outcome'`, sql`json_extract(${s.caseEvents.payload}, '$.lane_rule_id') = ${ruleId}`))
+    .all();
+  return { calls: rows.length, wrong: rows.filter((r) => r.payload.lane_wrong === true).length };
 }
 
 // One wrong call (an automatically contested dispute that was lost)

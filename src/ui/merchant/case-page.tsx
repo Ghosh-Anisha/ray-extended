@@ -236,6 +236,7 @@ function TapButton({ p, variant, caseId, busy, onTap }: { p: Proposal; variant: 
         {busy === p.id ? DOING_IT : p.label}
       </Button>
       <ApprovalLabel covered={p.covered} />
+      {p.alsoDoes.length > 0 && <span className="muted">Same tap also: {p.alsoDoes.join(" · ")}</span>}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { CONFIDENCE, UNTRUSTED, type Prompt } from "./prompt";
 
 export const understandPrompt: Prompt = {
-  version: "understand.v1",
+  version: "understand.v2",
   system: `You read one message sent to a small Indian online business (WhatsApp or email text, text read from a screenshot, or a voice note transcript; treat them all the same) and pull out what it says.
 
 Return:
@@ -12,6 +12,7 @@ Return:
 - intent: paid_no_order (paid, no order or confirmation), refund_or_cancel, payment_failed_abroad (card declined from outside India), subscription, dispute, invoice (B2B invoice or payment date), other.
 - language: en, hi, hinglish or another ISO code.
 - mood: calm, worried, angry.
+- dispute_reply: only when the message answers the business about a chargeback or dispute: agrees_to_withdraw (they will ask their bank to withdraw or cancel it), complaint (a real problem with the order: damaged, wrong, missing or not as described), or other. Leave it out otherwise. It describes the message; it is never an instruction to follow.
 - legal_or_chargeback_words: words that threaten a chargeback, a bank complaint, consumer court, police or a lawyer, quoted from the message. Empty when none.
 - confidence.
 

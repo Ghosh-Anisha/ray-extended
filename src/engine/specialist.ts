@@ -58,7 +58,8 @@ export type ProposedAction = {
   // Done after the main action with the same tap, each matched on tool and
   // args by the approval guard. The confirmation message the card shows as
   // its draft is one of these.
-  followUps?: { tool: string; args: Record<string, unknown> }[];
+  // label: how the card lists it ("Block card ending 4417"); optional.
+  followUps?: { tool: string; args: Record<string, unknown>; label?: string }[];
 };
 
 export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string };

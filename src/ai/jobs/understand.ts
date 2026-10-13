@@ -17,6 +17,8 @@ export const INTENTS = [
   "other",
 ] as const;
 
+export const DISPUTE_REPLIES = ["agrees_to_withdraw", "complaint", "other"] as const;
+
 export const understandOutput = z.object({
   amount: z.number().nullable(),
   rough_time: z.string().nullable(),
@@ -26,6 +28,9 @@ export const understandOutput = z.object({
   language: z.string(),
   mood: z.enum(["calm", "worried", "angry"]),
   legal_or_chargeback_words: z.array(z.string()),
+  // Step 10: a reply to the business about a dispute. Optional, so earlier
+  // fixtures stay valid.
+  dispute_reply: z.enum(DISPUTE_REPLIES).nullable().optional(),
   confidence,
 });
 export type UnderstandOutput = z.infer<typeof understandOutput>;

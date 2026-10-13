@@ -24,13 +24,14 @@ import * as s from "@/db/schema";
 import { openProposals } from "@/engine/orchestrator";
 import type { Approval, ApprovalResult, Decision, EngineContext, Finding, InvestigateResult, ProposedAction, Specialist, TimerRequest, VerifyResult } from "@/engine/specialist";
 import { transition, type Case } from "@/engine/state-machine";
-import { formatDate, formatMoney, formatTime, guardedCall, type GuardedResult } from "@/guards";
+import { caseFacts, formatDate, formatMoney, formatTime, guardedCall, type GuardedResult } from "@/guards";
 import { clockLabel, minutesIst } from "@/guards/checks";
 import { readSettings } from "@/surfaces/playbook";
 import { createPaidNoOrderSpecialist } from "../paid-no-order";
 import { adaptersOf } from "../paid-no-order/customer";
+import { idAliases } from "../shared/stable-ids";
 import { customerFor, findEvidence, type Pack } from "./evidence";
-import { checkLane, LANE_NAME, LANE_TOOL, LANE_USED_NOTE, laneRules, proposeLanes, switchLaneOffAfterWrongCall, type Lane } from "./lanes";
+import { checkLane, LANE_NAME, LANE_TOOL, LANE_USED_NOTE, laneAccuracy, laneRules, proposeLanes, switchLaneOffAfterWrongCall, type Lane } from "./lanes";
 import * as L from "./lines";
 import { weeklyInsight } from "./patterns";
 import { deadlineOf, disputeType, FINAL_BEFORE_MS, nextStageFee, shouldContest, situationOf, stopWindowEnd, TYPE_LABEL, URGENT_BEFORE_MS, type DisputeType, type Situation } from "./rules";
@@ -69,6 +70,10 @@ export const N = {
   block: "cb_block_card",
   approvedUnchanged: "cb_approved_unchanged",
   stopOffer: "cb_stop_asking_offer",
+  replacement: "cb_replacement",
+  laneAccuracy: "cb_lane_accuracy",
+  agrees: "cb_customer_agrees",
+  complaint: "cb_customer_complaint",
 } as const;
 
 // Approved unchanged this many times: RAY offers to stop asking for that type.
@@ -253,6 +258,17 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     const covered = pk.confidence === "sure";
     const contestP: ProposedAction = { id: newId("prop"), label: "Contest dispute", tool: "contest_dispute", args: { dispute_id: d.id }, covered };
     const acceptP: ProposedAction = { id: newId("prop"), label: "Accept dispute", tool: "accept_dispute", args: { dispute_id: d.id }, covered: false };
+    if (dn.type === "fraud" && pk.facts.fraud?.vulcan === "flagged") {
+      const p = await paymentOf(a, kase, d.payment_id);
+      if (p?.card_last4) {
+        acceptP.label = `Accept dispute & block card ending ${p.card_last4}`;
+        acceptP.followUps = [{ tool: "none", label: `Block card ending ${p.card_last4} (Simulated)`, args: { choice: "block_card", card_last4: p.card_last4 } }];
+      }
+    }
+    if (dn.situation === "C" && pk.facts.neverShipped) {
+      const msg = await customerMessage(ctx, kase, d, (o) => L.neverShippedLine(o));
+      if (msg) acceptP.followUps = [{ tool: "send_message", label: `Message ${msg.first}`, args: msg.args }];
+    }
     const primary = recommend === "contest" ? contestP : acceptP;
     const secondary = recommend === "contest" ? acceptP : contestP;
     const proposals: ProposedAction[] = [];
@@ -262,10 +278,6 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     const outreachFirst = !!outreach && !pk.facts.neverShipped && d.amount <= merchant.approval_limit && now < dn.deadline - 2 * DAY;
     if (outreach && outreachFirst) proposals.push(outreach, primary, secondary);
     else proposals.push(primary, secondary, ...(outreach ? [outreach] : []));
-    if (dn.type === "fraud" && pk.facts.fraud?.vulcan === "flagged") {
-      const p = await paymentOf(a, kase, d.payment_id);
-      if (p?.card_last4) proposals.push({ id: newId("prop"), label: `Block card ending ${p.card_last4}`, tool: "none", args: { choice: "block_card", card_last4: p.card_last4 }, covered: false });
-    }
 
     // No percentages on merchant screens: the proof is described, the odds stay in the pack note.
     const proof = pk.strong ? "the proof is strong" : "the proof is thin";
@@ -285,8 +297,9 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     };
   }
 
-  async function outreachProposal(ctx: EngineContext, kase: Case, d: Dispute, dn: DisputeNote): Promise<ProposedAction | null> {
-    if (dn.situation !== "C" || notes(ctx, kase.id, N.outreach).length) return null;
+  // A message to the customer as the merchant: checkable details (amount,
+  // time, last 4), no link, on the channel they can get free text on.
+  async function customerMessage(ctx: EngineContext, kase: Case, d: Dispute, body: (o: L.OutreachBits) => string): Promise<{ first: string; args: Record<string, unknown> } | null> {
     const a = adaptersOf(ctx);
     const p = await paymentOf(a, kase, d.payment_id);
     if (!p) return null;
@@ -302,26 +315,53 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     const to = channel === "whatsapp" ? customer.phone! : customer.email!;
     const sender_mode = channel === "whatsapp" && settings.sendFrom === "verified_domain" ? "merchant_inbox" : settings.sendFrom;
     const pk = packNote(ctx, kase);
-    const body = L.outreachLine(
-      {
-        first: firstNameOf(customer.name),
-        amount: formatMoney(p.amount, p.currency),
-        time: formatTime(p.created_at),
-        date: formatDate(p.created_at),
-        ref: p.utr ? `UTR ending ${p.utr.slice(-4)}` : p.card_last4 ? `card ending ${p.card_last4}` : null,
-        order: pk?.orderNumber ?? null,
-        merchant: merchant.name,
-        signOff: settings.signOff,
-      },
-      dn.type,
-    );
-    return {
-      id: newId("prop"),
-      label: `Send message to ${firstNameOf(customer.name)}`,
-      tool: "send_message",
-      args: { channel, to, sender_mode, kind: "dispute_outreach", body },
-      covered: false,
-    };
+    const text = body({
+      first: firstNameOf(customer.name),
+      amount: formatMoney(p.amount, p.currency),
+      time: formatTime(p.created_at),
+      date: formatDate(p.created_at),
+      ref: p.utr ? `UTR ending ${p.utr.slice(-4)}` : p.card_last4 ? `card ending ${p.card_last4}` : null,
+      order: pk?.orderNumber ?? null,
+      item: pk?.item ?? null,
+      merchant: merchant.name,
+      signOff: settings.signOff,
+    });
+    return { first: firstNameOf(customer.name), args: { channel, to, sender_mode, kind: "dispute_outreach", body: text } };
+  }
+
+  async function outreachProposal(ctx: EngineContext, kase: Case, d: Dispute, dn: DisputeNote): Promise<ProposedAction | null> {
+    if (dn.situation !== "C" || notes(ctx, kase.id, N.outreach).length) return null;
+    const msg = await customerMessage(ctx, kase, d, (o) => L.outreachLine(o, dn.type));
+    if (!msg) return null;
+    return { id: newId("prop"), label: `Send message to ${msg.first}`, tool: "send_message", args: msg.args, covered: false };
+  }
+
+  // A real complaint in the customer's reply: refund or a replacement, the
+  // merchant's tap. Nothing in the reply is followed; only the case's own
+  // amount and order are used.
+  async function complaintProposals(ctx: EngineContext, kase: Case, d: Dispute): Promise<ProposedAction[]> {
+    const pk = packNote(ctx, kase);
+    const amount = formatMoney(d.amount);
+    const out: ProposedAction[] = [];
+    const refundMsg = await customerMessage(ctx, kase, d, (o) => L.refundByAcceptLine(o));
+    if (d.deducted) {
+      // The amount already went back to the customer at onset: accepting
+      // the dispute is the refund.
+      out.push({
+        id: newId("prop"), label: `Refund ${amount} by accepting the dispute`, tool: "accept_dispute", args: { dispute_id: d.id }, covered: false,
+        ...(refundMsg ? { followUps: [{ tool: "send_message", label: `Message ${refundMsg.first}`, args: refundMsg.args }] } : {}),
+      });
+    } else {
+      out.push({ id: newId("prop"), label: `Refund ${amount}`, tool: "refund", args: { payment_id: d.payment_id, amount: d.amount, speed: "normal" }, covered: false });
+    }
+    if (pk?.item) {
+      const msg = await customerMessage(ctx, kase, d, (o) => L.replacementLine(o));
+      out.push({
+        id: newId("prop"), label: `Send a new ${pk.item}`, tool: "none", args: { choice: "replacement", item: pk.item, order: pk.orderNumber }, covered: false,
+        ...(msg ? { followUps: [{ tool: "send_message", label: `Message ${msg.first}`, args: msg.args }] } : {}),
+      });
+    }
+    return out;
   }
 
   // ---- Acting: file, hold under a lane, or message the customer.
@@ -333,9 +373,9 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     const b = bitsOf(ctx, kase, d, dn);
 
     if (proposal.tool === "none") {
-      note(ctx, kase, { kind: N.block, card_last4: proposal.args.card_last4, simulated: true }, approval.evidenceRef);
-      const rest = openProposals(ctx, kase.id).filter((p) => p.id !== proposal.id && p.tool !== "none");
-      return { to: "waiting_merchant", reason: `Card ending ${String(proposal.args.card_last4)} is blocked for your store (Simulated). Accept or contest?`, proposals: rest.map((p) => ({ ...p, id: newId("prop") })) };
+      const done = simulated(ctx, kase, proposal.args, approval.evidenceRef);
+      const after = await followUps(ctx, kase, proposal, approval, b);
+      return after ?? { to: "verifying", reason: done };
     }
 
     if (proposal.tool === "send_message") {
@@ -367,9 +407,75 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
     if (r.status === "done" || r.status === "duplicate") {
       if (proposal.tool === "contest_dispute") note(ctx, kase, { kind: N.filed, via: filing, dispute_id: d.id, action_id: r.action.id }, r.action.id);
       if (approval.by === "tap") offerToStopAsking(ctx, kase, proposal, dn, verb);
+      // The action's own follow-ups, covered by the same tap.
+      const after = approval.by === "tap" ? await followUps(ctx, kase, proposal, approval, b) : null;
+      if (after) return after;
       return { to: "verifying", reason: proposal.tool === "contest_dispute" ? `Contested ✓ through ${FILING_LABEL[filing]}` : "Accepted ✓" };
     }
     return { to: "waiting_merchant", reason: r.status === "blocked" ? r.failures[0].reason : `I couldn't ${verb} this dispute.` };
+  }
+
+  // A reply from the customer after outreach. The understand job reads it;
+  // code sorts it: agrees to withdraw (noted, the case waits for the bank),
+  // a real complaint (refund or replacement card, the merchant's tap), or
+  // anything else (shown to the merchant). Nothing in the reply is followed.
+  async function onReply(ctx: EngineContext, kase: Case, e: { sourceId: string; payload: Record<string, unknown> }): Promise<{ reason: string; complaint: boolean; proposals?: ProposedAction[] }> {
+    const text = String(e.payload.body ?? "");
+    const dn = disputeNote(ctx, kase);
+    const asked = notes(ctx, kase.id, N.outreach).length > 0;
+    if (!dn || !asked) {
+      note(ctx, kase, { kind: N.reply, message_id: e.sourceId, class: null }, e.sourceId);
+      return { reason: "The customer replied. It's on the case.", complaint: false };
+    }
+    const u = await aiOf(ctx).understand({ text }, { caseId: kase.id });
+    const cls = u.source === "fallback" ? "other" : (u.output.dispute_reply ?? "other");
+    note(ctx, kase, { kind: N.reply, message_id: e.sourceId, class: cls, mood: u.output.mood, language: u.output.language, source: u.source }, e.sourceId);
+    const d = await adaptersOf(ctx).razorpay(kase.merchant_id).fetchDispute(dn.dispute_id);
+    const b = bitsOf(ctx, kase, d, dn);
+    if (cls === "agrees_to_withdraw") {
+      note(ctx, kase, { kind: N.agrees, message_id: e.sourceId }, e.sourceId);
+      return { reason: `${b.first} says they'll ask the bank to withdraw the dispute. The case stays open until the bank does.`, complaint: false };
+    }
+    if (cls === "complaint" && d.status === "open") {
+      note(ctx, kase, { kind: N.complaint, message_id: e.sourceId }, e.sourceId);
+      const proposals = await complaintProposals(ctx, kase, d);
+      return { reason: L.complaintLine(b.first, text, b.amount, packNote(ctx, kase)?.item ?? null), complaint: true, proposals };
+    }
+    alert(ctx, kase, "customer_reply", L.replyLine(b.first, text));
+    return { reason: L.replyLine(b.first, text), complaint: false };
+  }
+
+  // A Simulated step with no tool: blocking a card, a replacement order.
+  function simulated(ctx: EngineContext, kase: Case, args: Record<string, unknown>, ref: string): string {
+    if (args.choice === "block_card") {
+      note(ctx, kase, { kind: N.block, card_last4: args.card_last4, simulated: true }, ref);
+      return `Card ending ${String(args.card_last4)} is blocked for your store (Simulated).`;
+    }
+    if (args.choice === "replacement") {
+      note(ctx, kase, { kind: N.replacement, item: args.item, order: args.order, simulated: true }, ref);
+      return `A new ${String(args.item)} is queued in your store (Simulated).`;
+    }
+    return "Noted.";
+  }
+
+  // Runs the follow-ups the card listed with the action, under the same
+  // approval (the guard matches each one to the tapped proposal). null when
+  // all went; otherwise the case comes back to the merchant.
+  async function followUps(ctx: EngineContext, kase: Case, proposal: ProposedAction, approval: Approval, b: L.DisputeBits): Promise<ApprovalResult | null> {
+    const done: string[] = [];
+    for (const f of proposal.followUps ?? []) {
+      if (f.tool === "none") {
+        done.push(simulated(ctx, kase, f.args, approval.evidenceRef));
+        continue;
+      }
+      const r = await guardedCall(f.tool, f.args, { adapters: adaptersOf(ctx), caseId: kase.id, approval });
+      if (!went(r)) return { to: "waiting_merchant", reason: `${proposal.label} ✓, but ${f.label ?? "the next step"} didn't go: ${r.status === "blocked" ? r.failures[0].reason : "it failed"}` };
+      if (f.tool === "send_message") note(ctx, kase, { kind: N.outreach, message_action_id: r.action.id, follow_up_of: proposal.id }, r.action.id);
+      done.push(`Message sent to ${b.first}.`);
+    }
+    if (!done.length) return null;
+    const head = proposal.tool === "none" ? "" : proposal.tool === "contest_dispute" ? "Contested ✓ " : "Accepted ✓ ";
+    return { to: "verifying", reason: `${head}${done.join(" ")}`.trim() };
   }
 
   // Approved RAY's recommendation unchanged several times for one type:
@@ -454,25 +560,44 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
 
   // ---- Outcomes
 
-  function outcomeOf(ctx: EngineContext, kase: Case, outcome: Outcome, ref: string): { reason: string } {
-    note(ctx, kase, { kind: N.outcome, outcome, saved: SAVED.includes(outcome) }, ref);
-    if (outcome === "lost") {
-      // One wrong call switches the lane off: an automatic contest that lost.
-      for (const u of notes(ctx, kase.id, N.laneUsed)) {
-        const action = ctx.repo.actions.get(String(u.payload.action_id));
-        if (u.payload.lane === "contest" && u.payload.rule_id && action?.status === "done") {
-          switchLaneOffAfterWrongCall(ctx.db, ctx.clock.now(), String(u.payload.rule_id), kase.id, ref);
-        }
-      }
+  // The outcome of a dispute, the same whether Razorpay's webhook or the dev
+  // panel fired it (both come through handleEvent): the dispute record is
+  // updated, the merchant told, and an automatic lane's accuracy updated.
+  async function outcomeOf(ctx: EngineContext, kase: Case, outcome: Outcome, ref: string): Promise<{ reason: string }> {
+    const dn = disputeNote(ctx, kase);
+    const d = dn ? ctx.repo.disputes.get(dn.dispute_id) : undefined;
+    const back = SAVED.includes(outcome);
+    if (d && outcome !== "accepted") {
+      const status = outcome === "withdrawn" ? "closed" : outcome;
+      // Won or withdrawn: the deducted amount goes back to the merchant's balance.
+      ctx.repo.disputes.update(d.id, { status, ...(back ? { deducted: false } : {}) });
     }
-    const words: Record<Outcome, string> = { won: "Dispute won ✓", lost: "The dispute was lost.", withdrawn: "The customer's bank withdrew the dispute ✓", accepted: "Dispute accepted." };
+    // An automatic lane's call: right when won or withdrawn after a contest,
+    // or an accept; wrong when an automatic contest was lost.
+    const used = notes(ctx, kase.id, N.laneUsed).find((u) => ctx.repo.actions.get(String(u.payload.action_id))?.status === "done");
+    const laneRule = used?.payload.rule_id ? String(used.payload.rule_id) : null;
+    const wrong = !!laneRule && used!.payload.lane === "contest" && outcome === "lost";
+    note(ctx, kase, { kind: N.outcome, outcome, saved: back, returned_to_balance: back ? d?.amount ?? null : null, lane_rule_id: laneRule, lane_wrong: laneRule ? wrong : null }, ref);
+    if (laneRule) {
+      const acc = laneAccuracy(ctx.db, laneRule);
+      note(ctx, kase, { kind: N.laneAccuracy, rule_id: laneRule, ...acc }, ref);
+      if (wrong) switchLaneOffAfterWrongCall(ctx.db, ctx.clock.now(), laneRule, kase.id, ref);
+    }
+    const amount = formatMoney(d?.amount ?? kase.amount ?? 0);
+    const words: Record<Outcome, string> = {
+      won: `Dispute won ✓ ${amount} is back in your balance.`,
+      lost: "The dispute was lost.",
+      withdrawn: `The customer's bank withdrew the dispute ✓ ${amount} is back in your balance.`,
+      accepted: "Dispute accepted.",
+    };
+    if (outcome !== "accepted") alert(ctx, kase, "dispute_outcome", words[outcome]);
     return { reason: words[outcome] };
   }
 
   // A dispute's outcome on a case that isn't verifying (it lapsed while
   // waiting on the merchant): closed through the state machine here.
-  function closeOutside(ctx: EngineContext, kase: Case, outcome: Outcome, ref: string): InvestigateResult {
-    const { reason } = outcomeOf(ctx, kase, outcome, ref);
+  async function closeOutside(ctx: EngineContext, kase: Case, outcome: Outcome, ref: string): Promise<InvestigateResult> {
+    const { reason } = await outcomeOf(ctx, kase, outcome, ref);
     if (kase.state === "waiting_merchant") {
       transition(ctx.db, ctx.clock, kase.id, "closed", { reason, evidenceRef: ref, patch: { closed_at: ctx.clock.now(), outcome, counts_as_saved: SAVED.includes(outcome) } });
       return { to: "closed", reason, findings: [] };
@@ -539,8 +664,8 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
       }
 
       if (e.kind === "message_in") {
-        note(ctx, kase, { kind: N.reply, message_id: e.sourceId }, e.sourceId);
-        return stay(kase, "The customer replied. It's on the case.");
+        const r = await onReply(ctx, kase, e);
+        return { to: kase.state, reason: r.reason, findings: [], ...(r.proposals ? { proposals: r.proposals } : {}) };
       }
       if (e.kind === "timer") {
         const kind = e.payload.timer_kind;
@@ -624,13 +749,13 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
         ctx.repo.actions.list(and(eq(s.actions.case_id, kase.id), eq(s.actions.tool, "accept_dispute"), eq(s.actions.status, "done"))).at(-1);
       if (!e) {
         const acc = accepted();
-        if (acc && !lastNote(ctx, kase.id, N.outcome)) return { to: "closed", outcome: "accepted", ...outcomeOf(ctx, kase, "accepted", acc.id) };
+        if (acc && !lastNote(ctx, kase.id, N.outcome)) return { to: "closed", outcome: "accepted", ...(await outcomeOf(ctx, kase, "accepted", acc.id)) };
         return { to: "verifying", reason: "Waiting for the card network." };
       }
       const name = eventName(e);
       if (name in OUTCOME_EVENTS) {
         const outcome = OUTCOME_EVENTS[name];
-        return { to: "closed", outcome, ...outcomeOf(ctx, kase, outcome, e.sourceId) };
+        return { to: "closed", outcome, ...(await outcomeOf(ctx, kase, outcome, e.sourceId)) };
       }
       if (DISPUTE_EVENTS.includes(name)) {
         // A new stage (pre-arbitration) or a dispute on a threat case: always ask.
@@ -644,8 +769,8 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
         return { to: "waiting_merchant", reason: plan.summary, timers: r.timers, proposals: plan.proposals };
       }
       if (e.kind === "message_in") {
-        note(ctx, kase, { kind: N.reply, message_id: e.sourceId }, e.sourceId);
-        return { to: "verifying", reason: "The customer replied. It's on the case." };
+        const r = await onReply(ctx, kase, e);
+        return { to: r.complaint ? "waiting_merchant" : "verifying", reason: r.reason, ...(r.proposals ? { proposals: r.proposals } : {}) };
       }
       if (e.kind === "timer") {
         const kind = e.payload.timer_kind;
@@ -653,7 +778,7 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
           const used = lastNote(ctx, kase.id, N.laneUsed);
           const action = used ? ctx.repo.actions.get(String(used.payload.action_id)) : undefined;
           if (action?.status === "done") {
-            if (action.tool === "accept_dispute") return { to: "closed", outcome: "accepted", ...outcomeOf(ctx, kase, "accepted", action.id) };
+            if (action.tool === "accept_dispute") return { to: "closed", outcome: "accepted", ...(await outcomeOf(ctx, kase, "accepted", action.id)) };
             note(ctx, kase, { kind: N.filed, via: filingOf(ctx.db, kase.merchant_id), dispute_id: action.args.dispute_id, action_id: action.id, under_rule: used!.payload.rule_id }, action.id);
             return { to: "verifying", reason: `Contested ✓ under your rule: ${LANE_NAME.contest}` };
           }
@@ -692,24 +817,33 @@ export function createChargebacksSpecialist(opts: ChargebacksOptions = {}): Spec
 
     async onChange(ctx, kase, text, e) {
       if (isThreat(ctx, kase) && pno.onChange) return pno.onChange(ctx, asPno(ctx, kase), text, e);
-      // The merchant's note is data: RAY redrafts the message to the
-      // customer from it (the write job), never follows it.
+      // The merchant's note is data: the write job redrafts each customer
+      // message on the card (the action's own and its follow-ups) from the
+      // case facts and the note; it never follows it. The same card comes
+      // back. Every number is checked against the case (write's guard, then
+      // the grounding guard when it's sent).
       const offered = openProposals(ctx, kase.id);
       if (!offered.length) return { reason: "Nothing to redraft." };
+      const a = adaptersOf(ctx);
       const settings = readSettings(ctx.db, kase.merchant_id, "chargeback");
+      let redrafted = 0;
+      const redraft = async (args: Record<string, unknown>) => {
+        if (typeof args.body !== "string") return args;
+        const ids = idAliases();
+        const first = !a.messaging.thread(kase.merchant_id, String(args.to)).some((m) => m.direction === "out");
+        const facts = ids.hide({ ...caseFacts(ctx.db, kase.id), sign_off: settings.signOff, current_draft: args.body, merchant_change: text });
+        const r = await aiOf(ctx).write({ audience: "customer", kind: "dispute_outreach_redraft", first_customer_message: first, facts, tone: settings.tone, language: "en" }, { caseId: kase.id });
+        if (r.source === "fallback" || !r.output.draft) return args;
+        redrafted++;
+        return { ...args, body: ids.show(r.output.draft) };
+      };
       const proposals: ProposedAction[] = [];
       for (const p of offered) {
-        let args = p.args;
-        if (p.tool === "send_message" && typeof p.args.body === "string") {
-          const r = await aiOf(ctx).write(
-            { audience: "customer", kind: "dispute_outreach_redraft", first_customer_message: true, facts: { current_draft: p.args.body, merchant_change: text, sign_off: settings.signOff }, tone: settings.tone, language: "en" },
-            { caseId: kase.id },
-          );
-          if (r.source !== "fallback" && r.output.draft) args = { ...p.args, body: r.output.draft };
-        }
-        proposals.push({ ...p, id: newId("prop"), args });
+        const args = p.tool === "send_message" ? await redraft(p.args) : p.args;
+        const followUps = p.followUps ? await Promise.all(p.followUps.map(async (f) => (f.tool === "send_message" ? { ...f, args: await redraft(f.args) } : f))) : undefined;
+        proposals.push({ ...p, id: newId("prop"), args, ...(followUps ? { followUps } : {}) });
       }
-      return { reason: "RAY redrafted the message with your note.", proposals };
+      return { reason: redrafted ? "RAY redrafted the message with your note." : "RAY couldn't redraft the message, so the draft is unchanged.", proposals };
     },
   };
 }

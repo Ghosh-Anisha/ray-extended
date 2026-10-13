@@ -235,7 +235,9 @@ export type ConversationItem = {
   voice: VoiceNoteView | null;
   call: CallView | null;
 };
-export type Proposal = { id: string; label: string; covered: boolean; draft: string | null };
+// alsoDoes: the action's own follow-ups, covered by the same tap and
+// listed on the card ("Same tap also: Block card ending 4417").
+export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; alsoDoes: string[] };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
@@ -402,7 +404,8 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  return { id: p.id, label: p.label, covered: p.covered, draft };
+  const alsoDoes = (p.followUps ?? []).map((f) => f.label ?? (f.tool === "send_message" ? "Send the message below" : actLabel(f.tool)));
+  return { id: p.id, label: p.label, covered: p.covered, draft, alsoDoes };
 }
 
 export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };

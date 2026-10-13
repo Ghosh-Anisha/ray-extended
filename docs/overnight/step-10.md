@@ -16,6 +16,10 @@ All additive. No existing behaviour or existing test changed.
 | `src/db/migrations/1000_chargebacks.sql` + one entry in `meta/_journal.json` | Three new tables (below). | Rule 11: everything a case or guard reads lives in the database. |
 | `fixtures/ai/investigate/*.json` (6 new), `fixtures/ai/understand/*.json` (1 new) | New replay fixtures, labelled "recorded in Claude Code". | Written from `src/flows/chargebacks/fixtures.claude-code.json` by `npx tsx src/flows/chargebacks/record-fixtures.ts` (reuses `writeClaudeCodeFixtures`; the shared `fixtures/ai/sources/claude-code.json` is untouched, so parallel steps don't collide). |
 
+| `src/engine/specialist.ts` | `followUps` items take an optional `label`. | The card lists each follow-up by name. |
+| `src/surfaces/views.ts`, `src/ui/merchant/case-page.tsx`, `src/ui/merchant/approval-card.tsx` | `Proposal.alsoDoes` (the follow-ups' labels), shown under the button as "Same tap also: …". | An approved action's own follow-ups are covered by the same tap and listed on the card. |
+| `src/ai/jobs/understand.ts`, `src/ai/prompts/understand.ts` | Optional `dispute_reply` output (`agrees_to_withdraw`, `complaint`, `other`); one prompt line; version `understand.v2`. Optional, so every earlier fixture stays valid. | Reading customer replies to dispute outreach. |
+
 The new tables are declared in `src/flows/chargebacks/schema.ts`, not in
 `src/db/schema.ts`, so the seed test's "covers every table in the schema" and
 row-count assertions stay exactly as they are.
@@ -23,7 +27,7 @@ row-count assertions stay exactly as they are.
 ## Plan: every rule from Step 10
 
 Files: `src/flows/chargebacks/{index,rules,evidence,lanes,lines,patterns,sim,schema}.ts`,
-tests `chargebacks.test.ts` (scenarios, 27) and `rules.test.ts` (unit, 12),
+tests `chargebacks.test.ts` (scenarios, 40) and `rules.test.ts` (unit, 12),
 helpers `test-helpers.ts`, `threat-fixture.ts`, fixture source
 `fixtures.claude-code.json` and `record-fixtures.ts`.
 
@@ -251,6 +255,50 @@ the merchant's sending address unless the customer's WhatsApp window is open.
     disputes made inside tests miss replay on purpose and fall back
     (Unsure for the model's part only; code findings and odds still apply).
 
+## Follow-up changes (after the first PR review)
+
+20. **Outcome events do the work.** `payment.dispute.won/lost/closed`
+    reach the case through `handleEvent` (a webhook or the dev panel, same
+    path). The handler updates the dispute (`won`, `lost`, `closed`; won and
+    withdrawn also set `deducted: false`, shown as "₹X is back in your
+    balance"), closes the case through the state machine (orchestrator from
+    Checking it worked, `transition()` from Needs you), and for an automatic
+    lane writes `cb_lane_accuracy` (calls, wrong) from the outcomes on the
+    timeline; a lost automatic contest also switches the lane off. The
+    simulator only fires the event (`fireOutcome`); tests fire events, with
+    status assertions added and none removed.
+
+21. **Replies to outreach go through the understand job.** One optional
+    output field (`dispute_reply`) rather than new intents, so earlier
+    fixtures and the paid-no-order flow are untouched. Code acts on the
+    class: agrees (noted, case stays open until the withdrawal event),
+    complaint (Needs you with "Refund ₹X by accepting the dispute" or "Send
+    a new <item>", each with its customer message as a follow-up), other
+    (alert with the reply). A replay miss counts as other. The reply text is
+    quoted to the merchant but never followed; a reply that tries to give an
+    instruction gets the same card with the case's own amount (tested).
+    Refund on a deducted dispute is accepting it, since the money already
+    went back to the customer at onset; a not-deducted one gets a real refund.
+
+22. **Follow-ups on the same approval.** Accept on Vulcan-flagged fraud is
+    "Accept dispute & block card ending NNNN", with the block (Simulated) as
+    its follow-up; accept on an order that never shipped carries the message
+    to the customer; the complaint options carry theirs. The approval guard
+    already matches follow-ups to the tapped proposal; they run only after
+    the main action is done, and only on a tap (a lane's held action has
+    none). This replaced the separate "Block card" button; that test was
+    updated to the new card, with stronger checks.
+
+23. **A merchant threshold counts as the rule.** A lane rule can carry
+    `max_amount` (`setLaneThreshold`); above it RAY asks with the reason,
+    under it the action is approved by the lane rule's id.
+
+24. **Change redraft uses the write job** with the case facts (ids
+    aliased), the current draft and the merchant's note, for the card's own
+    message and its follow-up messages. The same card comes back with new
+    ids. If the write job can't redraft, the draft stays and the reason says
+    so.
+
 ## Not done / left for later
 
 - No dev panel control for dispute outcomes; the new webhook events show in
@@ -263,5 +311,10 @@ the merchant's sending address unless the customer's WhatsApp window is open.
 ## Checks run at the end
 
 `git fetch` + rebase on `origin/main` (already up to date), then
-`npm test` (372 passed, 27 skipped; 39 of them new in `src/flows/chargebacks`),
-`npm run lint` (clean) and `npm run typecheck` (clean).
+`npm test` (385 passed, 27 skipped; 52 chargeback tests in
+`src/flows/chargebacks`), `npm run typecheck` (clean). `npm run lint` reports
+problems only inside `.claude/worktrees/step-8-international` (another
+parallel session's checkout, which eslint scans because it sits in the
+repo folder); `npx eslint . --ignore-pattern ".claude/**"` is clean. Adding
+`.claude/**` to the eslint ignores would fix that, but it's a shared config
+change, so it's left for you.

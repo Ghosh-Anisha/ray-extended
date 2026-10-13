@@ -56,7 +56,7 @@ export function urgentCall(b: DisputeBits, merchant: string) {
 
 // Customer outreach (non-fraud only): a fix or refund offer and a
 // withdraw request, as the merchant. Checkable details, no link.
-export type OutreachBits = { first: string; amount: string; time: string; date: string; ref: string | null; order: string | null; merchant: string; signOff: string };
+export type OutreachBits = { first: string; amount: string; time: string; date: string; ref: string | null; order: string | null; item: string | null; merchant: string; signOff: string };
 
 export function outreachLine(o: OutreachBits, type: DisputeType) {
   const ref = o.ref ? ` (${o.ref})` : "";
@@ -71,6 +71,25 @@ export function outreachLine(o: OutreachBits, type: DisputeType) {
           : "Your bank told us there's a problem with this payment.";
   return `Hi ${o.first}, this is ${o.merchant} about your payment of ${o.amount} at ${o.time} on ${o.date}${ref}${order}. ${what} If something's wrong, reply here and we'll fix it or give your money back. If it's sorted, please ask your bank to withdraw the dispute. ${o.signOff}`;
 }
+
+const payment = (o: OutreachBits) => `your payment of ${o.amount} at ${o.time} on ${o.date}${o.ref ? ` (${o.ref})` : ""}${o.order ? ` for order ${o.order}` : ""}`;
+
+// The order never went out: the merchant accepts, the bank returns the money.
+export const neverShippedLine = (o: OutreachBits) =>
+  `Hi ${o.first}, this is ${o.merchant} about ${payment(o)}. We're sorry, your order didn't go out. Your bank is returning ${o.amount} to you, so there's nothing more you need to do. ${o.signOff}`;
+
+// A real complaint, refund chosen: accepting the dispute returns the money.
+export const refundByAcceptLine = (o: OutreachBits) =>
+  `Hi ${o.first}, this is ${o.merchant} about ${payment(o)}. We're sorry about the problem with your order. We've told your bank to return ${o.amount} to you, so there's nothing more you need to do. ${o.signOff}`;
+
+// A real complaint, replacement chosen: a new one, then a withdraw request.
+export const replacementLine = (o: OutreachBits) =>
+  `Hi ${o.first}, this is ${o.merchant} about ${payment(o)}. We're sorry about the problem with your ${o.item ?? "order"}. We're sending you a new one. Once it reaches you, please ask your bank to withdraw the dispute. ${o.signOff}`;
+
+// The merchant's view of a reply.
+export const replyLine = (first: string, text: string) => `${first} replied: "${text}"`;
+export const complaintLine = (first: string, text: string, amount: string, item: string | null) =>
+  `${first} replied with a problem with the order: "${text}". Refund ${amount}${item ? ` or send a new ${item}` : ""}?`;
 
 export const patternLine = (count: number, what: string, atStake: number, fix: string) =>
   `${count} chargebacks in the last 30 days ${what}: ${formatMoney(atStake)} at stake. ${fix}`;

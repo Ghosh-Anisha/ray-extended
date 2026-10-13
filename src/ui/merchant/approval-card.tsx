@@ -24,6 +24,7 @@ export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card
       <div style={{ marginTop: 6 }}>
         <strong>{card.primary.label}</strong> · <ApprovalLabel covered={card.primary.covered} />
       </div>
+      {card.primary.alsoDoes.length > 0 && <div className="meta">Same tap also: {card.primary.alsoDoes.join(" · ")}</div>}
       {card.changeAsked && <div className="meta">You asked: {card.changeAsked}</div>}
       <div className="card-actions">
         <button type="button" disabled={busy !== null} onClick={() => run("approve", "/api/merchant/tap", { caseId: card.caseId, choice: "approve", proposalId: card.primary.id })}>

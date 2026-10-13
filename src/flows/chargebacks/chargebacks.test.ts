@@ -4,13 +4,14 @@ import { merchantPhone } from "@/adapters/voice";
 import { bannedWordsIn, hasLink } from "@/ai/grounding";
 import * as s from "@/db/schema";
 import { guardedCall, setKillSwitch } from "@/guards";
-import { holdsOf } from "@/surfaces/views";
-import { checkLane, laneRuleId, overridesOn, proposeLanes, type LaneInput } from "./lanes";
+import { requestChange } from "@/surfaces/actions";
+import { caseView, holdsOf } from "@/surfaces/views";
+import { checkLane, laneRuleId, overridesOn, proposeLanes, setLaneThreshold, type LaneInput } from "./lanes";
 import { N, TIMERS } from ".";
 import { PATTERN_ALERT } from "./patterns";
 import { cbFraudSignals } from "./schema";
-import { escalateDispute, setFiling, settleDispute } from "./sim";
-import { RAHUL_THREAT } from "./threat-fixture";
+import { escalateDispute, fireOutcome, setFiling } from "./sim";
+import { CHANGE_NOTE, RAHUL_THREAT, REPLIES } from "./threat-fixture";
 import { cbWorld, DAY, DISPUTES, HOUR, LEAFY, MIN, PAYMENTS, type CbWorld } from "./test-helpers";
 
 let w: CbWorld;
@@ -88,7 +89,8 @@ describe("Leafy Bakes' three disputes, end to end", () => {
     expect(w.notes(c.id, "dispute_draft_submitted")).toHaveLength(1);
     expect(w.notes(c.id, N.filed).at(-1)!.payload.under_rule).toBe(laneRuleId(LEAFY, "contest"));
 
-    await settleDispute(w.a, LEAFY, DISPUTES.sanjay, "won");
+    await fireOutcome(w.a, LEAFY, DISPUTES.sanjay, "won");
+    expect(w.dispute(DISPUTES.sanjay).status).toBe("won");
     const done = w.repo.cases.get(c.id)!;
     expect(done.state).toBe("closed");
     expect(done.outcome).toBe("won");
@@ -122,7 +124,8 @@ describe("Leafy Bakes' three disputes, end to end", () => {
     // Deepa replies; the bank withdraws.
     await w.engine.receiveMessage({ merchantId: LEAFY, channel: "email", from: "deepa.nair@example.com", body: "Found it with my neighbour, sorry! I'll tell my bank." });
     expect(w.notes(c.id, N.reply)).toHaveLength(1);
-    await settleDispute(w.a, LEAFY, DISPUTES.deepa, "withdrawn");
+    await fireOutcome(w.a, LEAFY, DISPUTES.deepa, "withdrawn");
+    expect(w.dispute(DISPUTES.deepa).status).toBe("closed");
     const done = w.repo.cases.get(c.id)!;
     expect(done).toMatchObject({ state: "closed", outcome: "withdrawn", counts_as_saved: true });
   });
@@ -198,7 +201,7 @@ describe("the lanes and their bounds", () => {
     w.switchOn("contest");
     await w.open(DISPUTES.sanjay);
     await w.engine.advanceBy(2 * HOUR);
-    await settleDispute(w.a, LEAFY, DISPUTES.sanjay, "lost");
+    await fireOutcome(w.a, LEAFY, DISPUTES.sanjay, "lost");
     const c = w.caseFor(PAYMENTS.sanjay);
     expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "lost", counts_as_saved: false });
     expect(w.repo.playbookRules.get(laneRuleId(LEAFY, "contest"))!.status).toBe("off");
@@ -250,7 +253,14 @@ describe("the lanes and their bounds", () => {
     const c1 = w.caseFor(asked.pay);
     expect(c1.situation).toBe("B");
     expect(c1.state).toBe("waiting_merchant");
-    expect(w.proposals(c1.id).map((p) => p.label)).toEqual(["Accept dispute", "Contest dispute", expect.stringMatching(/^Block card ending \d{4}$/)]);
+    // Blocking the card is the accept's own follow-up: one tap, listed on the card.
+    expect(w.proposals(c1.id).map((p) => p.label)).toEqual([expect.stringMatching(/^Accept dispute & block card ending \d{4}$/), "Contest dispute"]);
+    const card = caseView(w.a, c1.id).yourCall.primary!;
+    expect(card.alsoDoes).toEqual([expect.stringMatching(/^Block card ending \d{4} \(Simulated\)$/)]);
+    await w.tapLabel(c1.id, /^Accept dispute & block card/);
+    expect(w.actions(c1.id, "accept_dispute")[0]).toMatchObject({ status: "done", approved_by: "tap" });
+    expect(w.notes(c1.id, N.block)).toHaveLength(1);
+    expect(w.repo.cases.get(c1.id)).toMatchObject({ state: "closed", outcome: "accepted" });
     // Never customer outreach on fraud.
     expect(w.proposals(c1.id).some((p) => p.tool === "send_message")).toBe(false);
 
@@ -330,7 +340,7 @@ describe("deadlines", () => {
     expect(w.repo.cases.get(c.id)!.state).toBe("waiting_merchant");
     await w.engine.advanceBy(5 * HOUR);
     expect(w.notes(c.id, N.deadlinePassed)).toHaveLength(1);
-    await settleDispute(w.a, LEAFY, DISPUTES.meera, "lost");
+    await fireOutcome(w.a, LEAFY, DISPUTES.meera, "lost");
     expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "lost", counts_as_saved: false });
   });
 
@@ -491,5 +501,187 @@ describe("design language", () => {
       expect(bannedWordsIn(t), t).toEqual([]);
       expect(t, t).not.toMatch(/%|—/);
     }
+  });
+});
+
+describe("dispute outcomes come through handleEvent, from a webhook or the dev panel", () => {
+  // Exactly what the dev panel's webhook route does.
+  const devPanel = (event: "payment.dispute.won" | "payment.dispute.lost" | "payment.dispute.closed", disputeId: string) =>
+    w.a.webhooks.emit({ merchantId: LEAFY, event, disputeId });
+
+  it("won: the dispute is updated, the case is Resolved and saved, and the money shows as back in the balance", async () => {
+    w.switchOn("contest");
+    await w.open(DISPUTES.sanjay);
+    await w.engine.advanceBy(2 * HOUR);
+    const c = w.caseFor(PAYMENTS.sanjay);
+    await devPanel("payment.dispute.won", DISPUTES.sanjay);
+    expect(w.dispute(DISPUTES.sanjay)).toMatchObject({ status: "won", deducted: false });
+    expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "won", counts_as_saved: true });
+    expect(w.notes(c.id, "state_changed").at(-1)!.payload).toMatchObject({ from: "verifying", to: "closed" });
+    expect(w.alerts(c.id, "dispute_outcome")[0].text).toBe("Dispute won ✓ ₹1,299 is back in your balance.");
+    expect(w.notes(c.id, N.outcome)[0].payload).toMatchObject({ returned_to_balance: 129_900, lane_wrong: false });
+    expect(w.notes(c.id, N.laneAccuracy)[0].payload).toMatchObject({ rule_id: laneRuleId(LEAFY, "contest"), calls: 1, wrong: 0 });
+  });
+
+  it("withdrawn: Resolved and saved", async () => {
+    await w.open(DISPUTES.deepa);
+    const c = w.caseFor(PAYMENTS.deepa);
+    await w.tapLabel(c.id, "Send message to Deepa");
+    await devPanel("payment.dispute.closed", DISPUTES.deepa);
+    expect(w.dispute(DISPUTES.deepa)).toMatchObject({ status: "closed", deducted: false });
+    expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "withdrawn", counts_as_saved: true });
+  });
+
+  it("lost after an automatic contest: outcome lost, counts nowhere, the lane's accuracy updates and it switches off", async () => {
+    w.switchOn("contest");
+    await w.open(DISPUTES.sanjay);
+    await w.engine.advanceBy(2 * HOUR);
+    const c = w.caseFor(PAYMENTS.sanjay);
+    await devPanel("payment.dispute.lost", DISPUTES.sanjay);
+    expect(w.dispute(DISPUTES.sanjay).status).toBe("lost");
+    expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "lost", counts_as_saved: false });
+    expect(w.notes(c.id, N.laneAccuracy)[0].payload).toMatchObject({ calls: 1, wrong: 1 });
+    expect(w.repo.playbookRules.get(laneRuleId(LEAFY, "contest"))!.status).toBe("off");
+  });
+
+  it("lost while it waits on the merchant: closed through the state machine", async () => {
+    await w.open(DISPUTES.meera);
+    const c = w.caseFor(PAYMENTS.meera);
+    expect(c.state).toBe("waiting_merchant");
+    await devPanel("payment.dispute.lost", DISPUTES.meera);
+    expect(w.dispute(DISPUTES.meera).status).toBe("lost");
+    expect(w.repo.cases.get(c.id)).toMatchObject({ state: "closed", outcome: "lost", counts_as_saved: false });
+    expect(w.notes(c.id, "state_changed").at(-1)!.payload).toMatchObject({ from: "waiting_merchant", to: "closed" });
+    // Not an automatic lane: no accuracy.
+    expect(w.notes(c.id, N.laneAccuracy)).toHaveLength(0);
+  });
+});
+
+describe("customer replies to dispute outreach (the understand job)", () => {
+  async function outreach() {
+    await w.open(DISPUTES.deepa);
+    const c = w.caseFor(PAYMENTS.deepa);
+    await w.tapLabel(c.id, "Send message to Deepa");
+    return c.id;
+  }
+  const reply = (body: string) => w.engine.receiveMessage({ merchantId: LEAFY, channel: "email", from: "deepa.nair@example.com", body });
+
+  it("agrees to withdraw: noted on the timeline, and the case stays open until the withdrawal arrives", async () => {
+    const id = await outreach();
+    await reply(REPLIES.agrees);
+    expect(w.notes(id, N.reply)[0].payload).toMatchObject({ class: "agrees_to_withdraw", source: "replay" });
+    expect(w.notes(id, N.agrees)).toHaveLength(1);
+    expect(w.repo.cases.get(id)!.state).toBe("verifying");
+    expect(w.dispute(DISPUTES.deepa).status).toBe("open");
+    await fireOutcome(w.a, LEAFY, DISPUTES.deepa, "withdrawn");
+    expect(w.repo.cases.get(id)).toMatchObject({ state: "closed", outcome: "withdrawn", counts_as_saved: true });
+  });
+
+  it("a real complaint: Needs you, with a refund or replacement card; nothing happens without the tap", async () => {
+    const id = await outreach();
+    await reply(REPLIES.complaint);
+    const k = w.repo.cases.get(id)!;
+    expect(k.state).toBe("waiting_merchant");
+    expect(w.notes(id, N.complaint)).toHaveLength(1);
+    expect(w.proposals(id).map((p) => p.label)).toEqual(["Refund ₹1,850 by accepting the dispute", "Send a new Cookie hamper"]);
+    expect(caseView(w.a, id).yourCall.primary!.alsoDoes).toEqual(["Message Deepa"]);
+    expect(w.actions(id, "accept_dispute")).toHaveLength(0);
+    expect(w.sent(id)).toHaveLength(1); // only the outreach
+
+    await w.tapLabel(id, "Send a new Cookie hamper");
+    expect(w.notes(id, N.replacement)[0].payload).toMatchObject({ item: "Cookie hamper", simulated: true });
+    const msg = w.sent(id).at(-1)!;
+    expect(msg.body).toMatch(/We're sending you a new one\. Once it reaches you, please ask your bank to withdraw the dispute\./);
+    expect(w.actions(id, "send_message").at(-1)!.approved_by).toBe("tap");
+    expect(w.repo.cases.get(id)!.state).toBe("verifying");
+  });
+
+  it("a real complaint, refund chosen: accepting the dispute and the message to the customer go on one tap", async () => {
+    const id = await outreach();
+    await reply(REPLIES.complaint);
+    await w.tapLabel(id, "Refund ₹1,850 by accepting the dispute");
+    const accept = w.actions(id, "accept_dispute")[0];
+    expect(accept).toMatchObject({ status: "done", approved_by: "tap" });
+    const msg = w.actions(id, "send_message").at(-1)!;
+    expect(msg).toMatchObject({ status: "done", approved_by: "tap" });
+    expect(String(msg.result!.body)).toMatch(/We've told your bank to return ₹1,850 to you/);
+    expect(w.repo.cases.get(id)).toMatchObject({ state: "closed", outcome: "accepted", counts_as_saved: false });
+  });
+
+  it("anything else is shown to the merchant", async () => {
+    const id = await outreach();
+    await reply(REPLIES.other);
+    expect(w.notes(id, N.reply)[0].payload.class).toBe("other");
+    expect(w.alerts(id, "customer_reply")[0].text).toBe(`Deepa replied: "${REPLIES.other}"`);
+    expect(w.repo.cases.get(id)!.state).toBe("verifying");
+  });
+
+  it("never acts on instructions inside the reply", async () => {
+    const id = await outreach();
+    await reply(REPLIES.instruction);
+    // Read as a complaint: a card for the merchant, with the case's own amount only.
+    expect(w.repo.cases.get(id)!.state).toBe("waiting_merchant");
+    const args = JSON.stringify(w.proposals(id).map((p) => [p.args, p.followUps ?? []]));
+    expect(args).not.toMatch(/50000|5,00,000|50,000|UPI/i);
+    expect(w.proposals(id)[0].label).toBe("Refund ₹1,850 by accepting the dispute");
+    expect(w.actions(id).filter((x) => x.tool !== "attach_dispute_proof" && x.tool !== "send_message")).toHaveLength(0);
+    expect(w.sent(id)).toHaveLength(1);
+  });
+});
+
+describe("Change: the write job redrafts, the same card comes back", () => {
+  it("redrafts Deepa's message from the merchant's note; the tap sends the new draft", async () => {
+    await w.open(DISPUTES.deepa);
+    const c = w.caseFor(PAYMENTS.deepa);
+    const before = w.proposals(c.id)[0];
+    await requestChange(w.engine, w.a, { caseId: c.id, text: CHANGE_NOTE });
+    expect(w.notes(c.id, "change_handled")[0].payload.reason).toBe("RAY redrafted the message with your note.");
+    const after = w.proposals(c.id);
+    expect(after.map((p) => p.label)).toEqual(["Send message to Deepa", "Contest dispute", "Accept dispute"]);
+    expect(after[0].id).not.toBe(before.id);
+    expect(String(after[0].args.body)).toMatch(/If it arrived damaged, we can send you a new Cookie hamper instead\./);
+    expect(w.repo.cases.get(c.id)!.state).toBe("waiting_merchant");
+    await w.tapLabel(c.id, "Send message to Deepa");
+    expect(w.sent(c.id)[0].body).toBe(after[0].args.body);
+  });
+
+  it("when the write job can't redraft, the draft stays and the merchant is told", async () => {
+    await w.open(DISPUTES.meera);
+    const c = w.caseFor(PAYMENTS.meera);
+    const body = w.proposals(c.id).find((p) => p.tool === "send_message")!.args.body;
+    await requestChange(w.engine, w.a, { caseId: c.id, text: "say sorry for the delay" });
+    expect(w.notes(c.id, "change_handled")[0].payload.reason).toBe("RAY couldn't redraft the message, so the draft is unchanged.");
+    expect(w.proposals(c.id).find((p) => p.tool === "send_message")!.args.body).toBe(body);
+  });
+});
+
+describe("follow-ups and thresholds", () => {
+  it("an accept on an order that never shipped lists the message to the customer and sends it on the same tap, after the accept", async () => {
+    const d = newDispute({ type: "not_received", orderStatus: "processing" });
+    await w.open(d.id);
+    const c = w.caseFor(d.pay);
+    expect(w.proposals(c.id)[0].label).toBe("Accept dispute");
+    expect(caseView(w.a, c.id).yourCall.primary!.alsoDoes).toEqual(["Message Imran"]);
+    await w.tapLabel(c.id, "Accept dispute");
+    const [accept] = w.actions(c.id, "accept_dispute");
+    const [msg] = w.actions(c.id, "send_message");
+    expect(accept.status).toBe("done");
+    expect(msg).toMatchObject({ status: "done", approved_by: "tap" });
+    expect(String(msg.result!.body)).toMatch(/Your bank is returning ₹1,\d{3} to you/);
+  });
+
+  it("the merchant's lane threshold counts as the rule: above it asks, under it runs under the lane rule's id", async () => {
+    w.switchOn("contest");
+    setLaneThreshold(w.a.db, LEAFY, "contest", 100_000);
+    await w.open(DISPUTES.sanjay);
+    const c = w.caseFor(PAYMENTS.sanjay);
+    expect(c.state).toBe("waiting_merchant");
+    expect(w.notes(c.id, N.decision)[0].payload.why).toEqual(["₹1,299 is above the ₹1,000 you set for Contest without asking."]);
+
+    setLaneThreshold(w.a.db, LEAFY, "contest", 150_000);
+    const d = newDispute({ type: "duplicate", amount: 140_000 });
+    await w.open(d.id);
+    const held = w.actions(w.caseFor(d.pay).id, "contest_dispute")[0];
+    expect(held).toMatchObject({ status: "held", approved_by: laneRuleId(LEAFY, "contest") });
   });
 });
