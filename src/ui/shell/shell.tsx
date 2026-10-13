@@ -7,6 +7,9 @@ import { ChevronDown, Menu, Monitor, Search, Settings2, Smartphone, Sparkles, X 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { AskProvider, useAsk } from "../ask/ask-context";
+import { AskPanel } from "../ask/panel";
+import { CoachMarks, replayCoachMarks } from "../coach/coach";
 import { useView } from "../view";
 import { DemoControls, OpenControlsOnParam } from "./demo-controls";
 import { ACCOUNT_COOKIE, NAV, activeKey, initials, merchantIdFromPath } from "./nav";
@@ -62,6 +65,10 @@ function AccountSwitcher({ merchants, currentId }: { merchants: ShellMerchant[];
       </button>
       {open && (
         <div className="menu" role="menu">
+          <button type="button" role="menuitem" onClick={() => { setOpen(false); replayCoachMarks(); }}>
+            <Sparkles size={16} aria-hidden="true" />
+            <span className="grow">Show me around</span>
+          </button>
           <div className="menu-label">Switch account</div>
           {merchants.map((m) => (
             <button key={m.id} type="button" role="menuitem" aria-current={m.id === currentId} onClick={() => pick(m.id)}>
@@ -76,7 +83,32 @@ function AccountSwitcher({ merchants, currentId }: { merchants: ShellMerchant[];
   );
 }
 
+function RayButton() {
+  const { open, setOpen } = useAsk();
+  return (
+    <button type="button" className="shell-ray" aria-label="Ask RAY" aria-expanded={open} data-coach="ray-button" onClick={() => setOpen(!open)}>
+      <Sparkles size={16} aria-hidden="true" />
+      <span className="label">RAY</span>
+    </button>
+  );
+}
+
+// A case page scopes the Ask RAY panel to that case.
+const caseIdFromPath = (path: string) => path.match(/^\/merchant\/[^/]+\/cases\/([^/?#]+)/)?.[1] ?? null;
+
 export function Shell({ merchants, defaultMerchantId, children }: { merchants: ShellMerchant[]; defaultMerchantId: string; children: ReactNode }) {
+  const path = usePathname();
+  const merchantForAsk = merchantIdFromPath(path) ?? defaultMerchantId;
+  return (
+    <AskProvider merchantId={merchantForAsk} caseId={caseIdFromPath(path)}>
+      <ShellFrame merchants={merchants} defaultMerchantId={defaultMerchantId}>
+        {children}
+      </ShellFrame>
+    </AskProvider>
+  );
+}
+
+function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: ShellMerchant[]; defaultMerchantId: string; children: ReactNode }) {
   const path = usePathname();
   const { view, setView } = useView();
   const [navOpen, setNavOpen] = useState(false);
@@ -115,10 +147,7 @@ export function Shell({ merchants, defaultMerchantId, children }: { merchants: S
           <Search size={16} aria-hidden="true" />
           <span>Search payments, cases</span>
         </Link>
-        <Link href={`${home}/ask`} className="shell-ray" aria-label="Ask RAY">
-          <Sparkles size={16} aria-hidden="true" />
-          <span className="label">RAY</span>
-        </Link>
+        <RayButton />
         <div className="view-switch" role="group" aria-label="View">
           <button type="button" aria-pressed={view === "phone"} onClick={() => setView("phone")} aria-label="Phone view">
             <Smartphone size={14} aria-hidden="true" />
@@ -169,6 +198,8 @@ export function Shell({ merchants, defaultMerchantId, children }: { merchants: S
       <Suspense fallback={null}>
         <OpenControlsOnParam onOpen={() => setControlsOpen(true)} />
       </Suspense>
+      <AskPanel />
+      <CoachMarks id="ray-button" steps={[{ target: "[data-coach='ray-button']", title: "Ask RAY from anywhere", text: "Ask about a payment or a case, or tell RAY how to handle things. It answers from your own cases." }]} />
       {controlsOpen && <DemoControls merchantId={merchantId} onClose={() => setControlsOpen(false)} />}
     </div>
   );
