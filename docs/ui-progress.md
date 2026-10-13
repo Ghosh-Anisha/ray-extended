@@ -54,6 +54,6 @@ Implemented the ten-step guided story from Home with the shared coach pop-up, re
 
 Screenshots for the ten guided screens at 1440×900 and 390×844 are in `docs/screenshots/u5/`. Playwright covers the full walk from Reset demo.
 
-Known gaps: the guided story advances with its coach-card action rather than requiring every underlying approval action to be completed; the existing production build still reports the known dynamic filesystem tracing warnings for voice and prompt adapters.
+Known gaps: the guided story advances with its coach-card action rather than requiring every underlying approval action to be completed; the legacy direct `/merchant/:merchantId/demo` URL still shows the old placeholder; the existing production build still reports the known dynamic filesystem tracing warnings for voice and prompt adapters.
 
 PHASE U5: DONE
