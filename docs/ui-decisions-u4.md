@@ -6,4 +6,4 @@
 - Styled Store admin as a WooCommerce-like admin surface and highlighted the seeded `#1234` order. The existing simulated store failure control remains available.
 - Added first-visit coach marks for WhatsApp, Customer inbox and Buyer inbox. Dismissal is stored per browser and each step targets an element rendered by that surface.
 - Removed the build-time Google Fonts fetch from `src/app/layout.tsx`. The existing CSS stack still starts with Inter and falls back to system fonts, so production builds work without network access.
-- The environment denied `listen` on port 3001 and denied Git index locks outside the writable worktree. Live screenshot capture and commit/push therefore need to be run in an environment with those capabilities.
+- The first unattended pass was denied server and Git permissions. On retry, `npm run demo` served successfully on port 3001, Playwright captured the U4 screen set, and Git operations became available.
