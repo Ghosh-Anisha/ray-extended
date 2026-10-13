@@ -147,7 +147,15 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         note(kase, { kind: "investigated", to: r.to, reason: r.reason, confidence: r.confidence, side: r.side, cause: r.cause });
         setTimers(kase, r.timers);
         propose(kase, r.proposals);
-        move(repo.cases.get(caseId)!, r.to, r.reason);
+        if (r.to === "closed" && r.outcome !== undefined) {
+          // Closed straight from new evidence with an outcome (Step 11: the
+          // money landed). Without one, a flow closes as before and keeps
+          // whatever outcome it set itself.
+          const saved = await spec.countsAsSaved(deps, repo.cases.get(caseId)!);
+          move(repo.cases.get(caseId)!, "closed", r.reason, { closed_at: clock.now(), outcome: r.outcome ?? "verified", counts_as_saved: saved });
+        } else {
+          move(repo.cases.get(caseId)!, r.to, r.reason);
+        }
         break;
       }
       case "confirmed": {

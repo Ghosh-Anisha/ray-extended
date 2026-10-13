@@ -8,6 +8,7 @@ import * as s from "@/db/schema";
 import { GLOBAL_SETTINGS_ID } from "@/guards/kill-switch";
 import { SimTitle } from "@/ui/sim/sim-bar";
 import { DevControls, type DevData } from "./controls";
+import { CollectDevControls } from "@/flows/collect/dev";
 
 export default async function DevPanelPage() {
   await connection();
@@ -97,6 +98,7 @@ export default async function DevPanelPage() {
     <div className="stack">
       <SimTitle>Dev panel</SimTitle>
       <DevControls data={data} />
+      <CollectDevControls data={{ merchants: merchants.map((m) => ({ id: m.id, name: m.name })), credits: repo.bankCredits.list().filter((c) => !c.matched_invoices.length).map((c) => ({ id: c.id, merchantId: c.merchant_id, label: `${c.id}: ₹${c.amount / 100} · ${c.remark}` })) }} />
     </div>
   );
 }

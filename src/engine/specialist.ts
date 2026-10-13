@@ -37,6 +37,8 @@ type Step<To extends CaseState> = { to: To; reason: string; timers?: TimerReques
 
 export type InvestigateResult = Step<CaseState> & {
   findings: Finding[];
+  // With to: "closed", the outcome to record (Step 11: "collected").
+  outcome?: string;
   confidence?: Detection["confidence"];
   side?: Detection["side"];
   cause?: string;
@@ -64,9 +66,16 @@ export type ProposedAction = {
   // its draft is one of these.
   // label: how the card lists it ("Block card ending 4417"); optional.
   followUps?: { tool: string; args: Record<string, unknown>; label?: string }[];
+  // Later steps the same approval covers, in plain words for the card
+  // ("Up to 2 more tries if there's no answer"). Optional (Step 11).
+  covers?: string[];
 };
 
-export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string };
+// followUpOf (optional): the action, done under this rule, whose own
+// follow-up this is. A rule covers its action's follow-ups, as a tap does.
+export type Approval =
+  | { by: "tap"; tap: TapPayload; evidenceRef: string }
+  | { by: "rule"; ruleId: string; evidenceRef: string; followUpOf?: string };
 
 // A flow sets a timer of this kind for the time it promised the customer.
 // When it fires, the orchestrator records promised_time_reached and calls

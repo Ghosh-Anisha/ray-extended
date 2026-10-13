@@ -14,9 +14,11 @@ const EXPECTED_ROWS: Record<string, number> = {
   actions: 0,
   timers: 0,
   messages: 0,
-  // WhatsApp opt-ins, plus call consents (Step 5b).
-  messaging_consents: 13,
-  playbook_rules: 10, // 7 setup rules + Leafy's send-from setting (Step 7) + FitLoop's and Sharma Tutorials' call rules (Step 9)
+  // WhatsApp opt-ins, plus call consents (Step 5b), plus 10 PackRight buyer consents (Step 11).
+  messaging_consents: 23,
+  // 7 setup rules + Leafy's send-from setting (Step 7) + FitLoop's and Sharma
+  // Tutorials' call rules (Step 9) + PackRight's proposed call threshold (Step 11)
+  playbook_rules: 11,
   memory: 0,
   ai_calls: 0,
   alerts: 0,

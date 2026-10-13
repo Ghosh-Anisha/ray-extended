@@ -92,6 +92,20 @@
       "when": 1792000000000,
       "tag": "1000_chargebacks",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1792000000100,
+      "tag": "1100_collect",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1792000000200,
+      "tag": "1101_consent_address",
+      "breakpoints": true
     }
   ]
 }

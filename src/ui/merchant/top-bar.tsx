@@ -6,6 +6,7 @@ import { ViewSwitch } from "../view";
 
 export const MERCHANT_NAV = [
   { href: "", label: "Cases" },
+  { href: "/collect", label: "Invoice overdue" },
   { href: "/alerts", label: "Alerts" },
   { href: "/digest", label: "Digest" },
   { href: "/playbook", label: "Playbook" },

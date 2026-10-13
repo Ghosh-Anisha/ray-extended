@@ -85,6 +85,12 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
     repo.customers
       .list(eq(s.customers.merchant_id, kase.merchant_id))
       .find((c) => (c.email && emails.has(c.email.toLowerCase())) || (c.phone && phones.has(c.phone)));
+  // Collect (Step 11): the case is about a buyer, named by their business.
+  const buyer = customer
+    ? undefined
+    : repo.buyers
+        .list(eq(s.buyers.merchant_id, kase.merchant_id))
+        .find((b) => (b.email && emails.has(b.email.toLowerCase())) || (b.phone && phones.has(b.phone)));
   const amountMinor = kase.amount ?? payment?.amount ?? order?.total ?? null;
   const currency = kase.amount === null && payment ? payment.currency : "INR";
   let amount = money(amountMinor, currency);
@@ -98,7 +104,7 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
     if (rec) amount = money(rec.amount, rec.currency);
   }
   return {
-    name: customer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
+    name: customer?.name ?? buyer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
     amount,
     paymentId: kase.payment_id,
@@ -245,7 +251,8 @@ export type ConversationItem = {
 // then: the action's own follow-ups, done on the same tap and covered by the
 // same approval (a confirmation, the email after a request), listed on the card.
 // alsoDoes: the same follow-ups as bare labels (a follow-up's own label when
-// it has one, e.g. "Block card ending 4417 (Simulated)").
+// it has one, e.g. "Block card ending 4417 (Simulated)"). Both also list
+// any later steps the approval covers (ProposedAction.covers, Step 11).
 export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; then: string[]; alsoDoes: string[] };
 export type ApprovalCard = {
   caseId: string;
@@ -413,8 +420,11 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  const then = (p.followUps ?? []).map((f) => `Also on this tap: ${f.label ?? `${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`}`);
-  const alsoDoes = (p.followUps ?? []).map((f) => f.label ?? (f.tool === "send_message" ? "Send the message below" : actLabel(f.tool)));
+  const then = [
+    ...(p.followUps ?? []).map((f) => `Also on this tap: ${f.label ?? `${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`}`),
+    ...(p.covers ?? []).map((c) => `Also on this tap: ${c}`),
+  ];
+  const alsoDoes = [...(p.followUps ?? []).map((f) => f.label ?? (f.tool === "send_message" ? "Send the message below" : actLabel(f.tool))), ...(p.covers ?? [])];
   return { id: p.id, label: p.label, covered: p.covered, draft, then, alsoDoes };
 }
 
@@ -650,7 +660,12 @@ export function playbookView(a: Adapters, merchantId: string): PlaybookView {
       label: MOMENT_LABEL[moment],
       rules: rules
         .filter((r) => r.moment === moment)
-        .map((r) => ({ id: r.id, text: r.text, status: r.status, limit: typeof r.rule_json.max === "number" ? `Up to ${money(r.rule_json.max)}` : null })),
+        .map((r) => ({
+          id: r.id,
+          text: r.text,
+          status: r.status,
+          limit: typeof r.rule_json.max === "number" ? `Up to ${money(r.rule_json.max)}` : typeof r.rule_json.min === "number" ? `Above ${money(r.rule_json.min)}` : null,
+        })),
       settings: readSettings(a.db, merchantId, moment),
       sendFromOptions: s.SENDER_MODES.map((mode) => ({ value: mode, label: SENDER_MODE_LABEL[mode](m.name) })),
     })),

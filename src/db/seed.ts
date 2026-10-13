@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { openMigratedDb, type Db } from "./client";
 import { proposeSetupRules } from "@/engine/setup-rules";
 import { seedChargebacks } from "./seed/chargebacks";
+import { seedCollect } from "./seed/collect";
 import { createRepository } from "./repository";
 import { seedInternational } from "./seed/international";
 import { seedSubscriptions } from "./seed/subscriptions";
@@ -410,6 +411,7 @@ export function seed(db: Db, now: number = SEED_NOW) {
     seedInternational(db, now);
     seedSubscriptions(db); // Step 9: mandate approvals, pre-debit notices, subscription playbook values
     seedChargebacks(db, now);
+    seedCollect(db, now);
   });
 }
 
