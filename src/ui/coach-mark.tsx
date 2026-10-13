@@ -10,6 +10,8 @@ export function CoachMarks({ id, steps }: { id: string; steps: Step[] }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
 
   useEffect(() => {
+    // The browser-local dismissal flag is the source of truth after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (window.localStorage.getItem(`ray-coach-${id}`) !== "done") setOpen(true);
   }, [id]);
   useEffect(() => {
