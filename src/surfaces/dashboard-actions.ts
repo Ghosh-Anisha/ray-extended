@@ -14,7 +14,7 @@ import {
   writeState,
   type Report,
   type SavedWidget,
-  type Schedule,
+  type SavedReportPreview,
   type Setup,
 } from "./dashboard";
 
@@ -26,12 +26,12 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("pin"), merchantId: z.string(), kind: z.string() }),
   z.object({ action: z.literal("not_now"), merchantId: z.string() }),
   z.object({ action: z.literal("report"), merchantId: z.string(), text: z.string().min(1).max(200) }),
-  z.object({ action: z.literal("schedule"), merchantId: z.string(), what: z.enum(["report", "pack"]), text: z.string().optional() }),
+  z.object({ action: z.literal("save_preview"), merchantId: z.string(), what: z.enum(["report", "pack"]), text: z.string().optional() }),
   z.object({ action: z.literal("redo"), merchantId: z.string() }),
 ]);
 
 export type DashboardInput = z.infer<typeof input>;
-export type DashboardResult = { message?: string; chips?: string[]; report?: Report; scheduled?: Schedule };
+export type DashboardResult = { message?: string; chips?: string[]; report?: Report; savedPreview?: SavedReportPreview };
 
 const widgetsOf = (a: Adapters, merchantId: string): SavedWidget[] => {
   const setup = readState<Setup>(a, merchantId, "dash.setup");
@@ -56,7 +56,7 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       return {};
     case "ask": {
       const kind = parseWidgetAsk(i.text);
-      if (!kind) return { message: "I can't build that yet. Here's what I can add:", chips: ["Show refunds by product", "Show success rate by bank", "Add overdue invoices"] };
+      if (!kind) return { message: `I can't build “${i.text}” without changing its meaning. I can add only a supported demo widget:`, chips: ["Show refunds by product", "Show success rate by bank", "Add overdue invoices"] };
       recordAsk(a, m, kind);
       const widgets = widgetsOf(a, m);
       if (widgets.some((w) => w.kind === kind)) return { message: `${WIDGET_TITLE[kind]} is already on your dashboard.` };
@@ -86,17 +86,19 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       return {};
     case "report": {
       const report = buildReport(a, m, i.text);
-      if (!report) return { message: "I can't build that report yet. Here's what I can do:", chips: ["Estimated net collections for September with fees and GST", "Refunds for September", "Disputes this month"] };
+      if (!report) return { message: `I can't build “${i.text}” without changing its period or measure. I can build these demo reports:`, chips: ["Estimated net collections for September with fees and GST", "Refunds for September", "Disputes this month"] };
       return { report };
     }
-    case "schedule": {
+    case "save_preview": {
       const report = i.what === "pack" ? null : buildReport(a, m, i.text ?? "");
       const title = i.what === "pack" ? `Month-end CA pack, ${caPack(a, m).month}` : report?.title;
       if (!title) throw new Error("Pick a report first");
-      const schedule: Schedule = { id: `sch_${a.clock.now()}`, reportId: report?.id ?? "pack", title, to: "No recipient configured", when: "On the 1st of every month, 9:00 AM", at: a.clock.now() };
-      const list = readState<Schedule[]>(a, m, "dash.schedules") ?? [];
-      writeState(a, m, "dash.schedules", [...list.filter((x) => x.reportId !== schedule.reportId), schedule]);
-      return { scheduled: schedule, message: `Demo schedule saved for ${title}. No recipient is configured, so nothing will be sent.` };
+      const reportId = report?.id ?? "pack";
+      const savedAt = a.clock.now();
+      const savedPreview: SavedReportPreview = { id: `preview_${reportId}_${savedAt}`, reportId, title, savedAt, status: "preview_only" };
+      const list = readState<SavedReportPreview[]>(a, m, "dash.report_previews") ?? [];
+      writeState(a, m, "dash.report_previews", [...list.filter((x) => x.reportId !== savedPreview.reportId), savedPreview]);
+      return { savedPreview, message: `Simulated preview saved for ${title}. No recipient, recurring schedule or delivery is configured.` };
     }
   }
 }

@@ -60,7 +60,7 @@ export function emiCard(a: Adapters, merchantId: string): EmiCard | null {
     droppedValue: rupees(c.droppedValue),
     estimate: rupees(Math.round(c.droppedValue * RECOVERY)),
     assumption: `Estimate: ${Math.round(RECOVERY * 100)}% of the carts left unpaid finish with EMI. It is an assumption, not a promise.`,
-    tradeOff: "Customers pay in parts. Plan-specific EMI pricing is not connected to this preview, so RAY cannot show your fee or margin impact. Check your current plan pricing outside this prototype before deciding.",
+    tradeOff: "If this lever were available on the merchant's plan, customers would pay in parts. Plan-specific eligibility and pricing are not connected to this preview, so RAY cannot show fee or margin impact. Check current plan pricing outside this prototype before deciding.",
   };
 }
 

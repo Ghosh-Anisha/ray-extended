@@ -72,15 +72,15 @@ export function ProactiveCards({ merchantId, emi, chase }: { merchantId: string;
             )}
             {emi.phase === "result" && (
               <>
-                <strong>Two weeks of Cardless EMI: before and after</strong>
+                <strong>Simulated two-week scenario, not measured Cardless EMI results</strong>
                 <div className="before-after">
                   <div>
-                    <span className="metric-label">Before ({emi.since})</span>
+                    <span className="metric-label">Seeded baseline ({emi.since})</span>
                     <span className="big-number">{emi.before.dropped}</span>
                     <span className="muted">carts above ₹5,000 left unpaid · {emi.before.value}</span>
                   </div>
                   <div>
-                    <span className="metric-label">After</span>
+                    <span className="metric-label">Modeled scenario</span>
                     <span className="big-number">{emi.after.dropped}</span>
                     <span className="muted">left unpaid · {emi.after.value}</span>
                   </div>

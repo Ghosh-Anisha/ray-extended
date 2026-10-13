@@ -1,4 +1,4 @@
-// My dashboard: setup, widgets, reports and schedules.
+// My dashboard: setup, widgets, report previews and saved demo previews.
 import { getAdapters } from "@/adapters";
 import { dashboardAction } from "@/surfaces/dashboard-actions";
 import { handle } from "../../dev/handle";

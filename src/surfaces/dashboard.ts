@@ -367,18 +367,31 @@ const MONTHS = ["january", "february", "march", "april", "may", "june", "july", 
 const FEE_RATE = 0.02;
 const GST_RATE = 0.18;
 
+type ReportIntent = { kind: "collections" | "refunds" | "disputes"; monthIndex: number | null };
+
+export function parseReportRequest(text: string): ReportIntent | null {
+  const t = text.toLowerCase().replace(/[?.!]/g, "").replace(/\s+/g, " ").trim();
+  const month = `(${MONTHS.join("|")})`;
+  const collections = t.match(new RegExp(`^(?:show )?(?:estimated net collections|settlements?)(?: for ${month})?(?: with fees and gst)?$`));
+  if (collections) return { kind: "collections", monthIndex: collections[1] ? MONTHS.indexOf(collections[1]) : null };
+  const refunds = t.match(new RegExp(`^(?:show )?refunds?(?: for ${month})?$`));
+  if (refunds) return { kind: "refunds", monthIndex: refunds[1] ? MONTHS.indexOf(refunds[1]) : null };
+  const disputes = t.match(new RegExp(`^(?:show )?(?:disputes|chargebacks)(?: this month| for ${month})?$`));
+  if (disputes) return { kind: "disputes", monthIndex: disputes[1] ? MONTHS.indexOf(disputes[1]) : null };
+  return null;
+}
 
 export function buildReport(a: Adapters, merchantId: string, text: string): Report | null {
-  const t = text.toLowerCase();
+  const intent = parseReportRequest(text);
+  if (!intent) return null;
   const now = a.clock.now();
   const year = new Date(now + IST_MS).getUTCFullYear();
-  const monthIdx = MONTHS.findIndex((m) => t.includes(m));
-  const m = monthIdx >= 0 ? monthIdx : new Date(now + IST_MS).getUTCMonth();
+  const m = intent.monthIndex ?? new Date(now + IST_MS).getUTCMonth();
   const from = Date.UTC(year, m, 1) - IST_MS;
   const to = Date.UTC(year, m + 1, 1) - IST_MS;
   const month = `${MONTHS[m][0].toUpperCase()}${MONTHS[m].slice(1)} ${year}`;
 
-  if (/settle|payout|fees|gst/.test(t)) {
+  if (intent.kind === "collections") {
     const paid = windowPayments(a, merchantId, from, to).filter((p) => p.status === "captured" && p.currency === "INR");
     const byDay = new Map<number, number[]>();
     for (const p of paid) byDay.set(istDayStart(p.created_at), [...(byDay.get(istDayStart(p.created_at)) ?? []), p.amount]);
@@ -416,7 +429,7 @@ export function buildReport(a: Adapters, merchantId: string, text: string): Repo
       total: ["Total", String(paid.length), rupees(gross * 100), rupees(fee * 100), rupees(gst * 100), rupees(net * 100)],
     };
   }
-  if (/refund/.test(t)) {
+  if (intent.kind === "refunds") {
     const refunds = refundsIn(a, merchantId, from, to);
     const productName = productOf(a, merchantId);
     const rows = refunds.map((r) => [formatDate(r.created_at), productName(r), rupees(r.amount)]);
@@ -430,7 +443,7 @@ export function buildReport(a: Adapters, merchantId: string, text: string): Repo
       total: ["Total", `${refunds.length} refunds`, rupees(total)],
     };
   }
-  if (/dispute|chargeback/.test(t)) {
+  if (intent.kind === "disputes") {
     const ds = a.db.select().from(s.disputes).where(and(eq(s.disputes.merchant_id, merchantId), gte(s.disputes.created_at, from), lt(s.disputes.created_at, to))).all();
     const total = ds.reduce((x, d) => x + d.amount, 0);
     return {
@@ -454,7 +467,7 @@ export function caPack(a: Adapters, merchantId: string): { month: string; report
   return { month: `${name[0].toUpperCase()}${name.slice(1)} ${prev.getUTCFullYear()}`, reports };
 }
 
-export type Schedule = { id: string; reportId: string; title: string; to: string; when: string; at: number };
+export type SavedReportPreview = { id: string; reportId: string; title: string; savedAt: number; status: "preview_only" };
 
 // ---- The whole page
 
@@ -465,7 +478,7 @@ export type DashboardView = {
   kept: boolean;
   alerts: WatchAlert[];
   suggestion: Suggestion | null;
-  schedules: Schedule[];
+  savedPreviews: SavedReportPreview[];
   pack: { month: string; reports: Report[] };
   nowLabel: string;
 };
@@ -481,7 +494,7 @@ export function dashboardView(a: Adapters, merchantId: string): DashboardView {
     kept: readState<boolean>(a, merchantId, "dash.kept") ?? false,
     alerts: watchAlerts(a, merchantId, saved),
     suggestion: setup ? suggestion(a, merchantId, saved) : null,
-    schedules: readState<Schedule[]>(a, merchantId, "dash.schedules") ?? [],
+    savedPreviews: readState<SavedReportPreview[]>(a, merchantId, "dash.report_previews") ?? [],
     pack: caPack(a, merchantId),
     nowLabel: formatClock(st.now),
   };

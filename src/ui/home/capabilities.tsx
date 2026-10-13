@@ -18,8 +18,8 @@ const CAPABILITIES: Capability[] = [
   { key: "ticket", title: "Follows up your support tickets", line: "Preview: shows a seeded ticket example. No support-ticket integration is connected.", href: (b) => `${b}/cases?moment=ticket`, preview: true },
   { key: "hold", title: "Explains held settlements", line: "Preview: shows a seeded hold example. No settlement feed is connected.", href: (b) => `${b}/cases?moment=settlement_hold`, preview: true },
   { key: "chat", title: "Checks AI-chat orders", line: "Preview: compares a seeded chat, order and payment example. No AI-chat integration is connected.", href: (b) => `${b}/cases?moment=ai_chat_order`, preview: true },
-  { key: "dues", title: "Plans your dues", line: "Illustrative date-based arithmetic only. No complete ledger or payment rail is connected.", href: (b) => `${b}/dues` },
-  { key: "grow", title: "Grows sales with features you already have", line: "Proposes modeled levers from seeded demo orders; results are simulated, not measured.", tour: "grow" },
+  { key: "dues", title: "Dues and liquidity planning", line: "Preview only: dated arithmetic, with no connected balance, complete ledger or payment rail.", href: (b) => `${b}/dues`, preview: true },
+  { key: "grow", title: "Growth scenario preview", line: "Models a proposed lever from seeded demo orders. Availability and pricing are not connected; results are simulated, not measured.", tour: "grow", preview: true },
   { key: "dash", title: "Builds your dashboard", line: "Your numbers, with definitions, watched for you.", href: (b) => `${b}/dashboard?tour=dashboard` },
 ];
 
@@ -32,7 +32,7 @@ function href(c: Capability, base: string, status: CapabilityStatus) {
 
 export function Capabilities({ merchantId, rayOn, dashboardSet }: { merchantId: string; rayOn: boolean; dashboardSet: boolean }): ReactNode {
   const base = `/merchant/${merchantId}`;
-  const status = (c: Capability): CapabilityStatus => (c.moment && rayOn ? "on" : c.key === "dash" && dashboardSet ? "on" : "try");
+  const status = (c: Capability): CapabilityStatus => c.key === "dues" || c.key === "grow" ? "soon" : (c.moment && rayOn ? "on" : c.key === "dash" && dashboardSet ? "on" : "try");
   return (
     <section className="stack" style={{ gap: 12 }} aria-label="What RAY can do for you">
       <div className="section-head" data-coach="capabilities">
@@ -52,7 +52,7 @@ export function Capabilities({ merchantId, rayOn, dashboardSet }: { merchantId: 
                 {c.preview && <span className="chip simulated">Preview · simulated</span>}
               </div>
               <span className="muted">{c.line}</span>
-              {st !== "soon" && (
+              {(st !== "soon" || c.preview) && (
                 <span className="cap-actions">
                   <Link className={`btn small ${st === "try" ? "primary" : "secondary"}`} href={href(c, base, st)} data-coach={i === 0 ? "try-it" : undefined}>
                     {c.preview ? "Open preview" : st === "try" ? "Try it" : "See cases"}

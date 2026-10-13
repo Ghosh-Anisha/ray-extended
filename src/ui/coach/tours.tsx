@@ -21,7 +21,7 @@ export const TOURS: Record<string, CoachStep[]> = {
   chargeback: moment("Disputes with their reply deadline. RAY gathers the proof for you.", "Open one to see the evidence RAY found and approve the reply."),
   collect: moment("Overdue invoices. RAY reminds the buyer, notes each promise and matches the bank credit.", "Open one to see what was promised and what RAY sent."),
   grow: [
-    { target: "[data-coach='grow-card']", text: "RAY found this in your own orders: big carts that never got paid." },
+    { target: "[data-coach='grow-card']", text: "This seeded demo shows big carts that were left unpaid." },
     { target: "[data-coach='grow-actions']", text: "Preview the modeled scenario, or choose Not now. Two weeks later the demo shows a simulated before and after, not measured growth." },
   ],
   dashboard: [
@@ -29,7 +29,7 @@ export const TOURS: Record<string, CoachStep[]> = {
     { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
     { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
     { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-    { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
+    { target: "[data-coach='dash-reports']", text: "Reports use seeded data and estimated fees. You can save a simulated preview, but no CA recipient, schedule or delivery is connected." },
   ],
 };
 

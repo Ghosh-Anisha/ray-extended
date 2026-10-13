@@ -162,6 +162,8 @@ describe("answers", () => {
     expect(openCases[0]).toBeGreaterThan(0);
     expect(capabilities(a, LEAFY).find((c) => c.key === "tickets")!.status).toBe("Coming soon");
     expect(capabilities(a, LEAFY).find((c) => c.key === "tickets")).toMatchObject({ preview: true, moment: "ticket", href: expect.stringContaining("moment=ticket") });
+    expect(capabilities(a, LEAFY).find((c) => c.key === "dues")).toMatchObject({ status: "Coming soon", line: expect.stringContaining("not a complete obligations ledger or payment workflow") });
+    expect(capabilities(a, LEAFY).find((c) => c.key === "grow")).toMatchObject({ status: "Coming soon", line: expect.stringContaining("simulated, not measured") });
     const first = ask(a, LEAFY, "What should I set up first?");
     expect(first.bullets.length).toBeGreaterThan(0);
   });

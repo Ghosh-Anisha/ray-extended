@@ -25,8 +25,8 @@ const LATER: { key: string; title: string; line: string; moment?: Moment }[] = [
   { key: "tickets", moment: "ticket", title: "Follows up your support tickets", line: "Preview: shows a seeded ticket example. No support-ticket integration is connected." },
   { key: "settlements", moment: "settlement_hold", title: "Explains held settlements", line: "Preview: shows a seeded hold example. No settlement feed is connected." },
   { key: "ai_orders", moment: "ai_chat_order", title: "Checks AI-chat orders", line: "Preview: compares a seeded chat, order and payment example. No AI-chat integration is connected." },
-  { key: "dues", title: "Plans your dues", line: "One list of what you owe, when, and what to pay first." },
-  { key: "grow", title: "Grows sales with features you already have", line: "Preview: models a lever from seeded demo orders; results are simulated, not measured." },
+  { key: "dues", title: "Dues and liquidity planning", line: "Coming soon. The current Dues screen is a dated arithmetic preview, not a complete obligations ledger or payment workflow." },
+  { key: "grow", title: "Growth scenario preview", line: "Preview only: models a proposed lever from seeded demo orders. Availability and pricing are not connected; results are simulated, not measured." },
 ];
 
 export function capabilities(a: Adapters, merchantId: string): Capability[] {

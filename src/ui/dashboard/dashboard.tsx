@@ -3,7 +3,7 @@
 // My dashboard (docs/ui-rebuild.md 3.6 and 12): three questions, a starter
 // dashboard from computed numbers, asking for widgets, a watch with Why?,
 // reports in words and the month-end CA pack.
-import { Bell, ChevronDown, ChevronUp, FileText, MessageCircle, Pin, Sparkles, X } from "lucide-react";
+import { Bell, ChevronDown, ChevronUp, FileText, Pin, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -117,15 +117,15 @@ function ReportView({ report, merchantId, text }: { report: Report; merchantId: 
           className="btn primary"
           disabled={busy !== null || done !== null}
           onClick={async () => {
-            const r = await call("sch", { action: "schedule", what: "report", text });
+            const r = await call("preview", { action: "save_preview", what: "report", text });
             if (r?.message) setDone(r.message);
           }}
         >
-          <MessageCircle size={16} aria-hidden="true" />
-          Schedule to CA on WhatsApp
+          <FileText size={16} aria-hidden="true" />
+          Save simulated preview
         </button>
-        <span className="chip simulated">Simulated</span>
-        {done && <span className="chip positive">{done}</span>}
+        <span className="chip simulated">Preview only · no recipient or delivery connected</span>
+        {done && <span className="chip neutral" role="status">{done}</span>}
       </div>
     </div>
   );
@@ -180,7 +180,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
           { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
           { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-          { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
+          { target: "[data-coach='dash-reports']", text: "Reports use seeded data and estimated fees. You can save a simulated preview, but no CA recipient, schedule or delivery is connected." },
         ]}
       />
     </>
@@ -299,7 +299,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
       <section className="panel stack" data-coach="dash-reports" aria-label="Reports in words" style={{ gap: 12 }}>
         <div className="row" style={{ justifyContent: "space-between" }}>
           <strong>Reports in words</strong>
-          <span className="muted">Say what you need. RAY gives a short summary and the table.</span>
+          <span className="muted">Preview reports from seeded records. Fees are estimates; no recipient or delivery is connected.</span>
         </div>
         <form className="row" onSubmit={(e) => { e.preventDefault(); void submitReport(reportText); }}>
           <input className="input grow" value={reportText} onChange={(e) => setReportText(e.target.value)} placeholder="Try “Estimated net collections for September”" aria-label="Ask for a report" />
@@ -315,25 +315,25 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
             <span><strong>Month-end CA pack, {view.pack.month}</strong><br /><span className="muted">Estimated net collections with assumed fees/GST, refunds and disputes.</span></span>
             <span className="row">
               <button type="button" className="btn secondary" onClick={() => setPackOpen(!packOpen)} aria-expanded={packOpen}>{packOpen ? "Hide preview" : "Preview"}</button>
-              <button type="button" className="btn primary" disabled={busy !== null} onClick={async () => { const r = await call("pack", { action: "schedule", what: "pack" }); if (r?.message) setPackDone(r.message); }}>
-                <MessageCircle size={16} aria-hidden="true" />
-                Save demo schedule
+              <button type="button" className="btn primary" disabled={busy !== null} onClick={async () => { const r = await call("pack", { action: "save_preview", what: "pack" }); if (r?.message) setPackDone(r.message); }}>
+                <FileText size={16} aria-hidden="true" />
+                Save simulated preview
               </button>
-              <span className="chip simulated">Simulated</span>
+              <span className="chip simulated">No recipient or delivery connected</span>
             </span>
           </div>
-          {packDone && <span className="chip positive" style={{ alignSelf: "flex-start" }}>{packDone}</span>}
-          {packOpen && view.pack.reports.map((r) => (
+          {packDone && <span className="chip neutral" role="status" style={{ alignSelf: "flex-start" }}>{packDone}</span>}
+        {packOpen && view.pack.reports.map((r) => (
             <div key={r.id} className="stack" style={{ gap: 4 }}>
               <strong>{r.title}</strong>
               <ul className="summary-lines">{r.summary.map((l) => <li key={l}>{l}</li>)}</ul>
             </div>
           ))}
         </div>
-        {view.schedules.length > 0 && (
+        {view.savedPreviews.length > 0 && (
           <div className="stack" style={{ gap: 4 }}>
-            <strong>Scheduled</strong>
-            {view.schedules.map((s) => <span key={s.id} className="muted">{s.title} to {s.to} · {s.when}</span>)}
+            <strong>Saved demo previews</strong>
+            {view.savedPreviews.map((preview) => <span key={preview.id} className="muted">{preview.title} · Preview only. No recipient, recurring schedule or delivery is configured.</span>)}
           </div>
         )}
       </section>
@@ -346,7 +346,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
           { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
           { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-          { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
+          { target: "[data-coach='dash-reports']", text: "Reports use seeded data and estimated fees. You can save a simulated preview, but no CA recipient, schedule or delivery is connected." },
         ]}
       />
       <NudgeBar

@@ -9,7 +9,7 @@ import { openMigratedDb } from "@/db/client";
 import { DEMO_NOW } from "@/db/seed";
 import { seedDemo } from "@/db/seed/demo";
 import { dashboardAction } from "./dashboard-actions";
-import { buildReport, dashboardView, parseWidgetAsk } from "./dashboard";
+import { buildReport, dashboardView, parseReportRequest, parseWidgetAsk } from "./dashboard";
 import { chaseCard, emiCard, setEmi } from "./grow";
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
@@ -53,7 +53,10 @@ describe("My dashboard", () => {
     expect(parseWidgetAsk("Add overdue invoices")).toBe("overdue");
     expect(parseWidgetAsk("show revenue by channel")).toBeNull();
     expect(parseWidgetAsk("show sales for the last 90 days")).toBeNull();
-    expect(dashboardAction(a, { action: "ask", merchantId: M, text: "predict my lottery numbers" }).chips).toHaveLength(3);
+    const unsupported = dashboardAction(a, { action: "ask", merchantId: M, text: "show sales by payment channel" });
+    expect(unsupported.message).toContain("show sales by payment channel");
+    expect(unsupported.message).toContain("without changing its meaning");
+    expect(unsupported.chips).toEqual(["Show refunds by product", "Show success rate by bank", "Add overdue invoices"]);
     dashboardAction(a, { action: "ask", merchantId: M, text: "show refunds by product" });
     expect(dashboardView(a, M).widgets.some((w) => w.kind === "refunds_by_product")).toBe(true);
     dashboardAction(a, { action: "remove", merchantId: M, id: "w_refunds_by_product" });
@@ -79,6 +82,18 @@ describe("My dashboard", () => {
 });
 
 describe("Reports in words", () => {
+  it("accepts only the supported report shapes without silently changing the measure", () => {
+    expect(parseReportRequest("Settlements for September with fees and GST")).toEqual({ kind: "collections", monthIndex: 8 });
+    expect(parseReportRequest("Refunds for September")).toEqual({ kind: "refunds", monthIndex: 8 });
+    expect(parseReportRequest("Disputes this month")).toEqual({ kind: "disputes", monthIndex: null });
+    expect(parseReportRequest("Fees for last 90 days")).toBeNull();
+    expect(parseReportRequest("Refunds by product for September")).toBeNull();
+    expect(parseReportRequest("GST rates in India")).toBeNull();
+    const unsupported = dashboardAction(a, { action: "report", merchantId: M, text: "Fees for last 90 days" });
+    expect(unsupported.message).toContain("Fees for last 90 days");
+    expect(unsupported.chips).toContain("Estimated net collections for September with fees and GST");
+  });
+
   it("labels the September report as an estimate and reconciles displayed rounded rows", () => {
     const r = buildReport(a, M, "Estimated net collections for September with fees and GST")!;
     expect(r.summary).toHaveLength(3);
@@ -92,13 +107,14 @@ describe("Reports in words", () => {
     }
   });
 
-  it("schedules the report and the month-end pack as Simulated records", () => {
-    const one = dashboardAction(a, { action: "schedule", merchantId: M, what: "report", text: "Refunds for September" });
-    const pack = dashboardAction(a, { action: "schedule", merchantId: M, what: "pack" });
-    expect(one.scheduled?.to).toBe("No recipient configured");
-    expect(one.message).toContain("nothing will be sent");
-    expect(pack.scheduled?.title).toContain("September 2026");
-    expect(dashboardView(a, M).schedules).toHaveLength(2);
+  it("saves report and CA-pack previews without implying a recipient or recurring delivery", () => {
+    const one = dashboardAction(a, { action: "save_preview", merchantId: M, what: "report", text: "Refunds for September" });
+    const pack = dashboardAction(a, { action: "save_preview", merchantId: M, what: "pack" });
+    expect(one.savedPreview).toMatchObject({ title: "Refunds for September 2026", status: "preview_only" });
+    expect(one.savedPreview).not.toHaveProperty("to");
+    expect(one.message).toContain("No recipient, recurring schedule or delivery is configured");
+    expect(pack.savedPreview?.title).toContain("September 2026");
+    expect(dashboardView(a, M).savedPreviews).toHaveLength(2);
   });
 
   it("uses no banned words and no em dashes in what it writes", () => {
@@ -117,7 +133,8 @@ describe("Grow lane 1 and the invoice card", () => {
       expect(c.dropped).toBe(6);
       expect(c.carts).toBe(8);
       expect(c.estimate).toMatch(/^₹/);
-      expect(c.tradeOff.length).toBeGreaterThan(0);
+      expect(c.tradeOff).toContain("eligibility and pricing are not connected");
+      expect(c.assumption).toContain("not a promise");
     }
   });
 
