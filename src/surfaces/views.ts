@@ -182,7 +182,28 @@ export type CaseRow = {
   openedAt: number;
   action: string;
   holds: Hold[];
+  // Gmail-style row: the moment key for filters, a one-line summary, and (only
+  // on Needs you) RAY's recommended tap, so a hover can offer it.
+  momentKey: Moment;
+  summary: string;
+  quick: { proposalId: string; label: string; covered: boolean } | null;
 };
+
+function summaryOf(kase: Case, sub: Subject): string {
+  const order = sub.orderNumber ? `, order ${sub.orderNumber}` : "";
+  switch (kase.moment) {
+    case "paid_no_order":
+      return `Paid ${sub.amount}${order}${kase.state === "waiting_merchant" ? " still Pending" : ""}`;
+    case "international":
+      return `Card declined abroad, ${sub.amount}`;
+    case "subscription":
+      return `Subscription stopped, ${sub.amount}`;
+    case "chargeback":
+      return `Dispute on ${sub.amount}`;
+    case "collect":
+      return `Invoice of ${sub.amount} overdue`;
+  }
+}
 
 function caseRow(a: Adapters, kase: Case, cache?: SubjectCache): CaseRow {
   const sub = subjectOf(a, kase, cache);
@@ -198,6 +219,9 @@ function caseRow(a: Adapters, kase: Case, cache?: SubjectCache): CaseRow {
     openedAt: kase.opened_at,
     action: kase.state === "waiting_merchant" ? "Review & decide" : "Open case",
     holds: holdsOf(a, kase),
+    momentKey: kase.moment,
+    summary: summaryOf(kase, sub),
+    quick: null,
   };
 }
 
@@ -217,6 +241,12 @@ export function inboxView(a: Adapters, merchantId: string, moment: Moment | null
     .filter((c) => tabFor(c.state) !== "closed" || (c.closed_at ?? c.opened_at) >= now - CLOSED_WINDOW_MS);
   const cache = subjectCache();
   const rows = cases.map((c) => ({ c, row: caseRow(a, c, cache) }));
+  // The Needs you rows carry RAY's recommended tap for the hover action.
+  for (const { c, row } of rows) {
+    if (c.state !== "waiting_merchant") continue;
+    const yc = caseView(a, c.id).yourCall;
+    if (yc.canTap && yc.primary) row.quick = { proposalId: yc.primary.id, label: yc.primary.label, covered: yc.primary.covered };
+  }
   const tabs = INBOX_TABS.map((t) => ({
     key: t.key,
     label: t.label,

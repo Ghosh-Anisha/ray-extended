@@ -1,108 +1,221 @@
 "use client";
 
-import { Heading } from "@/ui/kit";
+// Cases as a Gmail-like inbox (docs/ui-rebuild.md 3.2): tabs on the left, a
+// filter per moment, one row per case sorted by money at stake. The tab and
+// moment live in the URL, so Back from a case lands on the same list.
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type { Moment } from "@/db/schema";
 import type { CaseRow, InboxView } from "@/surfaces/views";
-import { EMPTY, type InboxTab } from "@/surfaces/words";
-import { Chip, Empty, HoldBanner } from "../bits";
+import { DOING_IT, EMPTY, MOMENT_LABEL, type InboxTab } from "@/surfaces/words";
+import { ApprovalLabel, Chip, Empty, HoldBanner, useAction } from "../bits";
+import { NudgeBar } from "../nudge";
+import { useToast } from "../toast";
 import { useView } from "../view";
+import { initials } from "../shell/nav";
+
+const MOMENTS = Object.keys(MOMENT_LABEL) as Moment[];
+
+function QuickAction({ row }: { row: CaseRow }) {
+  const { busy, error, run } = useAction();
+  const toast = useToast();
+  const q = row.quick!;
+  return (
+    <span className="quick" onClick={(e) => e.stopPropagation()}>
+      <span className="stack" style={{ gap: 0, alignItems: "flex-end" }}>
+        <button
+          type="button"
+          className="btn primary small"
+          disabled={busy !== null}
+          onClick={async () => {
+            const r = await run(row.id, "/api/merchant/tap", { caseId: row.id, choice: "approve", proposalId: q.proposalId });
+            if (r.ok) toast(`${q.label} ✓ for ${row.name}`);
+          }}
+        >
+          {busy ? DOING_IT : q.label}
+        </button>
+        <ApprovalLabel covered={q.covered} />
+      </span>
+      {error && <span className="error">{error}</span>}
+    </span>
+  );
+}
+
+function RowItem({ r, merchantId, unread }: { r: CaseRow; merchantId: string; unread: boolean }) {
+  const router = useRouter();
+  const href = `/merchant/${merchantId}/cases/${r.id}`;
+  return (
+    <tr className={`mail-row ${unread ? "unread" : ""}`} onClick={() => router.push(href)}>
+      <td className="mail-who">
+        <div className="who-inner">
+          <span className="avatar sm" aria-hidden="true">{initials(r.name)}</span>
+          <Link href={href} onClick={(e) => e.stopPropagation()}>{r.name}</Link>
+        </div>
+      </td>
+      <td className="mail-what">
+        <span className="chip information">{r.moment}</span>
+        <span className="mail-summary">{r.summary}</span>
+        {r.holds.map((h) => (
+          <div key={h.actionId} style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+            <HoldBanner hold={h} merchantId={merchantId} compact />
+          </div>
+        ))}
+      </td>
+      <td>
+        <Chip chip={r.confidence} />
+      </td>
+      <td className="num">{r.amount}</td>
+      <td className="mail-time">
+        <span className="when muted">{r.age}</span>
+        <span className="hover-actions">
+          {r.quick && <QuickAction row={r} />}
+          <Link className="btn secondary small" href={href} onClick={(e) => e.stopPropagation()}>
+            Open
+          </Link>
+        </span>
+      </td>
+    </tr>
+  );
+}
 
 export function Inbox({
   merchantId,
   inbox,
   initialTab = "needs_you",
-  filter = null,
+  initialMoment = null,
 }: {
   merchantId: string;
   inbox: InboxView;
   initialTab?: InboxTab;
-  filter?: { label: string; clearHref: string } | null;
+  initialMoment?: Moment | null;
 }) {
   const { view } = useView();
   const [tab, setTab] = useState<InboxTab>(initialTab);
+  const [moment, setMoment] = useState<Moment | null>(initialMoment);
   const current = inbox.tabs.find((t) => t.key === tab)!;
+  const rows = moment ? current.rows.filter((r) => r.momentKey === moment) : current.rows;
   const href = (r: CaseRow) => `/merchant/${merchantId}/cases/${r.id}`;
+
+  function remember(nextTab: InboxTab, nextMoment: Moment | null) {
+    setTab(nextTab);
+    setMoment(nextMoment);
+    const q = new URLSearchParams();
+    if (nextTab !== "needs_you") q.set("tab", nextTab);
+    if (nextMoment) q.set("moment", nextMoment);
+    window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
+  }
+
+  const momentCount = (m: Moment) => inbox.tabs.flatMap((t) => t.rows).filter((r) => r.momentKey === m).length;
+  const top = inbox.tabs[0].rows[0];
+  const needs = inbox.tabs[0].rows.length;
+  const nav = (
+    <div className="inbox-nav" role="tablist" aria-label="Cases">
+      {inbox.tabs.map((t) => (
+        <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
+          <span className="grow">{t.label}</span>
+          <span className="count">{t.rows.length}</span>
+        </button>
+      ))}
+    </div>
+  );
+  const filters = (
+    <div className="inbox-nav" aria-label="Filter by moment">
+      <div className="nav-label">Moments</div>
+      <button type="button" aria-pressed={moment === null} onClick={() => remember(tab, null)}>
+        <span className="grow">All moments</span>
+      </button>
+      {MOMENTS.map((m) => (
+        <button key={m} type="button" aria-pressed={moment === m} onClick={() => remember(tab, m)}>
+          <span className="grow">{MOMENT_LABEL[m]}</span>
+          <span className="count">{momentCount(m)}</span>
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <section className="stack" aria-label="Cases">
-      <Heading size="large">{inbox.waitingOnYou}</Heading>
-      {filter && (
-        <div className="row">
-          <span className="chip information">Showing: {filter.label}</span>
-          <Link href={filter.clearHref}>Show all cases</Link>
-        </div>
-      )}
-      <div className="tabs" role="tablist">
-        {inbox.tabs.map((t) => (
-          <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => setTab(t.key)}>
-            {t.label} ({t.rows.length})
-          </button>
-        ))}
-      </div>
-      {current.rows.length === 0 ? (
-        <Empty>{EMPTY[tab]}</Empty>
-      ) : view === "phone" ? (
-        <div className="stack">
-          {current.rows.map((r) => (
-            <div key={r.id} className="stack" style={{ gap: 4 }}>
-              <Link href={href(r)} className="case-card">
-                <div className="top">
-                  <strong>{r.name}</strong>
-                  <span className="num">{r.amount}</span>
-                </div>
-                <div className="row">
-                  <Chip chip={r.state} />
-                  <span className="muted">{r.moment}</span>
-                  <span className="muted">· {r.age}</span>
-                </div>
-              </Link>
-              {r.holds.map((h) => (
-                <HoldBanner key={h.actionId} hold={h} merchantId={merchantId} compact />
+      <h1 className="page-title">Cases</h1>
+      <div className={view === "phone" ? "stack" : "inbox-layout"}>
+        {view === "phone" ? (
+          <>
+            <div className="tabs" role="tablist">
+              {inbox.tabs.map((t) => (
+                <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
+                  {t.label} ({t.rows.length})
+                </button>
               ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <table className="data">
-          <thead>
-            <tr>
-              <th>Moment</th>
-              <th>Name</th>
-              <th className="num">Amount</th>
-              <th>State</th>
-              <th>Confidence</th>
-              <th>Age</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {current.rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.moment}</td>
-                <td>
-                  {r.name}
-                  {r.holds.map((h) => (
-                    <div key={h.actionId} style={{ marginTop: 6 }}>
-                      <HoldBanner hold={h} merchantId={merchantId} compact />
+            <div className="chips-scroll">
+              <button type="button" className="seg" aria-pressed={moment === null} onClick={() => remember(tab, null)}>All</button>
+              {MOMENTS.map((m) => (
+                <button key={m} type="button" className="seg" aria-pressed={moment === m} onClick={() => remember(tab, m)}>
+                  {MOMENT_LABEL[m]}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <aside className="inbox-side panel">
+            {nav}
+            {filters}
+          </aside>
+        )}
+        <div className="stack">
+          <div className="inbox-top">
+            <strong>{inbox.waitingOnYou}</strong>
+            <span className="muted">· Sorted by money at stake</span>
+            {moment && <span className="chip information">Showing: {MOMENT_LABEL[moment]}</span>}
+          </div>
+          {rows.length === 0 ? (
+            <Empty>{moment ? `Nothing here for ${MOMENT_LABEL[moment]}. Choose All moments to see every case.` : EMPTY[tab]}</Empty>
+          ) : view === "phone" ? (
+            <div className="stack">
+              {rows.map((r) => (
+                <div key={r.id} className="stack" style={{ gap: 4 }}>
+                  <Link href={href(r)} className="case-card">
+                    <div className="top">
+                      <strong>{r.name}</strong>
+                      <span className="num">{r.amount}</span>
                     </div>
+                    <span className="muted">{r.summary}</span>
+                    <div className="row">
+                      <Chip chip={r.state} />
+                      <span className="chip information">{r.moment}</span>
+                      <span className="muted">· {r.age}</span>
+                    </div>
+                  </Link>
+                  {r.holds.map((h) => (
+                    <HoldBanner key={h.actionId} hold={h} merchantId={merchantId} compact />
                   ))}
-                </td>
-                <td className="num">{r.amount}</td>
-                <td>
-                  <Chip chip={r.state} />
-                </td>
-                <td>
-                  <Chip chip={r.confidence} />
-                </td>
-                <td className="muted">{r.age}</td>
-                <td>
-                  <Link href={href(r)}>{r.action}</Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <table className="data mail">
+              <thead className="sr-only">
+                <tr>
+                  <th>Customer</th>
+                  <th>Case</th>
+                  <th>Confidence</th>
+                  <th className="num">Amount</th>
+                  <th>When</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <RowItem key={r.id} r={r} merchantId={merchantId} unread={r.state.label === "Needs you"} />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+      <NudgeBar
+        text={needs > 0 && top ? `${needs} ${needs === 1 ? "case needs" : "cases need"} you. Start with the biggest: ${top.name}, ${top.amount}.` : "Nothing needs you. RAY is handling the rest."}
+        action={needs > 0 && top ? { label: "Open", href: href(top) } : { label: "Ask RAY", href: `/merchant/${merchantId}/ask` }}
+      />
     </section>
   );
 }
