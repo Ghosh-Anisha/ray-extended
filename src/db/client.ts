@@ -10,12 +10,29 @@ export const MIGRATIONS_DIR = path.join(process.cwd(), "src", "db", "migrations"
 
 export function openDb(file: string = DEFAULT_DB_PATH) {
   if (file !== ":memory:") {
-    fs.mkdirSync(path.dirname(file), { recursive: true });
+    try {
+      fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
+    } catch (cause) {
+      throw databaseOpenError(file, cause);
+    }
   }
-  const sqlite = new Database(file);
+  let sqlite: InstanceType<typeof Database>;
+  try {
+    sqlite = new Database(file);
+  } catch (cause) {
+    throw databaseOpenError(file, cause);
+  }
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   return drizzle(sqlite, { schema });
+}
+
+function databaseOpenError(file: string, cause: unknown): Error {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return new Error(
+    `RAY could not open SQLite database at "${file}" (${detail}). Set RAY_DB_PATH to an absolute path on a persistent, writable disk, create/mount the parent directory before startup, and ensure the Node process can read and write it. Serverless functions with separate temporary disks are not supported because cases and approvals must share one database.`,
+    { cause },
+  );
 }
 
 export type Db = ReturnType<typeof openDb>;

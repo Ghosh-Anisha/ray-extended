@@ -6,15 +6,15 @@ import { duesExampleSummary, InvoiceInbox } from "./dues";
 describe("simulated dues arithmetic", () => {
   it("keeps November rent out of October and reconciles the remaining cash", () => {
     const october = duesExampleSummary(Date.parse("2026-10-13T10:00:00+05:30"));
-    expect(october).toEqual({ openingCash: 4_200_000, dueThisMonth: 2_820_000, afterThisMonth: 1_380_000 });
+    expect(october).toEqual({ openingCash: 4_200_000, dueThisMonth: 2_820_000, afterThisMonth: 1_380_000, dueLater: 2_800_000 });
   });
 
   it("uses a different due total for November", () => {
     const november = duesExampleSummary(Date.parse("2026-11-13T10:00:00+05:30"));
-    expect(november).toEqual({ openingCash: 4_200_000, dueThisMonth: 2_800_000, afterThisMonth: 1_400_000 });
+    expect(november).toEqual({ openingCash: 4_200_000, dueThisMonth: 2_800_000, afterThisMonth: 1_400_000, dueLater: 0 });
   });
 
-  it("makes invoice review controls disclose only the seeded evidence and its limits", () => {
+  it("makes invoice review controls disclose only the seeded evidence and its limits", async () => {
     const html = renderToStaticMarkup(createElement(InvoiceInbox));
     expect(html).toContain("<details");
     expect(html).toContain("Review duplicate flag");
@@ -25,5 +25,13 @@ describe("simulated dues arithmetic", () => {
     expect(html).toContain("No BBPS or supplier-payment action is configured");
     expect(html).toContain("disabled=\"\" aria-disabled=\"true\"");
     expect(html).not.toContain("2.4×");
+    const { Dues } = await import("./dues");
+    const dues = renderToStaticMarkup(createElement(Dues, { merchantId: "m_leafy_bakes", now: Date.parse("2026-10-13T10:00:00+05:30") }));
+    expect(dues).toContain("₹28,200");
+    expect(dues).toContain("₹13,800");
+    expect(dues).toContain("DEMO-BBPS-117");
+    expect(dues).toContain("INV-884");
+    expect(dues).toContain("Excluded from October running balance");
+    expect(dues).toContain("Collect requests");
   });
 });

@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { Moment } from "@/db/schema";
 import type { CaseRow, InboxView } from "@/surfaces/views";
+import { inboxCountForTab } from "./inbox-count";
 import { DOING_IT, EMPTY, MOMENT_LABEL, type InboxTab } from "@/surfaces/words";
 import { ApprovalLabel, Chip, Empty, HoldBanner, useAction } from "../bits";
 import { NudgeBar } from "../nudge";
@@ -109,7 +110,8 @@ export function Inbox({
     window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
   }
 
-  const momentCount = (m: Moment) => inbox.tabs.flatMap((t) => t.rows).filter((r) => r.momentKey === m).length;
+  // Counts stay scoped to the active state tab; no hidden cases are implied.
+  const momentCount = (m: Moment) => inboxCountForTab(current.rows, m);
   const top = inbox.tabs[0].rows[0];
   const needs = inbox.tabs[0].rows.length;
   const nav = (
@@ -117,7 +119,7 @@ export function Inbox({
       {inbox.tabs.map((t) => (
         <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
           <span className="grow">{t.label}</span>
-          <span className="count">{t.rows.length}</span>
+          <span className="count">{inboxCountForTab(t.rows, moment)}</span>
         </button>
       ))}
     </div>
@@ -146,7 +148,7 @@ export function Inbox({
             <div className="tabs" role="tablist">
               {inbox.tabs.map((t) => (
                 <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
-                  {t.label} ({t.rows.length})
+                  {t.label} ({inboxCountForTab(t.rows, moment)})
                 </button>
               ))}
             </div>

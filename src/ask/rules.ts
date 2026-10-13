@@ -193,11 +193,23 @@ function saveRule(a: Adapters, merchantId: string, moment: Moment, rule_json: Js
   const repo = createRepository(a.db);
   const existing = repo.playbookRules.list(and(eq(s.playbookRules.merchant_id, merchantId), eq(s.playbookRules.moment, moment))).find((r) => typeof r.rule_json.setting !== "string" && same(r.rule_json));
   if (existing) {
-    repo.playbookRules.update(existing.id, { rule_json, text, status: "approved", approved_at: a.clock.now() });
-    return existing.id;
+    if (!repo.playbookRules.update(existing.id, { rule_json, text, status: "approved", approved_at: a.clock.now() })) {
+      throw new Error("The rule could not be saved. It remains off.");
+    }
+    return verifySavedRule(repo, existing.id, merchantId, moment, same);
   }
   const id = newId("rule");
-  repo.playbookRules.insert({ id, merchant_id: merchantId, moment, rule_json, text, source: "merchant", status: "approved", approved_at: a.clock.now() });
+  if (!repo.playbookRules.insert({ id, merchant_id: merchantId, moment, rule_json, text, source: "merchant", status: "approved", approved_at: a.clock.now() })) {
+    throw new Error("The rule could not be saved. It remains off.");
+  }
+  return verifySavedRule(repo, id, merchantId, moment, same);
+}
+
+function verifySavedRule(repo: ReturnType<typeof createRepository>, id: string, merchantId: string, moment: Moment, same: (j: Json) => boolean) {
+  const saved = repo.playbookRules.get(id);
+  if (!saved || saved.merchant_id !== merchantId || saved.moment !== moment || saved.status !== "approved" || !same(saved.rule_json)) {
+    throw new Error("The rule was not confirmed in saved Active rules. It remains off until saving succeeds.");
+  }
   return id;
 }
 

@@ -19,7 +19,7 @@ import {
 } from "./dashboard";
 
 const input = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("setup"), merchantId: z.string(), business: z.string(), daily: z.array(z.string()), audience: z.string() }),
+  z.object({ action: z.literal("setup"), merchantId: z.string(), business: z.string(), daily: z.array(z.string()), audience: z.string(), request: z.string().max(200).optional() }),
   z.object({ action: z.literal("ask"), merchantId: z.string(), text: z.string().min(1).max(200) }),
   z.object({ action: z.literal("remove"), merchantId: z.string(), id: z.string() }),
   z.object({ action: z.literal("keep"), merchantId: z.string() }),
@@ -43,7 +43,7 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
   const m = i.merchantId;
   switch (i.action) {
     case "setup": {
-      const setup: Setup = { business: i.business, daily: i.daily, audience: i.audience };
+      const setup: Setup = { business: i.business, daily: i.daily, audience: i.audience, ...(i.request?.trim() ? { request: i.request.trim() } : {}) };
       writeState(a, m, "dash.setup", setup);
       writeState(a, m, "dash.widgets", starterWidgets(setup));
       writeState(a, m, "dash.kept", false);

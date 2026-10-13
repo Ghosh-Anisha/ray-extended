@@ -10,6 +10,7 @@ import { useState } from "react";
 import type { DashboardView, Report, WatchAlert } from "@/surfaces/dashboard";
 import { ASK_EXAMPLES, AUDIENCE_OPTIONS, BUSINESS_OPTIONS, DAILY_OPTIONS, REPORT_EXAMPLES } from "@/surfaces/dashboard-options";
 import type { DashboardResult } from "@/surfaces/dashboard-actions";
+import { DASHBOARD_REQUEST_TIMEOUT_MS, dashboardRequestError } from "./request-state";
 import { CoachMarks } from "../coach/coach";
 import { NudgeBar } from "../nudge";
 
@@ -22,16 +23,19 @@ function useDash(merchantId: string) {
   async function call(key: string, body: Record<string, unknown>): Promise<DashboardResult | null> {
     setBusy(key);
     setError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
     try {
-      const res = await fetch("/api/merchant/dashboard", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ merchantId, ...body }) });
+      const res = await fetch("/api/merchant/dashboard", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ merchantId, ...body }), signal: controller.signal });
       const json = (await res.json()) as Result;
       if (!json.ok) throw new Error(json.error ?? "That didn't work. Try again.");
       router.refresh();
       return json.result ?? {};
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't work. Try again.");
+      setError(dashboardRequestError(e));
       return null;
     } finally {
+      window.clearTimeout(timeout);
       setBusy(null);
     }
   }
@@ -51,11 +55,12 @@ function Setup({ view, merchantId }: { view: DashboardView; merchantId: string }
   const [business, setBusiness] = useState(view.suggested.business);
   const [daily, setDaily] = useState(view.suggested.daily);
   const [audience, setAudience] = useState(view.suggested.audience);
+  const [request, setRequest] = useState("Show today's sales, refunds by product, and cases that need my attention.");
   const [building, setBuilding] = useState(false);
   async function build() {
     setBuilding(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    if (!(await call("setup", { action: "setup", business, daily, audience }))) setBuilding(false);
+    await call("setup", { action: "setup", business, daily, audience, request });
+    setBuilding(false);
   }
   return (
     <section className="panel stack" data-coach="dash-setup" aria-label="Set up your dashboard">
@@ -79,10 +84,15 @@ function Setup({ view, merchantId }: { view: DashboardView; merchantId: string }
         <strong>Who else looks at the numbers?</strong>
         <div className="row">{AUDIENCE_OPTIONS.map((o) => <Choice key={o} label={o} on={audience === o} onClick={() => setAudience(o)} />)}</div>
       </div>
+      <label className="stack" style={{ gap: 6 }}>
+        <strong>Describe the dashboard you want</strong>
+        <input value={request} maxLength={200} onChange={(e) => setRequest(e.target.value)} aria-label="Describe the dashboard you want" />
+        <span className="muted">Saved as setup context. The starter widgets below are built from supported demo data.</span>
+      </label>
       {error && <div className="inline-error" role="alert">{error}</div>}
       <div className="row">
         <button type="button" className="btn primary" disabled={building} onClick={build}>
-          {building ? "Building your dashboard…" : "Build my dashboard"}
+          {building ? "Building your dashboard…" : error ? "Try again" : "Build my dashboard"}
         </button>
       </div>
     </section>

@@ -34,7 +34,7 @@ export function writeState(a: Adapters, merchantId: string, key: string, value: 
 // ---- The three questions
 
 
-export type Setup = { business: string; daily: string[]; audience: string };
+export type Setup = { business: string; daily: string[]; audience: string; request?: string };
 
 // Pre-selected from Leafy's data: it sells online, has invoices and disputes.
 export function suggestedSetup(a: Adapters, merchantId: string): Setup {

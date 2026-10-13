@@ -35,8 +35,9 @@ describe("My dashboard", () => {
   });
 
   it("builds a starter dashboard whose numbers match Home", () => {
-    dashboardAction(a, { action: "setup", merchantId: M, ...dashboardView(a, M).suggested });
+    dashboardAction(a, { action: "setup", merchantId: M, ...dashboardView(a, M).suggested, request: "Show today's sales and refunds by product" });
     const v = dashboardView(a, M);
+    expect(v.setup?.request).toBe("Show today's sales and refunds by product");
     const by = Object.fromEntries(v.widgets.map((w) => [w.kind, w.data]));
     expect(v.widgets).toHaveLength(8);
     expect(by.saved.value).toBe("₹1,84,300");

@@ -129,7 +129,7 @@ function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: She
   }
 
   return (
-    <div className="shell">
+    <div className="shell" data-view={view}>
       <header className="shell-top">
         <button type="button" className="shell-burger" aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen} onClick={() => setNavOpen(!navOpen)}>
           {navOpen ? <X size={20} /> : <Menu size={20} />}
@@ -140,9 +140,9 @@ function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: She
         </Link>
         <nav className="shell-tabs" aria-label="Razorpay">
           <Link href={home} className="shell-tab link">Razorpay Home</Link>
-          <span className="shell-tab" title="Not part of this prototype">Payments</span>
+          <span className="shell-tab unavailable" title="Unavailable in this prototype">Payments <small>Unavailable</small></span>
           <Link href={`${home}/cases`} className="shell-tab link" aria-current="page">Agentic Dashboard</Link>
-          <span className="shell-tab" title="Not part of this prototype">Banking+</span>
+          <span className="shell-tab unavailable" title="Unavailable in this prototype">Banking+ <small>Unavailable</small></span>
         </nav>
         <span className="shell-spacer" />
         <Link href={`${home}/ask`} className="shell-search" aria-label="Search or ask RAY">

@@ -41,6 +41,11 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     expect(inboxView(a, LEAFY).tabs.map((t) => [t.label, t.rows.length])).toEqual([["Needs you", 4], ["RAY is handling", 13], ["Closed", 23]]);
   });
 
+  it("seeds fictional examples for each of the five supported case moments", () => {
+    const moments = new Set(createRepository(db).cases.list(eq(s.cases.merchant_id, LEAFY)).map((c) => c.moment));
+    expect([...moments]).toEqual(expect.arrayContaining(["paid_no_order", "international", "subscription", "chargeback", "collect"]));
+  });
+
   it("computes Home's numbers from the rows", () => {
     const st = merchantStats(a, LEAFY);
     expect(rupees(st.saved.amount)).toBe("₹1,84,300");
