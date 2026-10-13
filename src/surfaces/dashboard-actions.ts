@@ -67,6 +67,7 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       writeState(a, m, "dash.setup", null);
       writeState(a, m, "dash.widgets", []);
       writeState(a, m, "dash.kept", false);
+      writeState(a, m, "dash.default_restored", true);
       return {};
     case "ask": {
       const kind = parseWidgetAsk(i.text);
@@ -125,4 +126,20 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       return { savedPreview, message: `Simulated preview saved for ${title}. No recipient, recurring schedule or delivery is configured.` };
     }
   }
+}
+
+// A seed-version rebuild can remove old ui_state even though the dashboard
+// implementation is unchanged. Restore only the demo starter when no layout
+// exists; never replace a merchant's saved setup or widgets.
+export function restoreDemoDashboardIfMissing(a: Adapters, merchantId: string) {
+  if (merchantId !== "m_leafy_bakes" || readState<boolean>(a, merchantId, "dash.default_restored")) return;
+  const setup = readState<Setup>(a, merchantId, "dash.setup");
+  const widgets = readState<SavedWidget[]>(a, merchantId, "dash.widgets");
+  if (!setup && !widgets) {
+    dashboardAction(a, {
+      action: "setup", merchantId, business: "Online store", daily: ["Sales today"], audience: "Me and my CA",
+      request: "Show today's sales, refunds by product, and cases that need my attention.",
+    });
+  }
+  writeState(a, merchantId, "dash.default_restored", true);
 }

@@ -93,8 +93,10 @@ export function Inbox({
   const { view } = useView();
   const [tab, setTab] = useState<InboxTab>(initialTab);
   const [moment, setMoment] = useState<Moment | null>(initialMoment);
-  const allRows = inbox.tabs.flatMap((t) => t.rows);
-  const currentRows = inboxRowsForTab(inbox.tabs, tab);
+  const uniqueRows = <T extends { id: string }>(rows: T[]) => [...new Map(rows.map((row) => [row.id, row])).values()];
+  const tabs = inbox.tabs.map((t) => ({ ...t, rows: uniqueRows(t.rows) }));
+  const allRows = uniqueRows(tabs.flatMap((t) => t.rows));
+  const currentRows = uniqueRows(inboxRowsForTab(tabs, tab));
   const rows = moment ? currentRows.filter((r) => r.momentKey === moment) : currentRows;
   const listParams = new URLSearchParams();
   if (tab !== "all") listParams.set("tab", tab);
@@ -111,19 +113,20 @@ export function Inbox({
     window.history.replaceState(null, "", q.size ? `?${q}` : window.location.pathname);
   }
 
-  // Moment counts describe all cases by default; status tabs remain an explicit filter.
-  const momentCount = (m: Moment) => inboxCountForTab(tab === "all" ? allRows : currentRows, m);
+  // Both sets of badges describe their global set. Selecting either filter
+  // changes only the visible rows, never the other filter's counts.
+  const momentCount = (m: Moment) => inboxCountForTab(allRows, m);
   const top = inbox.tabs[0].rows[0];
   const needs = inbox.tabs[0].rows.length;
   const nav = (
     <div className="inbox-nav" role="tablist" aria-label="Cases">
       <button role="tab" type="button" aria-selected={tab === "all"} onClick={() => remember("all", moment)}>
-        <span className="grow">All cases</span><span className="count">{inboxCountForTab(allRows, moment)}</span>
+        <span className="grow">All cases</span><span className="count">{allRows.length}</span>
       </button>
-      {inbox.tabs.map((t) => (
+      {tabs.map((t) => (
         <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
           <span className="grow">{t.label}</span>
-          <span className="count">{inboxCountForTab(t.rows, moment)}</span>
+          <span className="count">{t.rows.length}</span>
         </button>
       ))}
     </div>
@@ -132,7 +135,7 @@ export function Inbox({
     <div className="inbox-nav" aria-label="Filter by moment">
       <div className="nav-label">Moments</div>
       <button type="button" aria-pressed={moment === null} onClick={() => remember(tab, null)}>
-        <span className="grow">All moments</span>
+        <span className="grow">All moments</span><span className="count">{allRows.length}</span>
       </button>
       {MOMENTS.map((m) => (
         <button key={m} type="button" aria-pressed={moment === m} onClick={() => remember(tab, m)}>
@@ -150,18 +153,18 @@ export function Inbox({
         {view === "phone" ? (
           <>
             <div className="tabs" role="tablist">
-              <button role="tab" type="button" aria-selected={tab === "all"} onClick={() => remember("all", moment)}>All ({inboxCountForTab(allRows, moment)})</button>
-              {inbox.tabs.map((t) => (
+              <button role="tab" type="button" aria-selected={tab === "all"} onClick={() => remember("all", moment)}>All ({allRows.length})</button>
+              {tabs.map((t) => (
                 <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => remember(t.key, moment)}>
-                  {t.label} ({inboxCountForTab(t.rows, moment)})
+                  {t.label} ({t.rows.length})
                 </button>
               ))}
             </div>
             <div className="chips-scroll">
-              <button type="button" className="seg" aria-pressed={moment === null} onClick={() => remember(tab, null)}>All</button>
+              <button type="button" className="seg" aria-pressed={moment === null} onClick={() => remember(tab, null)}>All ({allRows.length})</button>
               {MOMENTS.map((m) => (
                 <button key={m} type="button" className="seg" aria-pressed={moment === m} onClick={() => remember(tab, m)}>
-                  {MOMENT_LABEL[m]}
+                  {MOMENT_LABEL[m]} ({momentCount(m)})
                 </button>
               ))}
             </div>

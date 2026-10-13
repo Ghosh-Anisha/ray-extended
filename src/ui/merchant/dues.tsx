@@ -133,7 +133,11 @@ export function Dues({ merchantId, now, collectRequests = [] }: { merchantId: st
       </section><section className="panel stack" aria-label="Simulated Collect requests">
         <div className="row"><h2 style={{ margin: 0 }}>Collect requests</h2><span className="chip simulated">Simulated demo data</span></div>
         <p className="muted">Outstanding amounts and statuses from the seeded Collect morning list. No live buyer requests or payment rails are connected; collection status is unverified.</p>
-        <Link className="btn secondary small" href={`/merchant/${merchantId}/collect`}>Open Collect workflow</Link>
+        <div className="banner promise" role="note">
+          <strong>Banking+ · Start a Collect workflow</strong>
+          <p className="muted" style={{ margin: "4px 0 8px" }}>This opens the simulated enable step if needed, then lets you review a seeded buyer and reminder. No bank account is connected and no real message or payment is sent.</p>
+          <Link className="btn primary small" href={`/merchant/${merchantId}/collect`}>Start Collect workflow</Link>
+        </div>
         {collectRequests.length === 0 ? <span className="muted">No seeded Collect requests are outstanding.</span> : collectRequests.map((r) => <div className="due-row" key={r.buyer}><div><strong>{r.buyer}</strong><div className="muted">Amount: {r.overdue} · expected: {r.promise ?? "No date recorded"} · collection unverified</div><div className="row"><Link href={`/merchant/${merchantId}/collect?buyerId=${encodeURIComponent(r.buyerId)}`}>Review reminder</Link>{r.caseId && <Link href={`/merchant/${merchantId}/cases/${r.caseId}`}>Open case &amp; message preview</Link>}</div></div><span className="chip notice">{r.state ?? r.stage}</span></div>)}
       </section></div>}
       {isLeafy && <InvoiceInbox />}
