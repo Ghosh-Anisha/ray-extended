@@ -14,7 +14,7 @@
     "db:seed": "tsx src/db/seed/run.ts",
     "db:generate": "drizzle-kit generate",
     "ai:fixtures": "tsx src/ai/record-claude-code.ts",
-    "demo": "next build && next start -p 3000",
+    "demo": "next build && next start",
     "ai:demo-fixtures": "tsx src/db/seed/demo-fixtures.ts"
   },
   "dependencies": {

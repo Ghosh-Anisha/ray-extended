@@ -25,3 +25,9 @@ Verified: typecheck, lint and tests pass (592 passed, 27 skipped). Screenshots o
 The unattended session refuses every command that runs code (`npm run`, `npx`, `node`, `tsc`, `vitest`) and every `git add`, `commit` and `push`. Only read-only git works. U3 was not started: more unchecked code on top of it risks a broken build, and U3 could not be tested, linted, built or screenshotted.
 
 To continue, use a session that allows npm and git writes. Build U3 from `docs/ui-rebuild.md` 3.4, 3.5, 3.6, 5 and 7.
+
+# Phase U4 (WhatsApp, inboxes, Store admin, Demo controls): DONE
+
+Implemented sections 3.7, 3.8, 3.9, 3.10, 5, 7 and 10 on top of the existing U2 shell and guarded actions.
+
+Verified: `npm run typecheck`, `npm run lint`, and `npm run build` pass. The build emits existing dynamic filesystem tracing warnings from the voice and prompt adapters. `npm test` was started but did not complete cleanly in this environment: the existing engine and database script tests timed out or failed while the seed/database work was running. Live `npm start -- -p 3001` and Playwright screenshots were blocked by the environment denying server binds on port 3001. Git commit, merge and push were blocked because the worktree Git admin directory is outside the writable workspace.

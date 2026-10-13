@@ -14,6 +14,7 @@ const FAILURE_LABEL: Record<string, string> = {
   webhook_disabled: "Payment updates turned off",
   wrong_settings: "Wrong settings for payment updates",
 };
+const STATUS_LABEL: Record<string, string> = { pending: "Pending payment", processing: "Processing", completed: "Completed", cancelled: "Cancelled", paid: "Completed" };
 
 export function StoreAdmin({ stores, failures }: { stores: StoreView[]; failures: string[] }) {
   const [id, setId] = useState(stores[0]?.merchantId ?? "");
@@ -22,6 +23,10 @@ export function StoreAdmin({ stores, failures }: { stores: StoreView[]; failures
   return (
     <div className="stack">
       <SimTitle>Store admin</SimTitle>
+      <div className="store-admin-head">
+        <div><p className="eyebrow">WooCommerce</p><h2>Leafy Bakes store</h2><p className="muted">Orders and payment updates from the connected store.</p></div>
+        <div className="store-plugin">{st && <><strong>{st.plugin}</strong><span className="chip simulated">Simulated</span><span className="muted">Failure mode: {FAILURE_LABEL[st.failure] ?? st.failure}</span></>}</div>
+      </div>
       <div className="row">
         <label>
           Store{" "}
@@ -62,9 +67,9 @@ export function StoreAdmin({ stores, failures }: { stores: StoreView[]; failures
               </thead>
               <tbody>
                 {st.orders.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} className={o.number === "#1234" ? "highlight-row" : undefined}>
                     <td title={o.payment ?? ""}>{o.number}</td>
-                    <td>{o.status}</td>
+                    <td><span className={`status-pill ${o.status}`}>{STATUS_LABEL[o.status] ?? o.status}</span></td>
                     <td className="num">{o.total}</td>
                     <td className="muted" style={{ fontSize: 12 }}>
                       {o.history.map((h, i) => (

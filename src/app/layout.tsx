@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { ShellServer } from "@/ui/shell/shell-server";
 import { Providers } from "./providers";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "RAY",
@@ -14,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en">
       {/* Browser extensions add attributes to body before React loads. */}
       <body suppressHydrationWarning>
         <Providers>
