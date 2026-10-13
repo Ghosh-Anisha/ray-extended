@@ -536,7 +536,10 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
 
   draft_request: def({
     args: z.object({
-      request: z.enum(["international_limit", "currency_enable", "network_enable", "billing_details", "other"]),
+      // risk_review: a review ticket to Razorpay's risk desk (Step 8 E).
+      // invoice_attach: the invoice attached to a bank transfer so its
+      // settlement isn't held (Step 8). Both Simulated.
+      request: z.enum(["international_limit", "currency_enable", "network_enable", "billing_details", "other", "risk_review", "invoice_attach"]),
       text: z.string().min(1),
       evidence_refs: z.array(z.string()).default([]),
     }),
@@ -544,7 +547,8 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     approval: "none",
     guards: [],
     async run(_ctx, x) {
-      return { request: x.request, text: x.text, evidence_refs: x.evidence_refs, status: "drafted", simulated: true };
+      const status = x.request === "risk_review" ? "filed" : x.request === "invoice_attach" ? "attached" : "drafted";
+      return { request: x.request, text: x.text, evidence_refs: x.evidence_refs, status, simulated: true };
     },
   }),
 };

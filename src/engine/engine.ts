@@ -15,13 +15,14 @@ import type { ReceiveInput } from "@/adapters/messaging";
 import type { AudioInput } from "@/adapters/voice";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
-import { nextDueAction, releaseHeldAction } from "@/guards";
+import { formatMoney, nextDueAction, releaseHeldAction } from "@/guards";
 import * as s from "@/db/schema";
 import { CASE_EVENT_TYPE, engineEvent, fromMessage, fromWebhook, type EngineEvent, type EngineEventInput } from "./events";
 import { findCase } from "./grouping";
 import { orchestrate } from "./orchestrator";
 import type { EngineContext, Registry } from "./specialist";
-import type { Case } from "./state-machine";
+import { findLateCase, isCapture, LATE_WINDOW_MS, PAID_LATE, paymentMatches, unconfirmedSince } from "./late";
+import { isFinal, transition, type Case } from "./state-machine";
 
 export type HandleResult =
   | { outcome: "unmatched" }
@@ -74,6 +75,38 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     }
   }
 
+  async function claimed(e: EngineEvent): Promise<Case | null> {
+    for (const spec of registry.all()) {
+      const id = spec.claim ? await spec.claim(ctx, e) : null;
+      if (!id) continue;
+      const kase = repo.cases.get(id);
+      // Only an open case of the claiming flow, for the same merchant.
+      if (kase && kase.merchant_id === e.merchantId && kase.moment === spec.moment && !isFinal(kase.state)) return kase;
+    }
+    return null;
+  }
+
+  function closePaidLate(kase: Case, paymentId: string, evidenceRef: string): Case {
+    const p = repo.rzpPayments.get(paymentId)!;
+    const amount = formatMoney(p.amount, p.currency);
+    repo.caseEvents.insert({ id: newId("cev"), case_id: kase.id, at: clock.now(), type: "note", payload: { kind: "paid_late", payment_id: paymentId }, evidence_ref: paymentId });
+    const closed = transition(db, clock, kase.id, "closed", {
+      reason: `Paid late: ${amount} came in after the case closed with no reply.`,
+      evidenceRef,
+      patch: { closed_at: clock.now(), outcome: PAID_LATE, counts_as_saved: true },
+    });
+    repo.alerts.insert({
+      id: newId("alert"),
+      merchant_id: kase.merchant_id,
+      case_id: kase.id,
+      kind: PAID_LATE,
+      text: `${amount} came in on a case that had closed with no reply. RAY marked it Resolved.`,
+      channel: "in_app",
+      sent_at: clock.now(),
+    });
+    return closed;
+  }
+
   async function handle(raw: EngineEventInput): Promise<HandleResult> {
     const e = engineEvent.parse(raw);
     const type = CASE_EVENT_TYPE[e.kind];
@@ -85,6 +118,10 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     if (seen) return { outcome: "duplicate", caseId: seen.caseId };
 
     let kase = findCase(db, e);
+    // A flow may claim an event for one of its own open cases (Specialist.claim).
+    if (!kase && !e.newQuery) kase = await claimed(e);
+    // A case that closed with no reply in the last 14 days (late.ts).
+    if (!kase && !e.newQuery) kase = findLateCase(db, e);
     let alertText: string | null = null;
     if (!kase) {
       let detection = null;
@@ -127,6 +164,14 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
       evidence_ref: e.sourceId,
     });
     markSource(e, { handled_case_id: kase.id, unmatched_reason: null });
+
+    // Paid late: a matching payment closes a case that closed with no reply.
+    if (kase.state === "unconfirmed" && isCapture(e)) {
+      const since = unconfirmedSince(db, kase.id);
+      if (since !== null && e.at - since <= LATE_WINDOW_MS && paymentMatches(db, kase, e.keys.paymentId!)) {
+        return { outcome: "handled", caseId: kase.id, created: false, case: closePaidLate(kase, e.keys.paymentId!, row.id) };
+      }
+    }
 
     const merchant = repo.merchants.get(kase.merchant_id)!;
     const created = alertText !== null;

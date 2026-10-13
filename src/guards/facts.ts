@@ -21,6 +21,16 @@ const SKIP = new Set(["id", "seq", "merchant_id", "customer_id", "case_id", "tok
 
 type Row = Record<string, unknown>;
 
+// Extra case data a flow keeps in its own tables (Step 8: MoneySaver bank
+// details, the account's international limit). Each source returns raw rows
+// for one case, or none; they are shown like every other record. Sources
+// only add facts, never remove them.
+export type FactSource = (db: Db, kase: typeof s.cases.$inferSelect) => Row[];
+const FACT_SOURCES = new Map<string, FactSource>();
+export function registerFactSource(name: string, source: FactSource) {
+  FACT_SOURCES.set(name, source);
+}
+
 function display(row: Row, currency: string): Row {
   const out: Row = {};
   for (const [k, v] of Object.entries(row)) {
@@ -105,6 +115,7 @@ export function caseFacts(db: Db, caseId: string): Row {
   for (const a of db.select().from(s.actions).where(and(eq(s.actions.case_id, caseId), eq(s.actions.status, "done"))).all()) {
     if (a.result) records.push(display(a.result, "INR"));
   }
+  for (const source of FACT_SOURCES.values()) for (const r of source(db, kase)) records.push(display(r, (r.currency as string) ?? "INR"));
   const timers = db.select().from(s.timers).where(eq(s.timers.case_id, caseId)).all();
 
   return {

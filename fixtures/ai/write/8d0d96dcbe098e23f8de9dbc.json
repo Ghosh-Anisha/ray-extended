@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "8d0d96dcbe098e23f8de9dbc",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_left_checkout",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Emma",
+      "amount": "$49",
+      "for": "order nn_pro_annual_960",
+      "card": null,
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_pro_annual_960",
+      "sign_off": "Team NoteNest",
+      "what_happened": "it wasn't finished",
+      "never_the_same_card": false
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Emma,\n\nIt looks like your payment of $49 to NoteNest for order nn_pro_annual_960 wasn't finished.\n\nIf you'd still like it, here's a fresh payment link from NoteNest for $49: https://pay.sim.example/l/plinkref1\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}
