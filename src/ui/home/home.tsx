@@ -9,6 +9,7 @@ import { MOMENT_LABEL } from "@/surfaces/words";
 import { ApprovalCard } from "../merchant/approval-card";
 import { NudgeBar } from "../nudge";
 import type { EmiCard } from "@/surfaces/grow";
+import { CoachMarks } from "../coach/coach";
 import { Capabilities } from "./capabilities";
 import { GuidedDemoCard } from "./guided-card";
 import { ProactiveCards } from "./proactive";
@@ -185,6 +186,14 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
       </aside>
       </div>
 
+      <CoachMarks
+        id="home-u6"
+        steps={[
+          { target: "[data-coach='capabilities']", text: "Everything RAY can do for you. Each card says if it is On, ready to Try, or Coming soon." },
+          { target: "[data-coach='suggestions']", text: "RAY also suggests changes from your own numbers. You decide: Turn on or Not now." },
+          { target: "[data-coach='try-it']", text: "Try it opens a short example on Leafy Bakes, with RAY pointing things out." },
+        ]}
+      />
       <NudgeBar
         text={topCase ? `${stats.needsYou.count} ${stats.needsYou.count === 1 ? "case needs" : "cases need"} you. Start with the biggest: ${topCase.name}, ${topCase.amount}.` : "You're all caught up. Ask RAY what it can do for you next."}
         action={topCase ? { label: "Open", href: `${base}/cases/${topCase.id}` } : { label: "Ask RAY", href: `${base}/ask` }}

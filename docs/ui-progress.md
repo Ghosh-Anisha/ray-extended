@@ -25,3 +25,9 @@ Verified: typecheck, lint and tests pass (592 passed, 27 skipped). Screenshots o
 The unattended session refuses every command that runs code (`npm run`, `npx`, `node`, `tsc`, `vitest`) and every `git add`, `commit` and `push`. Only read-only git works. U3 was not started: more unchecked code on top of it risks a broken build, and U3 could not be tested, linted, built or screenshotted.
 
 To continue, use a session that allows npm and git writes. Build U3 from `docs/ui-rebuild.md` 3.4, 3.5, 3.6, 5 and 7.
+
+PHASE U6: DONE
+
+# Phase U6 (guide, proactive cards, My dashboard): done
+
+Verified: lint, typecheck and tests pass. Screenshots (Home, tours, My dashboard from setup to CA pack, desktop and phone) are in `docs/screenshots/u6/`. Decisions are in `docs/ui-decisions-u6.md`.

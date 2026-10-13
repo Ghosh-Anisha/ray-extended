@@ -33,9 +33,6 @@ export function writeState(a: Adapters, merchantId: string, key: string, value: 
 
 // ---- The three questions
 
-export const BUSINESS_OPTIONS = ["Online store", "Services or classes", "B2B and invoices", "Subscriptions"] as const;
-export const DAILY_OPTIONS = ["Sales today", "Success rate", "Refunds and disputes", "Overdue invoices", "Subscriptions"] as const;
-export const AUDIENCE_OPTIONS = ["Just me", "Me and my CA", "My team"] as const;
 
 export type Setup = { business: string; daily: string[]; audience: string };
 
@@ -218,7 +215,6 @@ function bankRows(a: Adapters, merchantId: string, from: number, to: number): Ba
 
 // ---- Asking for a widget
 
-export const ASK_EXAMPLES = ["Show refunds by product", "Show success rate by bank", "Add overdue invoices"];
 
 export function parseWidgetAsk(text: string): WidgetKind | null {
   const t = text.toLowerCase().replace(/[?.!]/g, "").trim();
@@ -370,7 +366,6 @@ const MONTHS = ["january", "february", "march", "april", "may", "june", "july", 
 const FEE_RATE = 0.02;
 const GST_RATE = 0.18;
 
-export const REPORT_EXAMPLES = ["Settlements for September with fees and GST", "Refunds for September", "Disputes this month"];
 
 export function buildReport(a: Adapters, merchantId: string, text: string): Report | null {
   const t = text.toLowerCase();

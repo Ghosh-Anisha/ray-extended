@@ -7,8 +7,10 @@ import { Bell, ChevronDown, ChevronUp, FileText, MessageCircle, Pin, Sparkles, X
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { AUDIENCE_OPTIONS, BUSINESS_OPTIONS, DAILY_OPTIONS, REPORT_EXAMPLES, ASK_EXAMPLES, type DashboardView, type Report, type WatchAlert } from "@/surfaces/dashboard";
+import type { DashboardView, Report, WatchAlert } from "@/surfaces/dashboard";
+import { ASK_EXAMPLES, AUDIENCE_OPTIONS, BUSINESS_OPTIONS, DAILY_OPTIONS, REPORT_EXAMPLES } from "@/surfaces/dashboard-options";
 import type { DashboardResult } from "@/surfaces/dashboard-actions";
+import { CoachMarks } from "../coach/coach";
 import { NudgeBar } from "../nudge";
 
 type Result = { ok: boolean; error?: string; result?: DashboardResult };
@@ -168,7 +170,21 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
   const [packDone, setPackDone] = useState<string | null>(null);
   const base = `/merchant/${merchantId}`;
 
-  if (!view.setup) return <Setup view={view} merchantId={merchantId} />;
+  if (!view.setup) return (
+    <>
+      <Setup view={view} merchantId={merchantId} />
+      <CoachMarks
+        id="dashboard-u6"
+        steps={[
+          { target: "[data-coach='dash-setup']", text: "Three quick questions. They are already picked from your data, so you can just build." },
+          { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
+          { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
+          { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
+          { target: "[data-coach='dash-reports']", text: "Reports in words: a short summary on top, then the table. Send it to your CA on WhatsApp." },
+        ]}
+      />
+    </>
+  );
 
   const watched = view.widgets.filter((w) => w.watch);
   const alertOf = (id: string) => view.alerts.find((a) => a.widgetId === id);
@@ -322,6 +338,17 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
         )}
       </section>
 
+
+      <CoachMarks
+        id="dashboard-u6"
+        steps={[
+          { target: "[data-coach='dash-setup']", text: "Three quick questions. They are already picked from your data, so you can just build." },
+          { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
+          { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
+          { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
+          { target: "[data-coach='dash-reports']", text: "Reports in words: a short summary on top, then the table. Send it to your CA on WhatsApp." },
+        ]}
+      />
       <NudgeBar
         text={view.alerts[0] ? `${view.alerts[0].headline} Tap Why? to see the cause.` : "Ask for a widget in plain words, or build a report for your CA."}
         action={view.alerts[0]?.action ? view.alerts[0].action : { label: "Open cases", href: `${base}/cases` }}

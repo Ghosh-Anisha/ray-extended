@@ -1,19 +1,18 @@
 import { merchantParam } from "../merchant";
+import { rulesView } from "@/ask/rules-view";
 import { merchantView } from "@/surfaces/views";
+import { AskPage } from "@/ui/ask/ask-page";
 import { PageShell } from "@/ui/merchant/page-shell";
-import { Soon } from "@/ui/home/soon";
 import { Breadcrumbs } from "@/ui/shell/breadcrumbs";
 
-export default async function AskPage({ params }: { params: Promise<{ merchantId: string }> }) {
+export default async function Page({ params, searchParams }: { params: Promise<{ merchantId: string }>; searchParams: Promise<{ q?: string | string[] }> }) {
   const { a, merchantId } = await merchantParam(params);
+  const q = (await searchParams).q;
+  const suggested = rulesView(a, merchantId).suggested[0] ?? null;
   return (
-    <PageShell killSwitch={merchantView(a, merchantId).killSwitch !== null}>
+    <PageShell killSwitch={merchantView(a, merchantId).killSwitch !== null} wide>
       <Breadcrumbs trail={[{ label: "Agentic Dashboard", href: `/merchant/${merchantId}` }, { label: "Ask RAY" }]} />
-      <Soon
-        title="Ask RAY"
-        line="Ask about any payment, case or rule, and tell RAY how to handle things. Chat arrives in the next build."
-        action={{ label: "Open cases", href: `/merchant/${merchantId}/cases` }}
-      />
+      <AskPage merchantId={merchantId} initialQuery={(Array.isArray(q) ? q[0] : q)?.slice(0, 400) ?? ""} suggestion={suggested?.sentence ?? null} />
     </PageShell>
   );
 }
