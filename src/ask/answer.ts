@@ -13,6 +13,8 @@ import { hoursLabel, merchantStats, rupees } from "@/surfaces/stats";
 import { money } from "@/surfaces/format";
 import { caseView, inboxView, playbookView, type CaseRow } from "@/surfaces/views";
 import { capabilities, type Capability } from "./capabilities";
+import { CASE_CHIPS, FALLBACK_CHIPS, STARTER_CHIPS } from "./chips";
+export { CASE_CHIPS, FALLBACK_CHIPS, STARTER_CHIPS };
 import { describePlan, parseRuleRequest, type RuleCardData } from "./rules";
 
 export type Cite = { label: string; href: string };
@@ -26,26 +28,11 @@ export type AskReply = {
   chips: string[];
 };
 
-export const STARTER_CHIPS = [
-  "Why did Priya's order not show up?",
-  "What's waiting on me?",
-  "Refund duplicate charges under ₹500 automatically",
-  "Show refunds by product",
-];
-export const CASE_CHIPS = ["What did RAY find?", "Whose side is this?", "What happens if I tap?", "What was the customer told?"];
-
 const DAY = 24 * 60 * 60 * 1000;
 const reply = (r: Partial<AskReply> & { text: string }): AskReply => ({ kind: "answer", bullets: [], cites: [], rule: null, capabilities: [], chips: [], ...r });
 const norm = (t: string) => t.toLowerCase().replace(/[’']/g, "'").replace(/\s+/g, " ").trim();
 const has = (t: string, re: RegExp) => re.test(t);
 
-export const FALLBACK_CHIPS = [
-  "What's waiting on me?",
-  "What can you do?",
-  "Refund duplicate charges under ₹500 automatically",
-  "Always bring me cases above ₹2,000",
-  "Show refunds by product",
-];
 const fallback = (): AskReply =>
   reply({ kind: "fallback", text: "I can't set or answer that yet. Here's what I can do:", chips: FALLBACK_CHIPS });
 

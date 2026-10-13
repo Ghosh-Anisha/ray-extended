@@ -25,3 +25,14 @@ Verified: typecheck, lint and tests pass (592 passed, 27 skipped). Screenshots o
 The unattended session refuses every command that runs code (`npm run`, `npx`, `node`, `tsc`, `vitest`) and every `git add`, `commit` and `push`. Only read-only git works. U3 was not started: more unchecked code on top of it risks a broken build, and U3 could not be tested, linted, built or screenshotted.
 
 To continue, use a session that allows npm and git writes. Build U3 from `docs/ui-rebuild.md` 3.4, 3.5, 3.6, 5 and 7.
+
+# Phase U3 (Ask RAY, Rules by chat, Rules page, coach marks): done
+
+U3 here covers sections 3.4, 3.5, 5, 7 and 10 only. My dashboard (3.6) is another session's.
+PHASE U3: DONE
+
+## Written
+- `src/ask/`: `rules.ts` (parser, rule cards, Approve rule through the existing playbook rows), `answer.ts` (grounded answers with cited cases), `capabilities.ts`, `rules-view.ts`, `chips.ts`, `ask.test.ts`.
+- `src/app/api/merchant/ask` and `/ask/rule`.
+- `src/ui/ask/` (shared thread, chat, side panel, `/ask` page), `src/ui/merchant/rules.tsx` (Rules page), `src/ui/coach/coach.tsx` (coach marks), shell wiring (RAY button opens the panel, "Show me around").
+- Screenshots in `docs/screenshots/u3/` at 1440x900 and 390x844. Pages load in about 0.6 s in `npm run demo`.

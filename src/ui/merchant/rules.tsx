@@ -85,6 +85,7 @@ function ActiveCard({ r, merchantId }: { r: RuleCardRow; merchantId: string }) {
     <div className="rule-row" data-on={r.on} id={r.id ?? undefined}>
       <div className="grow stack" style={{ gap: 4 }}>
         <strong>{r.sentence}</strong>
+        {r.detail && <span className="muted">{r.detail}</span>}
         <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
           <span className="chip neutral">{r.momentLabel}</span>
           {r.limit && <span className="chip information">{r.limit}</span>}
@@ -108,6 +109,7 @@ function Suggested({ r, merchantId }: { r: RuleCardRow; merchantId: string }) {
         <span className="chip neutral">{r.momentLabel}</span>
       </div>
       <strong className="rule-sentence">{r.sentence}</strong>
+      {r.detail && <div className="muted">{r.detail}</div>}
       {r.limit && <div className="muted">{r.limit}</div>}
       {r.why && <p className="rule-does">{r.why}</p>}
       {error && <span className="error">{error}</span>}
@@ -220,7 +222,7 @@ function SignOff({ initial, onSave }: { initial: string; onSave: (v: string) => 
 
 export function Rules({ view }: { view: RulesView }) {
   const mid = view.settings.merchant.id;
-  const first = view.suggested[0];
+  const first = view.suggested.find((r) => !r.detail) ?? view.suggested[0];
   return (
     <section className="stack">
       <div className="stack" style={{ gap: 4 }}>
@@ -246,7 +248,7 @@ export function Rules({ view }: { view: RulesView }) {
       )}
       <Settings v={view.settings} />
       <NudgeBar
-        text={first ? `RAY suggests: ${first.sentence}.` : "Tell RAY a rule above, or ask it what to set up first."}
+        text={first ? `RAY suggests a rule: ${first.sentence} (${first.momentLabel}).` : "Tell RAY a rule above, or ask it what to set up first."}
         action={first ? { label: "Review rule", href: "#suggested" } : { label: "Ask RAY", href: `/merchant/${mid}/ask?q=${encodeURIComponent("What should I set up first?")}` }}
       />
       <CoachMarks

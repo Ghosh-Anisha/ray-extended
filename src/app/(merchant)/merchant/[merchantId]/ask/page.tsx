@@ -8,7 +8,8 @@ import { Breadcrumbs } from "@/ui/shell/breadcrumbs";
 export default async function Page({ params, searchParams }: { params: Promise<{ merchantId: string }>; searchParams: Promise<{ q?: string | string[] }> }) {
   const { a, merchantId } = await merchantParam(params);
   const q = (await searchParams).q;
-  const suggested = rulesView(a, merchantId).suggested[0] ?? null;
+  // The nudge is one line, so it names the shortest suggestion.
+  const suggested = rulesView(a, merchantId).suggested.find((r) => !r.detail) ?? null;
   return (
     <PageShell killSwitch={merchantView(a, merchantId).killSwitch !== null} wide>
       <Breadcrumbs trail={[{ label: "Agentic Dashboard", href: `/merchant/${merchantId}` }, { label: "Ask RAY" }]} />

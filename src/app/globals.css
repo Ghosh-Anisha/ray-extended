@@ -380,7 +380,7 @@ table.mail tr:last-child td { border-bottom: 0; }
 .ask-input { display: flex; gap: 8px; }
 .ask-input input { flex: 1; min-width: 0; height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
 .ask-input input:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
-.reply-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.reply-list { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .cites { display: flex; flex-wrap: wrap; gap: 6px; }
 .cite { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); text-decoration: none; font-weight: 600; }
 .cite:hover { text-decoration: underline; }
@@ -394,7 +394,7 @@ table.mail tr:last-child td { border-bottom: 0; }
 .rule-saved { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--success); font-weight: 600; }
 .rule-saved a { color: var(--primary); }
 .ask-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
-.ask-page .ask-full { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; min-height: 560px; height: calc(100vh - 230px); }
+.ask-page .ask-full { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); display: flex; flex-direction: column; min-height: 440px; height: calc(100vh - 370px); }
 .ask-page .ask-thread { padding: 20px 24px; }
 .ask-page .ask-bottom { padding: 14px 24px; }
 .ask-page .ask-msg.ray { max-width: 720px; width: auto; }
@@ -412,3 +412,4 @@ table.mail tr:last-child td { border-bottom: 0; }
 .switch:disabled { opacity: 0.6; cursor: default; }
 .settings summary { cursor: pointer; list-style: none; }
 .settings summary::-webkit-details-marker { display: none; }
+.ask-msg .chips-scroll .seg, .panel .chips-scroll .seg { white-space: normal; text-align: left; }

@@ -4,7 +4,7 @@
 // side panel (compact) and by the /ask page.
 import { Send, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { CASE_CHIPS, STARTER_CHIPS } from "@/ask/answer";
+import { CASE_CHIPS, STARTER_CHIPS } from "@/ask/chips";
 import { useAsk } from "./ask-context";
 import { ReplyView } from "./reply";
 

@@ -8,6 +8,7 @@ import * as s from "@/db/schema";
 import { AUTO_CUSTOMER_MESSAGES } from "@/guards";
 import { dateTime, money } from "@/surfaces/format";
 import { isSettingRow, readSettings } from "@/surfaces/playbook";
+import { LANE_NAME, type Lane } from "@/flows/chargebacks/lanes";
 import { playbookView, type PlaybookView } from "@/surfaces/views";
 import { MOMENT_LABEL } from "@/surfaces/words";
 
@@ -25,6 +26,8 @@ export type RuleCardRow = {
   kind: "rule" | "auto" | "limit";
   moment: s.Moment;
   why: string | null;
+  // The full wording when the sentence is a short name for it (chargeback lanes).
+  detail: string | null;
 };
 
 export type RulesView = { active: RuleCardRow[]; suggested: RuleCardRow[]; settings: PlaybookView };
@@ -56,7 +59,8 @@ export function rulesView(a: Adapters, merchantId: string): RulesView {
     return {
       key: r.id,
       id: r.id,
-      sentence: r.text,
+      sentence: typeof j.lane === "string" && j.lane in LANE_NAME ? LANE_NAME[j.lane as Lane] : r.text,
+      detail: typeof j.lane === "string" && j.lane in LANE_NAME ? r.text.replace(/^[^:]+:\s*/, "").replace(/^./, (c) => c.toUpperCase()) : null,
       momentLabel: MOMENT_LABEL[r.moment],
       limit,
       on: r.status === "approved",
@@ -77,7 +81,7 @@ export function rulesView(a: Adapters, merchantId: string): RulesView {
   const auto = readSettings(a.db, merchantId, "paid_no_order").autoMessages;
   const autoOn = rules.some((r) => r.rule_json.setting === AUTO_CUSTOMER_MESSAGES && r.status === "approved" && r.rule_json.on === true);
   if (auto || autoOn) {
-    active.push({ key: "auto_messages", id: null, sentence: "Message customers automatically when an order is missing after payment", momentLabel: MOMENT_LABEL.paid_no_order, limit: null, on: true, used: 0, lastUsed: null, kind: "auto", moment: "paid_no_order", why: null });
+    active.push({ key: "auto_messages", id: null, sentence: "Message customers automatically when an order is missing after payment", momentLabel: MOMENT_LABEL.paid_no_order, limit: null, on: true, used: 0, lastUsed: null, kind: "auto", moment: "paid_no_order", why: null, detail: null });
   }
   active.push({
     key: "limit",
@@ -91,6 +95,7 @@ export function rulesView(a: Adapters, merchantId: string): RulesView {
     kind: "limit",
     moment: "paid_no_order",
     why: null,
+    detail: null,
   });
   return { active, suggested, settings: playbookView(a, merchantId) };
 }
