@@ -3,6 +3,23 @@
 Branch `step-8-international`. Plan written before building; decisions are
 added as they are made. Status at the bottom.
 
+## Engine change (approved after the first PR review): late events after "Closed, no reply"
+
+- **State machine**: the move `unconfirmed -> closed` (Resolved) already existed in `TRANSITIONS`; it is now used, written to the timeline through `transition()` like every other move. No table change.
+- **New `src/engine/late.ts`**, called from `handleEvent` after grouping and `claim`, before any detector. For 14 days after a case went unconfirmed (time of its `state_changed` note):
+  - a `payment.captured` that matches it (same payment, same order, a link the case cites or RAY made on it, or the same customer paying the same amount, checked in code against Razorpay's record) closes it as **Resolved, outcome `paid_late`, counted as saved**, with a `paid_late` note and an in-app alert. No flow hook runs; it is the same for every flow.
+  - a message from the same customer joins the case even past grouping's 7 days; the flow reopens it (`unconfirmed -> likely`), as paid-no-order and the dummy flow already did. The international flow now does the same and drafts a reply.
+  - After 14 days, nothing is joined: a payment or message is treated as new.
+- **Tests**: `src/flows/international/international.test.ts` ("late events after Closed, no reply") and `src/flows/paid-no-order/late.test.ts` (paid late, different amount, late message at 10 days, a message after 14 days).
+- The international `claim` hook no longer takes events for unconfirmed cases: only the 14-day rule may.
+
+Also from the same review:
+- **Email consent for buyers abroad stays as built**: only an explicit opt-out blocks. These are checkout customers; the opt-in requirement is for B2B invoice buyers and comes with Step 11.
+- **`npm run dev:webpack`** runs `next dev --webpack` (needed in worktrees, where Turbopack rejects the linked `node_modules`). `dev` is unchanged.
+- **Change** redrafts through the write job with the case's real facts: the buyer email (bank details or link included) and the D request reason; code keeps the request's evidence and ₹ lost. An email written only at approval (the PayPal link) gets the merchant's note at that write. Tested on Oliver's card.
+- **Follow-ups on the card**: a proposal's own follow-ups (the email after the D request, the link and email after the PayPal request) are done on the same tap, covered by the same approval, and listed on the card and the Your call buttons ("Also on this tap: the message to oliver@example.co.uk"). Shared view change: `Proposal.then` (additive).
+- **A playbook threshold counts as a rule**: an approved international rule `{ tool: "refund", when: "duplicate", max }` refunds the extra payment when it is at or under max (INR), through `guardedCall` with that rule id, with the 10-minute hold and every guard (the amount cap still applies). Over the threshold, the merchant taps. Tested both ways.
+
 ## Shared changes (all additive)
 
 | File | Change | Why |
@@ -14,6 +31,9 @@ added as they are made. Status at the bottom.
 | `src/engine/state-machine.ts` | One new allowed move: `waiting_customer -> verifying` | Recovery emails run alone (no tap, no rule), so the case never passes through `acting`. When the buyer then pays, the case must reach `verifying` so `verify()` closes it with `counts_as_saved` through the orchestrator. No existing move is removed; the takeover-only rule for closing from `waiting_customer` is untouched |
 | `src/guards/facts.ts` | New hook `registerFactSource(name, fn)`: extra display-ready rows a flow adds to `caseFacts` for its own cases | Grounding (rule 6) must see the MoneySaver bank details and the account's international limit, which live in this flow's tables |
 | `src/tools/act.ts` | `draft_request.request` gains `risk_review` and `invoice_attach`; the result's `status` says `filed` / `attached` for those two, `drafted` as before for the rest | The risk ticket (E) and the invoice attach (transfers) must go through `guardedCall` (rule 1), and the act-tool list is pinned at 18 by existing tests, so no new tool |
+| `src/engine/late.ts`, `src/engine/engine.ts` | Late events after "Closed, no reply" (see the top of this file) | Approved engine change |
+| `src/surfaces/views.ts`, `src/ui/merchant/approval-card.tsx`, `src/ui/merchant/case-page.tsx` | `Proposal.then`: an action's follow-ups listed on the card | Follow-ups covered by the same tap are shown |
+| `package.json` | `dev:webpack` script | Worktrees |
 | `src/surfaces/views.ts` | (1) The Your call question uses a `merchant_question` note when it is newer than the last decision. (2) A case with no payment yet shows the amount of the link or order it cites. Both only apply when those notes/records exist, so paid-no-order screens are unchanged | A near-match transfer, a buyer's reply or a blocked email hands the case back after `decide`, and the merchant must see that question, not the old one. An F case (expired link, abandoned checkout) has no payment, so screens said "Amount not known yet" |
 | `src/ui/sim/sim-bar.tsx` | One nav entry: "Checkout abroad" | Reach the simulated checkout |
 | `src/app/(sim)/sim/international/page.tsx`, `src/app/api/dev/international/route.ts` | New files, thin: render the flow's simulator (`ui/international-sim.tsx`) and call `runSimAction` | The simulated checkout page |
@@ -107,6 +127,4 @@ Never-bend rules touched: 1 (all acts via guardedCall), 2 (only the refund moves
 
 ## Not done / follow-ups
 
-- Rule 12 for email: buyers abroad have no email consent rows; an opt-out blocks (tested), no row allows, as the existing guard does. If buyers should need an explicit email opt-in, that is a guard change for its own step.
 - The merchant can't yet tell RAY the buyer type from the playbook screen; `intl_settings.buyer_type` is read but only set in data.
-- A late payment after "Closed, no reply" is not picked up (unconfirmed can only go back to Likely).

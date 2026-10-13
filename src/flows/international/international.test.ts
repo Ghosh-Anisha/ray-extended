@@ -9,7 +9,7 @@ import { bannedWordsIn, hasEmDash } from "@/ai/grounding";
 import * as s from "@/db/schema";
 import { buildRegistry } from "@/engine";
 import { setKillSwitch } from "@/guards";
-import { setRuleStatus } from "@/surfaces/actions";
+import { requestChange, setRuleStatus } from "@/surfaces/actions";
 import { caseView, inboxView } from "@/surfaces/views";
 import { abandonedCheckoutSweep, approveAccountChange, expireLink, landTransfer, openCheckout, payByCard, payLink, payWithPaypal, riskReview } from "./checkout";
 import { N, TIMERS } from ".";
@@ -524,5 +524,69 @@ describe("late events after Closed, no reply", () => {
     await w.engine.advanceBy(0);
     expect(w.state(k.id).state).toBe("waiting_merchant");
     expect(caseView(w.a, k.id).yourCall.primary?.label).toBe("Send reply to Emma");
+  });
+});
+
+describe("Change: RAY redrafts with the merchant's note (write job)", () => {
+  it("redrafts Oliver's email and the request reason, keeps the evidence, and the same card comes back", async () => {
+    await w.a.webhooks.emit({ merchantId: PIXELFORGE, event: "payment.failed", paymentId: OLIVER_PAY });
+    const k = w.caseFor(OLIVER_PAY)!;
+    const before = caseView(w.a, k.id).yourCall;
+    expect(before.primary?.then).toEqual(["Also on this tap: the message to oliver@example.co.uk"]);
+    const oldRequest = w.notes(k.id, N.requestDraft).at(-1)!.payload.text as string;
+
+    await requestChange(w.engine, w.a, { caseId: k.id, text: "Ask Oliver to reply once he's sent it, and mention he's a repeat client." });
+    const after = caseView(w.a, k.id).yourCall;
+    expect(after.primary?.label).toBe("Approve request & send bank details");
+    expect(after.primary?.id).not.toBe(before.primary?.id);
+    expect(after.secondary.map((p) => p.label)).toEqual(["Approve request"]);
+    expect(after.changes.map((c) => c.text)).toEqual(["Ask Oliver to reply once he's sent it, and mention he's a repeat client."]);
+    expect(after.draft).toContain("please reply to this email");
+    expect(after.draft).toContain("Account number: 41207788");
+    const request = w.notes(k.id, N.requestDraft).at(-1)!.payload.text as string;
+    expect(request).toContain("Oliver Bennett is a repeat client of PixelForge Studio.");
+    // Code's evidence and ₹ lost are kept as they were.
+    expect(request.split("\n\nEvidence: ")[1]).toBe(oldRequest.split("\n\nEvidence: ")[1]);
+
+    await w.tapLabel(k.id, "Approve request & send bank details");
+    expect(w.sent(k.id)[0].body).toBe(after.draft);
+    expect(w.actions(k.id, "draft_request")[0].args.text).toBe(request);
+    w.noFallbacks();
+  });
+});
+
+describe("a playbook threshold counts as a rule", () => {
+  const rule = (max: number) =>
+    w.repo.playbookRules.insert({
+      id: `rule_dup_${max}`, merchant_id: NOTENEST, moment: "international", rule_json: { tool: "refund", when: "duplicate", max },
+      text: `Refund duplicate payments up to ${max === 500_000 ? "₹5,000" : "₹3,000"}`, source: "merchant", status: "approved", approved_at: w.a.clock.now(),
+    });
+  async function paidTwice() {
+    const r = await w.checkout({ outcome: "three_ds_failed" });
+    // Emma left, so RAY emailed; then she paid by card and with PayPal.
+    await w.engine.advanceBy(30 * MIN);
+    await payByCard(w.a, { merchantId: NOTENEST, orderId: r.order.id, outcome: "success" });
+    const second = await payWithPaypal(w.a, { merchantId: NOTENEST, orderId: r.order.id });
+    return { k: r.kase!, second };
+  }
+
+  it("under the threshold: the extra payment is refunded under the rule, with the hold", async () => {
+    const ruleRow = rule(500_000);
+    const { k, second } = await paidTwice();
+    const refund = w.actions(k.id, "refund")[0];
+    expect(refund).toMatchObject({ status: "held", approved_by: ruleRow.id });
+    expect(refund.args.payment_id).toBe(second.paymentId);
+    expect(w.state(k.id).state).toBe("verifying");
+    expect(caseView(w.a, k.id).underRule).toEqual([{ ruleId: ruleRow.id, text: `Under your rule: ${ruleRow.text}` }]);
+    await w.engine.advanceBy(11 * MIN);
+    expect(w.state(k.id)).toMatchObject({ state: "closed", outcome: "paid_twice_refunded", counts_as_saved: true });
+  });
+
+  it("over the threshold: the merchant taps", async () => {
+    rule(300_000);
+    const { k } = await paidTwice();
+    expect(w.actions(k.id, "refund")).toEqual([]);
+    expect(w.state(k.id).state).toBe("waiting_merchant");
+    expect(w.proposals(k.id).map((p) => p.label)).toEqual(["Refund $49", "Refund the card one instead"]);
   });
 });

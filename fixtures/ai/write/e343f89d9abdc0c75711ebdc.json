@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "e343f89d9abdc0c75711ebdc",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_reply",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Emma",
+      "amount": "$49",
+      "for": "order nn_pro_annual_902",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_pro_annual_902",
+      "sign_off": "Team NoteNest",
+      "buyer_message": "Sorry, I was away. Can I still pay?",
+      "paid": false
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Emma,\n\nThanks for your message. We've checked, and we haven't received your payment of $49 to NoteNest for order nn_pro_annual_902 yet. You can still pay $49 on our payment link: https://pay.sim.example/l/plinkref1\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}

@@ -239,6 +239,42 @@
       }
     },
     {
+      "name": "international buyer_recovery_redraft 63fe8b5638490ad2066f2865",
+      "job": "write",
+      "input": {
+        "audience": "buyer",
+        "kind": "buyer_recovery_redraft",
+        "first_customer_message": false,
+        "facts": {
+          "merchant": "PixelForge Studio",
+          "buyer_first_name": "Oliver",
+          "amount": "£2,800",
+          "for": "invoice pf_inv_2041",
+          "card": "card ending 8810",
+          "link": null,
+          "paypal": false,
+          "bank_details": {
+            "Bank": "MoneySaver UK partner bank",
+            "Account name": "PixelForge Studio",
+            "Account number": "41207788",
+            "Sort code": "20-45-77",
+            "SWIFT": "MSVRGB2L"
+          },
+          "reference": "pf_inv_2041",
+          "sign_off": "Team PixelForge Studio",
+          "what_happened": "it couldn't go through on our checkout",
+          "current_draft": "Hi Oliver,\n\nYour card payment of £2,800 to PixelForge Studio for invoice pf_inv_2041 couldn't go through on our checkout, so here is another way to pay.\n\nYou can send £2,800 by bank transfer to PixelForge Studio:\n\nBank: MoneySaver UK partner bank\nAccount name: PixelForge Studio\nAccount number: 41207788\nSort code: 20-45-77\nSWIFT: MSVRGB2L\n\nPlease use pf_inv_2041 as the payment reference so we can match it to you.\n\nTeam PixelForge Studio",
+          "merchant_change": "Ask Oliver to reply once he's sent it, and mention he's a repeat client."
+        },
+        "tone": "Warm",
+        "language": "en"
+      },
+      "output": {
+        "draft": "Hi Oliver,\n\nYour card payment of £2,800 to PixelForge Studio for invoice pf_inv_2041 couldn't go through on our checkout, so here is another way to pay.\n\nYou can send £2,800 by bank transfer to PixelForge Studio:\n\nBank: MoneySaver UK partner bank\nAccount name: PixelForge Studio\nAccount number: 41207788\nSort code: 20-45-77\nSWIFT: MSVRGB2L\n\nPlease use pf_inv_2041 as the payment reference so we can match it to you.\n\nOnce you've sent it, please reply to this email so we can look out for it.\n\nTeam PixelForge Studio",
+        "confidence": "sure"
+      }
+    },
+    {
       "name": "international buyer_recovery_three_ds_failed d3fd4e3d47978b319f2fdeaf",
       "job": "write",
       "input": {
@@ -326,6 +362,35 @@
       }
     },
     {
+      "name": "international buyer_reply e343f89d9abdc0c75711ebdc",
+      "job": "write",
+      "input": {
+        "audience": "buyer",
+        "kind": "buyer_reply",
+        "first_customer_message": false,
+        "facts": {
+          "merchant": "NoteNest",
+          "buyer_first_name": "Emma",
+          "amount": "$49",
+          "for": "order nn_pro_annual_902",
+          "card": "card ending 4242",
+          "link": "https://pay.sim.example/l/plinkref1",
+          "paypal": true,
+          "bank_details": null,
+          "reference": "nn_pro_annual_902",
+          "sign_off": "Team NoteNest",
+          "buyer_message": "Sorry, I was away. Can I still pay?",
+          "paid": false
+        },
+        "tone": "Warm",
+        "language": "en"
+      },
+      "output": {
+        "draft": "Hi Emma,\n\nThanks for your message. We've checked, and we haven't received your payment of $49 to NoteNest for order nn_pro_annual_902 yet. You can still pay $49 on our payment link: https://pay.sim.example/l/plinkref1\n\nTeam NoteNest",
+        "confidence": "sure"
+      }
+    },
+    {
       "name": "international buyer_reply f370199b3cb449d4db3d7022",
       "job": "write",
       "input": {
@@ -402,6 +467,29 @@
       },
       "output": {
         "draft": "Oliver Bennett, a business customer, tried to pay £2,800 (₹3.1 lakh) for invoice pf_inv_2041 by card, and Razorpay declined it. It's above your international limit of ₹2 lakh. Please raise the international card limit to at least ₹3.1 lakh on PixelForge Studio's account, so this payment and others like it can go through.",
+        "confidence": "sure"
+      }
+    },
+    {
+      "name": "international request_reason_redraft 3491938d09f10f21481a4bea",
+      "job": "write",
+      "input": {
+        "audience": "merchant",
+        "kind": "request_reason_redraft",
+        "first_customer_message": false,
+        "facts": {
+          "merchant": "PixelForge Studio",
+          "buyer": "Oliver Bennett",
+          "amount": "£2,800 (₹3.1 lakh)",
+          "for": "invoice pf_inv_2041",
+          "current_draft": "Oliver Bennett, a business customer, tried to pay £2,800 (₹3.1 lakh) for invoice pf_inv_2041 by card, and Razorpay declined it. It's above your international limit of ₹2 lakh. Please raise the international card limit to at least ₹3.1 lakh on PixelForge Studio's account, so this payment and others like it can go through.",
+          "merchant_change": "Ask Oliver to reply once he's sent it, and mention he's a repeat client."
+        },
+        "tone": "Plain",
+        "language": "en"
+      },
+      "output": {
+        "draft": "Oliver Bennett, a business customer, tried to pay £2,800 (₹3.1 lakh) for invoice pf_inv_2041 by card, and Razorpay declined it. It's above your international limit of ₹2 lakh. Please raise the international card limit to at least ₹3.1 lakh on PixelForge Studio's account, so this payment and others like it can go through. Oliver Bennett is a repeat client of PixelForge Studio.",
         "confidence": "sure"
       }
     }

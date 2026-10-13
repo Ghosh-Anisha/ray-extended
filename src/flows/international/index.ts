@@ -239,7 +239,8 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
   // A payment came in for the case. Two paid: the merchant decides which to
   // refund. One: the case's outcome.
   async function onPaid(ctx: EngineContext, kase: Case, c: Ctx, l: Later): Promise<
-    { kind: "duplicate"; reason: string; proposals: ProposedAction[]; findings: Finding[] } | { kind: "outcome"; o: Outcome; findings: Finding[]; fixedItself: boolean }
+    | { kind: "duplicate"; reason: string; proposals: ProposedAction[]; findings: Finding[]; underRule?: { reason: string; timers: TimerRequest[] } }
+    | { kind: "outcome"; o: Outcome; findings: Finding[]; fixedItself: boolean }
   > {
     const paid = l.paid.filter((x) => x.status === "captured");
     const findings: Finding[] = paid.map((q) => ({ text: `${c.first} paid ${formatMoney(q.amount, q.currency)} by ${q.method === "paypal" ? "PayPal" : q.method ?? "card"} at ${formatTime(q.created_at)} on ${formatDate(q.created_at)}.`, evidenceRef: q.id }));
@@ -248,6 +249,24 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
       note(ctx, kase, { kind: N.duplicate, payment_ids: paid.map((q) => q.id) }, extra.id);
       const how = (q: Payment) => (q.method === "paypal" ? "PayPal" : "card");
       const amt = formatMoney(extra.amount, extra.currency);
+      // A playbook threshold the merchant approved counts as a rule: refund
+      // the extra one under it, with the same hold and every guard.
+      const rule = duplicateRule(ctx, kase, extra);
+      if (rule) {
+        const r = await guardedCall("refund", { payment_id: extra.id, amount: extra.amount, speed: "normal" }, { adapters: c.a, caseId: kase.id, approval: { by: "rule", ruleId: rule.id, evidenceRef: extra.id } });
+        if (r.status === "held") {
+          return {
+            kind: "duplicate",
+            reason: "",
+            proposals: [],
+            findings,
+            underRule: {
+              reason: `${c.name} paid ${amt} twice. Refunding the ${how(extra)} one under your rule (${rule.text}), on hold for 10 min with Undo.`,
+              timers: [{ kind: TIMERS.refund, inMs: r.runAfter - ctx.clock.now() + 1 }],
+            },
+          };
+        }
+      }
       return {
         kind: "duplicate",
         reason: `${c.name} paid ${amt} twice for ${c.forLabel}: by ${how(keep)} at ${formatTime(keep.created_at)} and by ${how(extra)} at ${formatTime(extra.created_at)}. Want me to refund the ${how(extra)} one?`,
@@ -330,7 +349,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
 
   // The one email after the buyer leaves (and D's, after the merchant's tap).
   // Right before sending: no later payment, no email yet, consent.
-  async function sendRecovery(ctx: EngineContext, kase: Case, c: Ctx, cause: Cause, opts: { bank?: boolean; approval?: Approval; body?: string } = {}): Promise<Sent> {
+  async function sendRecovery(ctx: EngineContext, kase: Case, c: Ctx, cause: Cause, opts: { bank?: boolean; approval?: Approval; body?: string; merchantNote?: string } = {}): Promise<Sent> {
     if (notes(ctx, kase.id, N.emailed).length) return { sent: false, why: `RAY already emailed ${c.first} once.` };
     const l = await later(ctx, kase, c);
     if (l.paid.length) return { sent: false, why: `${c.first} has already paid.`, paid: l };
@@ -343,7 +362,14 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     const facts = await emailFacts(ctx, kase, c, { link, paypal, bank });
     const body =
       opts.body ??
-      (await writeBuyer(ctx, kase, c, `buyer_recovery_${cause}`, { ...facts, what_happened: buyerReason(cause), never_the_same_card: CAUSES[cause].situation === "C" }, recoveryEmail(cause, facts)));
+      (await writeBuyer(
+        ctx,
+        kase,
+        c,
+        `buyer_recovery_${cause}`,
+        { ...facts, what_happened: buyerReason(cause), never_the_same_card: CAUSES[cause].situation === "C", ...(opts.merchantNote ? { merchant_change: opts.merchantNote } : {}) },
+        recoveryEmail(cause, facts),
+      ));
     const r = await guardedCall("send_message", messageArgs(c, "recovery_link", body), { adapters: c.a, caseId: kase.id, approval: opts.approval });
     if (!went(r)) return { sent: false, why: r.status === "blocked" ? r.failures[0].reason : "The email didn't go." };
     const messageId = String(doneResult(r)?.message_id ?? "");
@@ -474,6 +500,24 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     return { to: "verifying", reason: o.line, findings, timers: closeTimer(ctx, kase) };
   }
 
+  // An approved international rule { tool: "refund", when: "duplicate", max }
+  // covers the extra payment when its INR amount is at or under max.
+  function duplicateRule(ctx: EngineContext, kase: Case, extra: Payment) {
+    const inr = extra.currency === "INR" ? extra.amount : extra.base_amount;
+    if (inr === null) return null;
+    return (
+      ctx.repo.playbookRules
+        .list(and(eq(s.playbookRules.merchant_id, kase.merchant_id), eq(s.playbookRules.moment, "international"), eq(s.playbookRules.status, "approved")))
+        .find((r) => r.rule_json.tool === "refund" && r.rule_json.when === "duplicate" && (typeof r.rule_json.max !== "number" || inr <= r.rule_json.max)) ?? null
+    );
+  }
+
+  type DuplicateStep = { to: "waiting_merchant" | "verifying"; reason: string; findings: Finding[]; proposals?: ProposedAction[]; timers?: TimerRequest[] };
+  function duplicateStep(r: { reason: string; proposals: ProposedAction[]; underRule?: { reason: string; timers: TimerRequest[] } }, findings: Finding[]): DuplicateStep {
+    if (r.underRule) return { to: "verifying", reason: r.underRule.reason, findings, timers: r.underRule.timers };
+    return { to: "waiting_merchant", reason: r.reason, findings, proposals: r.proposals };
+  }
+
   // A payment outcome closes after the duplicate window; others at once.
   const closeTimer = (ctx: EngineContext, kase: Case): TimerRequest[] => {
     const at = Number(lastNote(ctx, kase.id, N.outcome)?.payload.close_at ?? 0);
@@ -502,7 +546,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     const l = await later(ctx, kase, c);
     if (l.paid.length) {
       const r = await onPaid(ctx, kase, c, l);
-      if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
+      if (r.kind === "duplicate") return duplicateStep(r, r.findings);
       return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
     }
     const latest = l.attempts.at(-1);
@@ -533,7 +577,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     const l = await later(ctx, kase, c);
     if (l.paid.length) {
       const r = await onPaid(ctx, kase, c, l);
-      if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: [finding, ...r.findings], proposals: r.proposals };
+      if (r.kind === "duplicate") return duplicateStep(r, [finding, ...r.findings]);
       return outcomeStep(ctx, kase, r.o, [finding, ...r.findings], r.fixedItself);
     }
     const blocked = !c.email ? `RAY has no email for ${c.name}.` : null;
@@ -718,7 +762,18 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
       question = `Approve the ${label}, and send ${c.first} your MoneySaver bank details to pay by transfer meanwhile?`;
     }
     if (paypal && c.email && (c.buyerType === "b2c" || !account)) {
-      proposals.push({ id: newId("prop"), label: "Approve request & send PayPal link", tool: "draft_request", args: args("paypal_link"), covered: false });
+      proposals.push({
+        id: newId("prop"),
+        label: "Approve request & send PayPal link",
+        tool: "draft_request",
+        args: args("paypal_link"),
+        covered: false,
+        // Done on the same tap; the email is written then, with the link in it.
+        followUps: [
+          { tool: "payment_link", args: { amount: c.amount, currency: c.currency, description: `${c.merchant.name}: ${c.forLabel}` } },
+          { tool: "send_message", args: { channel: "email", to: c.email, kind: "recovery_link" } },
+        ],
+      });
       if (proposals.length === 1) question = `Approve the ${label}, and send ${c.first} a link to pay with PayPal meanwhile?`;
     }
     proposals.push({ id: newId("prop"), label: "Approve request", tool: "draft_request", args: args(null), covered: false });
@@ -761,7 +816,8 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
       let sent = "";
       if (next === "bank_details" || next === "paypal_link") {
         const body = next === "bank_details" ? (proposal.followUps?.find((f) => f.tool === "send_message")?.args.body as string | undefined) : undefined;
-        const res = await sendRecovery(ctx, kase, c, c.cause!, { bank: next === "bank_details", approval, body });
+        const merchantNote = typeof proposal.args.merchant_note === "string" ? proposal.args.merchant_note : undefined;
+        const res = await sendRecovery(ctx, kase, c, c.cause!, { bank: next === "bank_details", approval, body, merchantNote });
         if (res.sent) {
           sent = next === "bank_details" ? ` RAY sent ${c.first} your bank details.` : ` RAY sent ${c.first} a link to pay with PayPal.`;
           timers.push({ kind: TIMERS.noPay, inMs: NO_PAY_MS });
@@ -892,7 +948,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
             const l = await later(ctx, kase, c);
             if (l.paid.length) {
               const r = await onPaid(ctx, kase, c, l);
-              if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
+              if (r.kind === "duplicate") return duplicateStep(r, r.findings);
               return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
             }
             return { to: "unconfirmed", reason: `${c.first} hasn't paid in 72 hr.`, findings: [] };
@@ -928,7 +984,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
         const l = await later(ctx, kase, c);
         if (!l.paid.length) return stay(kase, "Nothing new.");
         const r = await onPaid(ctx, kase, c, l);
-        if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, findings: r.findings, proposals: r.proposals };
+        if (r.kind === "duplicate") return duplicateStep(r, r.findings);
         return outcomeStep(ctx, kase, r.o, r.findings, r.fixedItself);
       }
       if (event === SIM_EVENTS.transfer) {
@@ -1021,7 +1077,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
         const l = await later(ctx, kase, c);
         if (!l.paid.length) return { to: "verifying", reason: "Nothing new." };
         const r = await onPaid(ctx, kase, c, l);
-        if (r.kind === "duplicate") return { to: "waiting_merchant", reason: r.reason, proposals: r.proposals };
+        if (r.kind === "duplicate") return duplicateStep(r, []);
         return { to: "verifying", reason: r.o.line, timers: closeTimer(ctx, kase) };
       }
       return { to: "verifying", reason: "Nothing new." };
@@ -1037,31 +1093,63 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     },
 
     // The merchant's words redraft the email or the request; they are data.
+    // Change: the merchant's words are data for the write job, which redrafts
+    // the buyer email and the request reason with the case's real facts; code
+    // keeps the request's evidence and ₹ lost. The same card comes back with
+    // new proposal ids. An email written only at approval (the PayPal link)
+    // carries the note to that write.
     async onChange(ctx, kase, text) {
       const offered = openProposals(ctx, kase.id);
       if (!offered.length) return { reason: "Nothing to redraft." };
       const c = await load(ctx, kase);
-      const redraft = async (kind: string, current: string, audience: "buyer" | "merchant") => {
-        const ids = idAliases();
+      const ids = idAliases();
+      const write = async (input: { audience: "buyer" | "merchant"; kind: string; facts: Record<string, unknown> }) => {
         const r = await aiOf(ctx).write(
-          { audience, kind: `${kind}_redraft`, first_customer_message: false, facts: ids.hide({ ...(await emailFacts(ctx, kase, c, { link: null, paypal: false, bank: false })), current_draft: current, merchant_change: text }), tone: c.settings.tone, language: audience === "buyer" ? c.lang : "en" },
+          { audience: input.audience, kind: input.kind, first_customer_message: false, facts: ids.hide(input.facts), tone: input.audience === "buyer" ? c.settings.tone : "Plain", language: input.audience === "buyer" ? c.lang : "en" },
           { caseId: kase.id },
         );
-        return r.source !== "fallback" && r.output.draft ? ids.show(r.output.draft) : current;
+        return r.source !== "fallback" && r.output.draft ? ids.show(r.output.draft) : null;
       };
+      const link = linksOnCase(ctx, kase.id).map((id) => ctx.repo.rzpLinks.get(id)).find((x) => x?.status === "created")?.short_url ?? null;
+      const buyerFacts = async (bank: boolean) => ({
+        ...(await emailFacts(ctx, kase, c, { link: bank ? null : link, paypal: c.sim.paypalAvailable(kase.merchant_id, c.currency), bank })),
+        ...(c.cause ? { what_happened: buyerReason(c.cause) } : {}),
+      });
+      const emails = new Map<string, string>();
+      const redraftEmail = async (kind: string, current: string, bank: boolean) => {
+        if (!emails.has(current)) emails.set(current, (await write({ audience: "buyer", kind: `${kind}_redraft`, facts: { ...(await buyerFacts(bank)), current_draft: current, merchant_change: text } })) ?? current);
+        return emails.get(current)!;
+      };
+      const requests = new Map<string, string>();
+      const redraftRequest = async (current: string) => {
+        if (!requests.has(current)) {
+          const [reason, ...rest] = current.split("\n\nEvidence: ");
+          const again = await write({ audience: "merchant", kind: "request_reason_redraft", facts: { merchant: c.merchant.name, buyer: c.name, amount: c.amountBoth, for: c.forLabel, current_draft: reason, merchant_change: text } });
+          requests.set(current, again ? [again, ...rest].join("\n\nEvidence: ") : current);
+        }
+        return requests.get(current)!;
+      };
+
       const proposals: ProposedAction[] = [];
       for (const p of offered) {
         const args = { ...p.args };
-        if (p.tool === "send_message" && typeof args.body === "string") args.body = await redraft("buyer_reply", args.body, "buyer");
+        if (p.tool === "send_message" && typeof args.body === "string") args.body = await redraftEmail("buyer_reply", args.body, false);
         if (p.tool === "draft_request" && typeof args.text === "string" && args.request !== REQUEST_KINDS.invoice) {
-          args.text = await redraft("request_reason", args.text, "merchant");
+          args.text = await redraftRequest(args.text);
           if (typeof args.draft === "string") args.draft = args.text;
+          if (args.next === "paypal_link") args.merchant_note = text;
         }
         const followUps = p.followUps
-          ? await Promise.all(p.followUps.map(async (f) => (f.tool === "send_message" && typeof f.args.body === "string" ? { ...f, args: { ...f.args, body: await redraft("buyer_recovery", f.args.body, "buyer") } } : f)))
+          ? await Promise.all(
+              p.followUps.map(async (f) =>
+                f.tool === "send_message" && typeof f.args.body === "string" ? { ...f, args: { ...f.args, body: await redraftEmail("buyer_recovery", f.args.body, p.args.next === "bank_details") } } : f,
+              ),
+            )
           : undefined;
         proposals.push({ ...p, id: newId("prop"), args, ...(followUps ? { followUps } : {}) });
       }
+      const request = proposals.find((p) => p.tool === "draft_request" && typeof p.args.text === "string" && p.args.request !== REQUEST_KINDS.invoice);
+      if (request) note(ctx, kase, { kind: N.requestDraft, request: request.args.request, text: request.args.text, redrafted: true }, kase.payment_id ?? kase.id);
       return { reason: "RAY redrafted it with your note.", proposals };
     },
   };

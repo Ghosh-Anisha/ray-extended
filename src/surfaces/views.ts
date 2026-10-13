@@ -242,7 +242,9 @@ export type ConversationItem = {
   voice: VoiceNoteView | null;
   call: CallView | null;
 };
-export type Proposal = { id: string; label: string; covered: boolean; draft: string | null };
+// then: the action's own follow-ups, done on the same tap and covered by the
+// same approval (a confirmation, the email after a request), listed on the card.
+export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; then: string[] };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
@@ -409,7 +411,8 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  return { id: p.id, label: p.label, covered: p.covered, draft };
+  const then = (p.followUps ?? []).map((f) => `Also on this tap: ${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`);
+  return { id: p.id, label: p.label, covered: p.covered, draft, then };
 }
 
 export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };

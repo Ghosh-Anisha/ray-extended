@@ -88,10 +88,28 @@ function insight(f: Facts): string {
   return `${String(f.failures)} buyers abroad couldn't pay you in the last ${String(f.days)} days for the same reason: ${str(f.what_they_share)}. That's ${str(f.at_stake)} at stake.${change}`;
 }
 
+// Change: the same draft with the merchant's note worked in.
+function redraftBuyer(f: Facts): string {
+  const current = str(f.current_draft);
+  const change = str(f.merchant_change);
+  const parts = current.split("\n\n");
+  const signOff = parts.pop() ?? "";
+  if (/reply/i.test(change)) parts.push("Once you've sent it, please reply to this email so we can look out for it.");
+  return [...parts, signOff].join("\n\n");
+}
+
+function redraftRequest(f: Facts): string {
+  const change = str(f.merchant_change);
+  const repeat = /repeat client/i.test(change) ? ` ${str(f.buyer)} is a repeat client of ${str(f.merchant)}.` : "";
+  return `${str(f.current_draft)}${repeat}`;
+}
+
 const book: ModelClient = {
   async complete({ input }) {
     const w = input as WriteIn;
     if (!w || typeof w.kind !== "string") throw new Error("The international book only answers the write job");
+    if (w.kind === "request_reason_redraft") return { draft: redraftRequest(w.facts), confidence: "sure" };
+    if (w.kind.endsWith("_redraft") && w.audience === "buyer") return { draft: redraftBuyer(w.facts), confidence: "sure" };
     if (w.kind === "request_reason") return { draft: requestReason(w.facts), confidence: "sure" };
     if (w.kind === "intl_insight") return { draft: insight(w.facts), confidence: "sure" };
     if (w.audience === "buyer") {
