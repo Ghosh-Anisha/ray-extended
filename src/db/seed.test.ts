@@ -13,6 +13,7 @@ const EXPECTED_ROWS: Record<string, number> = {
   case_events: 0,
   actions: 0,
   timers: 0,
+  ui_state: 0,
   messages: 0,
   // WhatsApp opt-ins, plus call consents (Step 5b), plus 10 PackRight buyer consents (Step 11).
   messaging_consents: 23,

@@ -3,11 +3,12 @@
 // One shell for every page: black top bar, white left nav, content on the
 // canvas (docs/ui-rebuild.md sections 1 and 2). Phone width turns the nav into
 // a slide-in drawer.
-import { ChevronDown, Menu, Monitor, Search, Settings2, Smartphone, Sparkles, X } from "lucide-react";
+import { ChevronDown, Compass, Menu, Monitor, Search, Settings2, Smartphone, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useView } from "../view";
+import { CoachHost, replayCoachMarks } from "../coach/coach";
 import { DemoControls, OpenControlsOnParam } from "./demo-controls";
 import { ACCOUNT_COOKIE, NAV, activeKey, initials, merchantIdFromPath } from "./nav";
 
@@ -70,6 +71,18 @@ function AccountSwitcher({ merchants, currentId }: { merchants: ShellMerchant[];
               {m.id === "m_leafy_bakes" && <span className="chip neutral">Demo</span>}
             </button>
           ))}
+          <div className="menu-label">Help</div>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setOpen(false);
+              replayCoachMarks();
+            }}
+          >
+            <Compass size={16} aria-hidden="true" />
+            <span className="grow">Show me around</span>
+          </button>
         </div>
       )}
     </div>
@@ -168,6 +181,7 @@ export function Shell({ merchants, defaultMerchantId, children }: { merchants: S
 
       <Suspense fallback={null}>
         <OpenControlsOnParam onOpen={() => setControlsOpen(true)} />
+        <CoachHost />
       </Suspense>
       {controlsOpen && <DemoControls merchantId={merchantId} onClose={() => setControlsOpen(false)} />}
     </div>

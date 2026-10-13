@@ -29,11 +29,12 @@ import * as s from "../schema";
 import { DEMO_NOW, seed } from "../seed";
 import { CASE_REF_NOTE } from "@/surfaces/refs";
 import { seedHandling, seedLeafySubscriptions } from "./demo-handling";
+import { seedDashboardHistory } from "./demo-dashboard";
 import { seedHistory } from "./demo-history";
 import { BUYERS, DAY, HOUR, INVOICES, ist, KARAN, LEAFY, MIN, NEHA, rupees } from "./demo-people";
 
 // Bump when the demo world changes, so a database seeded earlier is rebuilt.
-export const DEMO_SEED_VERSION = 1;
+export const DEMO_SEED_VERSION = 2;
 
 // The refs the story names (section 4).
 const REFS = { priya: "RD-1042", rahul: "RD-1043", neha: "RD-1051", karan: "RD-1060", sanjay: "RD-1047" } as const;
@@ -164,6 +165,7 @@ export async function seedDemo(db: Db, opts: { rehearse?: (w: DemoWorld) => Prom
   seedHistory(db);
   await seedHandling(db);
   seedPaymentVolume(db, DEMO_NOW);
+  seedDashboardHistory(db, DEMO_NOW);
 
   // The engine, on a fake clock, with the AI always replaying recorded answers.
   const clock = fakeClock(t0);
