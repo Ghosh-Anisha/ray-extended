@@ -42,3 +42,8 @@ PHASE U3: DONE
 Implemented sections 3.7, 3.8, 3.9, 3.10, 5, 7 and 10 on top of the existing U2 shell and guarded actions.
 
 Verified: `npm run typecheck`, `npm run lint`, and `npm run build` pass. `npm run demo` served on port 3001 and Playwright screenshots at 1440x900 and 390x844 are in `docs/screenshots/u4/`. The build emits existing dynamic filesystem tracing warnings from the voice and prompt adapters. The full `npm test` run reproduced existing failures in chargeback, collect, and database seed tests and was stopped after the suite continued running; no tests were changed. Git fetch, merge, commit, and push are being retried in the unrestricted environment.
+PHASE U6: DONE
+
+# Phase U6 (guide, proactive cards, My dashboard): done
+
+Verified: lint, typecheck and tests pass. Screenshots (Home, tours, My dashboard from setup to CA pack, desktop and phone) are in `docs/screenshots/u6/`. Decisions are in `docs/ui-decisions-u6.md`.

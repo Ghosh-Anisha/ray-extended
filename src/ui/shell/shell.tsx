@@ -11,6 +11,7 @@ import { AskProvider, useAsk } from "../ask/ask-context";
 import { AskPanel } from "../ask/panel";
 import { CoachMarks, replayCoachMarks } from "../coach/coach";
 import { useView } from "../view";
+import { TourHost } from "../coach/tours";
 import { DemoControls, OpenControlsOnParam } from "./demo-controls";
 import { ACCOUNT_COOKIE, NAV, activeKey, initials, merchantIdFromPath } from "./nav";
 
@@ -197,6 +198,7 @@ function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: She
 
       <Suspense fallback={null}>
         <OpenControlsOnParam onOpen={() => setControlsOpen(true)} />
+        <TourHost />
       </Suspense>
       <AskPanel />
       <CoachMarks id="ray-button" steps={[{ target: "[data-coach='ray-button']", title: "Ask RAY from anywhere", text: "Ask about a payment or a case, or tell RAY how to handle things. It answers from your own cases." }]} />

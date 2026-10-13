@@ -8,7 +8,11 @@ import type { ApprovalCard as Card } from "@/surfaces/views";
 import { MOMENT_LABEL } from "@/surfaces/words";
 import { ApprovalCard } from "../merchant/approval-card";
 import { NudgeBar } from "../nudge";
+import type { EmiCard } from "@/surfaces/grow";
+import { CoachMarks } from "../coach/coach";
+import { Capabilities } from "./capabilities";
 import { GuidedDemoCard } from "./guided-card";
+import { ProactiveCards } from "./proactive";
 
 const TOP_MOMENT_LINE: Record<string, string> = {
   paid_no_order: "Most saves came from orders your store missed after payment.",
@@ -46,7 +50,9 @@ function Insight({ children }: { children: string }) {
 
 export type TopCase = { id: string; name: string; amount: string };
 
-export function Home({ merchantId, merchantName, stats, card, topCase }: { merchantId: string; merchantName: string; stats: MerchantStats; card: Card | null; topCase: TopCase | null }) {
+export type HomeExtras = { emi: EmiCard | null; chase: { line: string; href: string } | null; rayOn: boolean; dashboardSet: boolean };
+
+export function Home({ merchantId, merchantName, stats, card, topCase, extras }: { merchantId: string; merchantName: string; stats: MerchantStats; card: Card | null; topCase: TopCase | null; extras: HomeExtras }) {
   const base = `/merchant/${merchantId}`;
   const waiting = stats.needsYou.count > 0;
   return (
@@ -115,6 +121,8 @@ export function Home({ merchantId, merchantName, stats, card, topCase }: { merch
         </div>
       </section>
 
+      <ProactiveCards merchantId={merchantId} emi={extras.emi} chase={extras.chase} />
+
       <section className="stack" style={{ gap: 12 }} aria-label="By moment">
         <div className="section-head">
           <h2>By moment</h2>
@@ -131,6 +139,8 @@ export function Home({ merchantId, merchantName, stats, card, topCase }: { merch
           ))}
         </div>
       </section>
+
+      <Capabilities merchantId={merchantId} rayOn={extras.rayOn} dashboardSet={extras.dashboardSet} />
 
       <section className="stack" style={{ gap: 12 }} aria-label="Recommended for you">
         <div className="section-head">
@@ -176,6 +186,14 @@ export function Home({ merchantId, merchantName, stats, card, topCase }: { merch
       </aside>
       </div>
 
+      <CoachMarks
+        id="home-u6"
+        steps={[
+          { target: "[data-coach='capabilities']", text: "Everything RAY can do for you. Each card says if it is On, ready to Try, or Coming soon." },
+          { target: "[data-coach='suggestions']", text: "RAY also suggests changes from your own numbers. You decide: Turn on or Not now." },
+          { target: "[data-coach='try-it']", text: "Try it opens a short example on Leafy Bakes, with RAY pointing things out." },
+        ]}
+      />
       <NudgeBar
         text={topCase ? `${stats.needsYou.count} ${stats.needsYou.count === 1 ? "case needs" : "cases need"} you. Start with the biggest: ${topCase.name}, ${topCase.amount}.` : "You're all caught up. Ask RAY what it can do for you next."}
         action={topCase ? { label: "Open", href: `${base}/cases/${topCase.id}` } : { label: "Ask RAY", href: `${base}/ask` }}

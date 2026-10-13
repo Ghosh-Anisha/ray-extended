@@ -266,6 +266,20 @@ export const alerts = sqliteTable("alerts", {
   sent_at: integer("sent_at").notNull(),
 });
 
+// What the merchant set up on My dashboard and Home's proactive cards (UI
+// rebuild U6): one JSON value per merchant and key, so the layout, the asks
+// and the lever choices survive a restart. Nothing a guard reads lives here.
+export const uiState = sqliteTable(
+  "ui_state",
+  {
+    merchant_id: text("merchant_id").notNull().references(() => merchants.id),
+    key: text("key").notNull(),
+    value: json<unknown>("value").notNull(),
+    updated_at: integer("updated_at").notNull(),
+  },
+  (t) => [uniqueIndex("ui_state_merchant_key").on(t.merchant_id, t.key)],
+);
+
 // Mirrors of Razorpay records (test mode or mock)
 
 const rzpRecord = {
