@@ -18,12 +18,14 @@ describe("simulated dues arithmetic", () => {
     const scenario = liquidityScenario(Date.parse("2026-10-13T10:00:00+05:30"), 3_500_000);
     expect(scenario).toMatchObject({ openingCash: 4_200_000, collectIncomingMinor: 3_500_000, dueThisMonth: 2_820_000, dueLater: 2_800_000, scenario: 2_080_000 });
     const { Dues } = await import("./dues");
-    const html = renderToStaticMarkup(createElement(Dues, { merchantId: "m_leafy_bakes", now: Date.parse("2026-10-13T10:00:00+05:30"), collectRequests: [{ buyer: "Buyer A", overdue: "₹35,000", overdueMinor: 3_500_000, stage: "Gentle reminder", state: "Needs you", promise: "20 Oct", caseId: "case_demo" }] }));
+    const html = renderToStaticMarkup(createElement(Dues, { merchantId: "m_leafy_bakes", now: Date.parse("2026-10-13T10:00:00+05:30"), collectRequests: [{ buyer: "Buyer A", buyerId: "buyer_demo", overdue: "₹35,000", overdueMinor: 3_500_000, stage: "Gentle reminder", state: "Needs you", promise: "20 Oct", caseId: "case_demo" }] }));
     expect(html).toContain("Simulated liquidity scenario");
     expect(html).toContain("+₹35,000");
     expect(html).toContain("₹20,800");
     expect(html).toContain("Collection and payment statuses are unverified");
     expect(html).toContain("Open Collect workflow");
+    expect(html).toContain("Review reminder");
+    expect(html).toContain("href=\"/merchant/m_leafy_bakes/collect?buyerId=buyer_demo\"");
     expect(html).toContain("Open case &amp; message preview");
     expect(html).toContain("href=\"/merchant/m_leafy_bakes/cases/case_demo\"");
   });

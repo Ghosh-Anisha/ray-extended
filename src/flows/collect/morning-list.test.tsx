@@ -50,7 +50,10 @@ describe("the morning list", () => {
       const text = textOf(render(view, <MorningListView list={list} />));
       expect(text).toContain("Invoice overdue · 12 Oct");
       expect(text).toContain("highest priority first");
-      expect(text).toContain("Run today's chase");
+      expect(text).toContain("Review each buyer’s amount and message before running Collect");
+      expect(text).toContain("Run Collect for this buyer");
+      expect(text).toContain("Preview channel: Email");
+      expect(text).toContain("Open case activity and approvals");
       expect(text).toContain("Simulated");
       expect(text).toContain("Needs you");
       // Rows in priority order.
@@ -72,7 +75,7 @@ describe("the morning list", () => {
     const text = textOf(render("desktop", <MorningListView list={morningList(w.a, PR)} />));
     expect(text).toContain("Let RAY chase these for you");
     expect(text).toContain("Read only");
-    expect(text).not.toContain("Run today's chase");
+    expect(text).not.toContain("Run Collect for this buyer");
     expect(text).not.toContain("Log note");
     expect(text).not.toContain("Needs you");
   });

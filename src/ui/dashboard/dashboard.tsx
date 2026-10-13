@@ -57,10 +57,15 @@ function Setup({ view, merchantId }: { view: DashboardView; merchantId: string }
   const [audience, setAudience] = useState(view.suggested.audience);
   const [request, setRequest] = useState("Show today's sales, refunds by product, and cases that need my attention.");
   const [building, setBuilding] = useState(false);
+  const [builtMessage, setBuiltMessage] = useState<string | null>(null);
   async function build() {
     setBuilding(true);
-    await call("setup", { action: "setup", business, daily, audience, request });
-    setBuilding(false);
+    try {
+      const result = await call("setup", { action: "setup", business, daily, audience, request });
+      setBuiltMessage(result?.message ?? null);
+    } finally {
+      setBuilding(false);
+    }
   }
   return (
     <section className="panel stack" data-coach="dash-setup" aria-label="Set up your dashboard">
@@ -87,14 +92,16 @@ function Setup({ view, merchantId }: { view: DashboardView; merchantId: string }
       <label className="stack" style={{ gap: 6 }}>
         <strong>Describe the dashboard you want</strong>
         <input value={request} maxLength={200} onChange={(e) => setRequest(e.target.value)} aria-label="Describe the dashboard you want" />
-        <span className="muted">Saved as setup context. The starter widgets below are built from supported demo data.</span>
+        <span className="muted">Available metrics use supported seeded demo data; no live account feed is connected.</span>
       </label>
       {error && <div className="inline-error" role="alert">{error}</div>}
       <div className="row">
         <button type="button" className="btn primary" disabled={building} onClick={build}>
-          {building ? "Building your dashboard…" : error ? "Try again" : "Build my dashboard"}
+          {building ? "Building your dashboard…" : error ? "Try again" : "Build Dashboard"}
         </button>
+        {builtMessage && <span className="chip positive" role="status">{builtMessage}</span>}
       </div>
+      {view.unsupportedRequests.length > 0 && <div className="banner" role="note">Not added because these requests are unsupported: {view.unsupportedRequests.join(", ")}. Available choices: refunds by product, success rate by bank, overdue invoices, sales today, cases needing you.</div>}
     </section>
   );
 }
@@ -178,6 +185,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
   const [reportMsg, setReportMsg] = useState<DashboardResult | null>(null);
   const [packOpen, setPackOpen] = useState(false);
   const [packDone, setPackDone] = useState<string | null>(null);
+  const [watchMessage, setWatchMessage] = useState<string | null>(null);
   const base = `/merchant/${merchantId}`;
 
   if (!view.setup) return (
@@ -223,6 +231,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
 
   return (
     <div className="stack">
+      <div className="banner" role="note">Seeded demo values from this prototype’s SQLite data. No connected live account feed is shown here.</div>
       <section className="row" style={{ justifyContent: "space-between" }} aria-label="Layout">
         <span className="muted">Built for a {view.setup.business.toLowerCase()} · numbers as of {view.nowLabel}</span>
         <span className="row">
@@ -252,6 +261,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
             <button type="button" className="btn secondary small" disabled={busy !== null} onClick={() => call("not_now", { action: "not_now" })}>Not now</button>
           </div>
         )}
+        {watchMessage && <span className="muted" role="status">{watchMessage}</span>}
       </section>
 
       <section className="panel stack" data-coach="dash-ask" aria-label="Ask to add a widget" style={{ gap: 10 }}>
@@ -296,6 +306,10 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
               )}
               <span className="definition">{w.definition}</span>
               <span className="row" style={{ marginTop: "auto" }}>
+                <button type="button" className="btn secondary small" aria-pressed={w.watch} disabled={busy !== null} onClick={async () => {
+                  const result = await call("watch", { action: "watch", id: w.id, watch: !w.watch });
+                  if (result?.message) setWatchMessage(result.message);
+                }}>{w.watch ? "Stop watching" : "Watch this metric"}</button>
                 <Link className="btn tertiary small" href={`${base}/ask?q=${q}`} aria-label={`Ask about ${w.title}`}>
                   <Sparkles size={14} aria-hidden="true" /> Ask about this widget
                 </Link>
@@ -305,6 +319,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           );
         })}
       </section>
+      {view.unsupportedRequests.length > 0 && <div className="banner" role="note">Not added because these requests are unsupported: {view.unsupportedRequests.join(", ")}. Available choices: refunds by product, success rate by bank, overdue invoices, sales today, cases needing you.</div>}
 
       <section className="panel stack" data-coach="dash-reports" aria-label="Reports in words" style={{ gap: 12 }}>
         <div className="row" style={{ justifyContent: "space-between" }}>

@@ -9,8 +9,10 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import { STATE_LABEL } from "@/surfaces/words";
 import { formatDate, formatMoney } from "@/guards";
+import { renderTemplate } from "@/adapters/messaging";
 import { brokenCount, N, openCaseForBuyer, openInvoicesOfBuyer, owedOn, pendingItems, promisesFor } from "./data";
 import { daysOverdue, ladderStage, STAGE_LABEL, type Buyer, type Invoice } from "./stages";
+import { exact, firm as firmMessage, gentle as gentleMessage, type Line } from "./messages";
 
 // Pay history: slow payers and broken promises rank higher; a key account
 // ranks higher because anything firm waits for the merchant's tap.
@@ -45,6 +47,11 @@ export type MorningRow = {
   caseId: string | null;
   promise: string | null;
   flagged: string | null;
+  previewTone: string;
+  previewText: string;
+  previewChannel: string;
+  previewNote: string;
+  lastActivity: string | null;
 };
 
 export type MorningList = {
@@ -88,6 +95,21 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
       .sort((x, y) => x.promised_date - y.promised_date)[0];
     const flags = kase ? repo.caseEvents.listByCase(kase.id).filter((e) => e.payload.kind === N.flag && !e.payload.used) : [];
     const furthest = overdue.map((i) => ladderStage(i, now)).filter(Boolean).at(-1);
+    const emailOptedIn = a.db.select().from(s.messagingConsents).where(and(eq(s.messagingConsents.buyer_id, b.id), eq(s.messagingConsents.channel, "email"), eq(s.messagingConsents.status, "opted_in"))).get() !== undefined;
+    const whatsappOptedIn = a.db.select().from(s.messagingConsents).where(and(eq(s.messagingConsents.buyer_id, b.id), eq(s.messagingConsents.channel, "whatsapp"), eq(s.messagingConsents.status, "opted_in"))).get() !== undefined;
+    const firmTone = furthest === "firm" || furthest === "call";
+    const messageLines: Line[] = overdue.map((inv) => ({ id: inv.id, number: inv.number, due_date: inv.due_date, accepted_at: inv.accepted_at, owed: owedOn(a.db, inv) }));
+    const built = firmTone ? firmMessage(b, m.name, messageLines, now) : gentleMessage(b, m.name, messageLines, null, now);
+    const useEmail = !!b.email && emailOptedIn;
+    const useWhatsApp = !!b.phone && m.whatsapp_on && whatsappOptedIn;
+    const previewChannel = useEmail ? "Email" : useWhatsApp ? "WhatsApp" : "No opted-in channel";
+    const firstLine = messageLines[0]!;
+    const previewText = useEmail ? built.body : useWhatsApp
+      ? renderTemplate("invoice_reminder", { name: b.contact_name.split(/\s+/)[0]!, invoice: firstLine.number, amount: exact(firstLine.owed), merchant: m.name, date: formatDate(firstLine.due_date) })
+      : "No message preview: this buyer has no opted-in email or WhatsApp channel. The workflow will show a follow-up instead of sending.";
+    const stageEvents = kase ? repo.caseEvents.listByCase(kase.id).filter((e) => e.payload.kind === N.stage) : [];
+    const latestStage = stageEvents.at(-1);
+    const lastActivity = latestStage ? `${STAGE_LABEL[String(latestStage.payload.stage) as keyof typeof STAGE_LABEL] ?? "Reminder"} completed · ${String(latestStage.payload.how)}` : null;
     rows.push({
       buyerId: b.id,
       buyer: b.name,
@@ -105,6 +127,11 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
       caseId: kase?.id ?? null,
       promise: promise ? `${b.contact_name} promised ${formatMoney(promise.amount)} by ${formatDate(promise.promised_date)}` : null,
       flagged: flags.length ? `Flagged: ${String(flags.at(-1)!.payload.reason)}` : null,
+      previewTone: firmTone ? "Firm reminder · merchant approval required before message" : "Gentle reminder · simulated workflow",
+      previewText,
+      previewChannel,
+      previewNote: useEmail && !firmTone ? "The Collect engine may add a simulated Razorpay-hosted pay link after this review. This preview omits that link." : messageLines.length > 1 && useWhatsApp ? `Preview shows the first of ${messageLines.length} invoice messages; the engine rechecks each invoice before sending.` : "Generated from the listed invoice facts. Consent and timing are checked again by the Collect engine.",
+      lastActivity,
     });
   }
   rows.sort((x, y) => y.priority - x.priority || y.overdueMinor - x.overdueMinor);

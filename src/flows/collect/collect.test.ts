@@ -130,6 +130,22 @@ describe("consent: buyers need an opt-in row on every channel", () => {
 });
 
 describe("chase stages and approvals", () => {
+  it("lets the merchant run one reviewed buyer through Collect once and reports recorded activity", async () => {
+    const [first] = await w.morningFor(BUYERS.gill);
+    expect(first?.outcome).toBe("handled");
+    const kase = w.caseOf(BUYERS.gill)!;
+    const list = morningList(w.a, PR);
+    const row = list.rows.find((r) => r.buyerId === BUYERS.gill)!;
+    expect(row).toMatchObject({ buyer: "Gill Agro Foods", caseId: kase.id, previewChannel: "Email" });
+    expect(row.previewTone).toMatch(/reminder/);
+    expect(row.previewText).toMatch(/PR\/26-27\/2401 for ₹29,000 is now 3 days overdue/);
+    expect(row.lastActivity).toMatch(/reminder completed · email/);
+    const messagesBeforeRetry = w.toBuyer(BUYERS.gill).length;
+    const [retry] = await w.morningFor(BUYERS.gill);
+    expect(retry?.outcome).toBe("duplicate");
+    expect(w.toBuyer(BUYERS.gill)).toHaveLength(messagesBeforeRetry);
+  });
+
   it("before-due and gentle reminders run alone, with a Razorpay pay link and checkable details", async () => {
     await w.morning();
     const gill = w.toBuyer(BUYERS.gill);

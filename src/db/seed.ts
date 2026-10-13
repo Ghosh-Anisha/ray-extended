@@ -35,7 +35,10 @@ const MERCHANTS: NewMerchant[] = [
   merchant({
     id: "m_leafy_bakes", name: "Leafy Bakes", business_type: "home bakery", store_platform: "woocommerce",
     gmv_band: "small", risk_band: "low", failure_history: "high", wave: 1, ray_on: true, connector_on: true,
-    whatsapp_on: true, banking_plus: false, udyam: false, approval_limit: rupees(2_000),
+    // The seeded buyer, invoice and consent records support the simulated
+    // Dues → Collect demo. This flag enables that demo workflow only; no live
+    // Banking+ integration or payment rail is connected.
+    whatsapp_on: true, banking_plus: true, udyam: false, approval_limit: rupees(2_000),
     // Opted in to the urgent call before a chargeback deadline (Step 10).
     urgent_call_opt_in: true,
   }),

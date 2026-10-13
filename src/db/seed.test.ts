@@ -142,6 +142,7 @@ describe("seed", () => {
     expect(customer("cus_acme")).toMatchObject({ name: "Acme Logistics", merchant_id: "m_stackly" });
 
     expect(repo.merchants.get("m_leafy_bakes")).toMatchObject({ store_platform: "woocommerce" });
+    expect(repo.merchants.get("m_leafy_bakes")).toMatchObject({ banking_plus: true });
     const leafyDeliveries = repo.webhookDeliveries.list(eq(schema.webhookDeliveries.merchant_id, "m_leafy_bakes"));
     expect(leafyDeliveries.length).toBeGreaterThan(0);
     for (const d of leafyDeliveries) expect(d.plugin_version).toMatch(/^4\.8\./);

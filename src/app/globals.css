@@ -179,6 +179,7 @@ button { font: inherit; }
 .chip.positive { background: var(--success-soft); color: var(--success); }
 .chip.negative { background: var(--critical-soft); color: var(--critical); }
 .negative-value { color: var(--critical); }
+.collect-message-preview { white-space: pre-wrap; overflow-wrap: anywhere; background: var(--canvas); border-radius: 8px; padding: 10px; margin: 0; font: inherit; }
 .chip.simulated { background: var(--sim-soft); color: var(--sim); }
 .chip.prototype { flex: none; background: rgba(255, 255, 255, 0.14); color: rgba(255, 255, 255, 0.9); font-weight: 500; }
 

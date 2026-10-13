@@ -2,15 +2,21 @@
 // come from rows, choices persist, the watch finds the card dip and links to
 // a real case.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { createAdapters } from "@/adapters";
 import { fakeClock } from "@/adapters/clock";
 import { bannedWordsIn, hasEmDash } from "@/ai/grounding";
 import { openMigratedDb } from "@/db/client";
 import { DEMO_NOW } from "@/db/seed";
 import { seedDemo } from "@/db/seed/demo";
+import { merchantStats } from "./stats";
 import { dashboardAction } from "./dashboard-actions";
-import { buildReport, dashboardView, parseReportRequest, parseWidgetAsk, setupWidgets } from "./dashboard";
+import { buildReport, dashboardView, parseReportRequest, parseWidgetAsk, setupWidgets, watchedWidgetPreviews } from "./dashboard";
 import { chaseCard, emiCard, setEmi } from "./grow";
+import { Home } from "@/ui/home/home";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {}, push() {} }) }));
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
 const M = "m_leafy_bakes";
@@ -88,6 +94,49 @@ describe("My dashboard", () => {
   it("keeps the layout across reads", () => {
     dashboardAction(a, { action: "keep", merchantId: M });
     expect(dashboardView(a, M).kept).toBe(true);
+  });
+
+  it("builds, persists, and synchronizes requested watched metrics to Home across fresh reads", () => {
+    const request = "Show today's sales, refunds by product, cases that need my attention, lifetime value by channel";
+    const result = dashboardAction(a, { action: "setup", merchantId: M, business: "Online store", daily: ["Sales today"], audience: "Me", request });
+    expect(result.message).toMatch(/Dashboard saved with .*available on My dashboard and Home/);
+    expect(result.chips).toContain("Show refunds by product");
+
+    // A separate read models navigation or refresh from the database.
+    const refreshed = dashboardView(a, M);
+    expect(refreshed.setup?.request).toBe(request);
+    expect(refreshed.kept).toBe(true);
+    expect(refreshed.unsupportedRequests).toEqual(["lifetime value by channel"]);
+    expect(refreshed.widgets.filter((w) => w.watch).map((w) => w.kind)).toEqual(expect.arrayContaining(["sales_today", "refunds_by_product", "needs_you"]));
+    expect(watchedWidgetPreviews(refreshed.widgets).map((w) => w.title)).toEqual(expect.arrayContaining(["Today's sales", "Refunds by product", "Cases needing you"]));
+    const renderHome = (dashboard: ReturnType<typeof dashboardView>) => renderToStaticMarkup(createElement(Home, {
+      merchantId: M,
+      merchantName: "Leafy Bakes",
+      stats: merchantStats(a, M),
+      card: null,
+      topCase: null,
+      extras: { emi: null, chase: null, rayOn: true, dashboardSet: true, dashboardWidgets: watchedWidgetPreviews(dashboard.widgets) },
+    }));
+    const homeBeforeChange = renderHome(refreshed);
+    expect(homeBeforeChange).toContain("Your watched metrics");
+    expect(homeBeforeChange).toContain("Refunds by product");
+    expect(homeBeforeChange).toContain("Demo case outcomes this month");
+
+    dashboardAction(a, { action: "watch", merchantId: M, id: "w_refunds_by_product", watch: false });
+    dashboardAction(a, { action: "watch", merchantId: M, id: "w_saved", watch: true });
+    const updated = dashboardView(a, M);
+    expect(updated.widgets.find((w) => w.id === "w_refunds_by_product")?.watch).toBe(false);
+    expect(updated.widgets.find((w) => w.id === "w_saved")?.watch).toBe(true);
+    expect(watchedWidgetPreviews(updated.widgets).map((w) => w.title)).not.toContain("Refunds by product");
+    expect(watchedWidgetPreviews(updated.widgets).map((w) => w.title)).toContain("Demo amount marked saved");
+    const homeAfterChange = renderHome(updated);
+    expect(homeAfterChange).not.toContain("Refunds by product");
+    expect(homeAfterChange).toContain("Demo amount marked saved");
+
+    dashboardAction(a, { action: "remove", merchantId: M, id: "w_needs_you" });
+    const removed = dashboardView(a, M);
+    expect(removed.widgets.some((w) => w.id === "w_needs_you")).toBe(false);
+    expect(watchedWidgetPreviews(removed.widgets).map((w) => w.title)).not.toContain("Cases needing you");
   });
 });
 

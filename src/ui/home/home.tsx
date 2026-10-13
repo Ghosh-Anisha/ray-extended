@@ -124,9 +124,9 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
       <ProactiveCards merchantId={merchantId} emi={extras.emi} chase={extras.chase} />
 
       <section className="stack" style={{ gap: 12 }} aria-label="Your custom dashboard">
-        <div className="section-head"><h2>Your custom dashboard</h2><Link className="btn secondary small" href={`${base}/dashboard`}>{extras.dashboardSet ? "Open My dashboard" : "Build My dashboard"}</Link></div>
+        <div className="section-head"><h2>Your watched metrics</h2><Link className="btn secondary small" href={`${base}/dashboard`}>{extras.dashboardSet ? "Manage in My dashboard" : "Build My dashboard"}</Link></div>
         {!extras.dashboardSet ? <p className="muted">Create a layout from seeded payment and case data. It will appear here and on My dashboard.</p> : (
-          <div className="grid-4">{extras.dashboardWidgets.slice(0, 4).map((w) => <article className="panel stack" key={w.title}><span className="metric-label">{w.title}</span><strong className="big-number">{w.value}</strong><span className="muted">{w.definition}</span><span className="chip simulated">Seeded demo data</span></article>)}</div>
+          extras.dashboardWidgets.length === 0 ? <p className="muted">No metrics are being watched. Choose metrics in My dashboard to show them here.</p> : <div className="grid-4">{extras.dashboardWidgets.map((w) => <article className="panel stack" key={w.title}><div className="row"><span className="metric-label">{w.title}</span><span className="chip information">Watched</span></div><strong className="big-number">{w.value}</strong><span className="muted">{w.definition}</span><span className="chip simulated">Seeded demo data</span></article>)}</div>
         )}
       </section>
 

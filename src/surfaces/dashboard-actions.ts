@@ -10,6 +10,7 @@ import {
   recordAsk,
   setupWidgets,
   starterWidgets,
+  unsupportedSetupRequests,
   WIDGET_DEFINITION,
   WIDGET_TITLE,
   writeState,
@@ -23,6 +24,7 @@ const input = z.discriminatedUnion("action", [
   z.object({ action: z.literal("setup"), merchantId: z.string(), business: z.string(), daily: z.array(z.string()), audience: z.string(), request: z.string().max(200).optional() }),
   z.object({ action: z.literal("ask"), merchantId: z.string(), text: z.string().min(1).max(200) }),
   z.object({ action: z.literal("remove"), merchantId: z.string(), id: z.string() }),
+  z.object({ action: z.literal("watch"), merchantId: z.string(), id: z.string(), watch: z.boolean() }),
   z.object({ action: z.literal("keep"), merchantId: z.string() }),
   z.object({ action: z.literal("pin"), merchantId: z.string(), kind: z.string() }),
   z.object({ action: z.literal("not_now"), merchantId: z.string() }),
@@ -32,7 +34,7 @@ const input = z.discriminatedUnion("action", [
 ]);
 
 export type DashboardInput = z.infer<typeof input>;
-export type DashboardResult = { message?: string; chips?: string[]; report?: Report; savedPreview?: SavedReportPreview };
+export type DashboardResult = { message?: string; chips?: string[]; report?: Report; savedPreview?: SavedReportPreview; widgets?: string[] };
 
 const widgetsOf = (a: Adapters, merchantId: string): SavedWidget[] => {
   const setup = readState<Setup>(a, merchantId, "dash.setup");
@@ -45,10 +47,21 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
   switch (i.action) {
     case "setup": {
       const setup: Setup = { business: i.business, daily: i.daily, audience: i.audience, ...(i.request?.trim() ? { request: i.request.trim() } : {}) };
+      const widgets = setupWidgets(setup);
       writeState(a, m, "dash.setup", setup);
-      writeState(a, m, "dash.widgets", setupWidgets(setup));
-      writeState(a, m, "dash.kept", false);
-      return {};
+      writeState(a, m, "dash.widgets", widgets);
+      writeState(a, m, "dash.kept", true);
+      const savedSetup = readState<Setup>(a, m, "dash.setup");
+      const savedWidgets = readState<SavedWidget[]>(a, m, "dash.widgets");
+      if (!savedSetup || !savedWidgets || savedWidgets.length !== widgets.length || savedWidgets.some((w, at) => w.id !== widgets[at]?.id || w.watch !== widgets[at]?.watch)) {
+        throw new Error("Dashboard setup could not be confirmed in saved data. Try again.");
+      }
+      const unsupported = unsupportedSetupRequests(setup);
+      return {
+        message: `Dashboard saved with ${savedWidgets.length} supported metrics. It is available on My dashboard and Home.`,
+        widgets: savedWidgets.map((w) => w.kind),
+        ...(unsupported.length ? { chips: ["Show refunds by product", "Show success rate by bank", "Add overdue invoices"] } : {}),
+      };
     }
     case "redo":
       writeState(a, m, "dash.setup", null);
@@ -62,13 +75,22 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       const widgets = widgetsOf(a, m);
       if (widgets.some((w) => w.kind === kind)) return { message: `${WIDGET_TITLE[kind]} is already on your dashboard.` };
       writeState(a, m, "dash.widgets", [...widgets, { id: `w_${kind}`, kind, source: "asked", watch: false }]);
-      writeState(a, m, "dash.kept", false);
+      writeState(a, m, "dash.kept", true);
       return { message: `Added ${WIDGET_TITLE[kind]}. ${WIDGET_DEFINITION[kind]}` };
     }
     case "remove": {
       writeState(a, m, "dash.widgets", widgetsOf(a, m).filter((w) => w.id !== i.id));
-      writeState(a, m, "dash.kept", false);
+      writeState(a, m, "dash.kept", true);
       return {};
+    }
+    case "watch": {
+      const widgets = widgetsOf(a, m);
+      if (!widgets.some((w) => w.id === i.id)) throw new Error("That metric is no longer on your dashboard. Refresh and try again.");
+      writeState(a, m, "dash.widgets", widgets.map((w) => w.id === i.id ? { ...w, watch: i.watch } : w));
+      writeState(a, m, "dash.kept", true);
+      const saved = readState<SavedWidget[]>(a, m, "dash.widgets")?.find((w) => w.id === i.id);
+      if (!saved || saved.watch !== i.watch) throw new Error("The watch change could not be confirmed in saved data. Try again.");
+      return { message: i.watch ? "Metric saved to your watched list." : "Metric removed from your watched list." };
     }
     case "keep":
       writeState(a, m, "dash.kept", true);
@@ -80,6 +102,7 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
         ? widgets.map((w) => (w.kind === i.kind ? { ...w, watch: true } : w))
         : [...widgets, { id: `w_${i.kind}`, kind: i.kind as SavedWidget["kind"], source: "suggested" as const, watch: true }];
       writeState(a, m, "dash.widgets", next);
+      writeState(a, m, "dash.kept", true);
       return { message: "Pinned. RAY will watch it and tell you when it moves." };
     }
     case "not_now":

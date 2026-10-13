@@ -75,6 +75,7 @@ export function collectWorld(opts: { withSubscriptions?: boolean } = {}) {
   const voiceNote = (buyerId: string, sampleId: string) => engine.receiveVoiceNote({ merchantId: PR, from: buyer(buyerId).phone!, sampleId });
 
   const morning = () => collectMorningRun(engine, a, PR);
+  const morningFor = (buyerId: string) => collectMorningRun(engine, a, PR, buyerId);
   const credit = (c: NewCredit) => bankCreditArrives(engine, a, PR, c);
   const seededCredit = (id: string) => creditEvent(engine, a, PR, id);
   const merchantNote = (caseId: string, text: string) => logMerchantNote(engine, a, { merchantId: PR, caseId, text });
@@ -89,7 +90,7 @@ export function collectWorld(opts: { withSubscriptions?: boolean } = {}) {
 
   return {
     a, repo, engine, buyer, caseOf, events, notes, findings, proposals, state, ask, toBuyer, tapLabel, change, replies, voiceNote,
-    morning, credit, seededCredit, merchantNote, handoff, advance, invoices, caseInvoices, owed, promises,
+    morning, morningFor, credit, seededCredit, merchantNote, handoff, advance, invoices, caseInvoices, owed, promises,
     close: () => { engine.stop(); a.db.$client.close(); },
   };
 }

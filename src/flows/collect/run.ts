@@ -16,16 +16,18 @@ import { chaseable } from "./data";
 import { BANK_CREDIT_EVENT, BANKING_SOURCE, COLLECT_HANDOFF, COLLECT_SOURCE, MORNING_KIND, type HandoffPayload } from "./resolve";
 import { dayKey } from "./stages";
 
-export async function collectMorningRun(engine: Engine, a: Adapters, merchantId: string): Promise<HandleResult[]> {
+export async function collectMorningRun(engine: Engine, a: Adapters, merchantId: string, onlyBuyerId?: string): Promise<HandleResult[]> {
   const repo = createRepository(a.db);
   const m = repo.merchants.get(merchantId);
   // Unpaid B2B renewals Subscriptions (Step 9) handed over first, so their
   // invoices are on file (read-only view included) before buyers are checked.
-  const handed = await pickUpHandoffs(engine, a, merchantId);
+  const handed = onlyBuyerId ? [] : await pickUpHandoffs(engine, a, merchantId);
   if (!m?.banking_plus) return [];
   const now = a.clock.now();
   const out: HandleResult[] = [...handed.filter((r) => r.outcome !== "unmatched" && r.outcome !== "duplicate")];
-  for (const b of repo.buyers.list(eq(s.buyers.merchant_id, merchantId))) {
+  const buyers = repo.buyers.list(eq(s.buyers.merchant_id, merchantId));
+  if (onlyBuyerId && !buyers.some((buyer) => buyer.id === onlyBuyerId)) throw new Error("That buyer is not part of this merchant's Collect workflow.");
+  for (const b of buyers.filter((buyer) => !onlyBuyerId || buyer.id === onlyBuyerId)) {
     if (!chaseable(a.db, b, now).length) continue;
     out.push(
       await engine.handleEvent({

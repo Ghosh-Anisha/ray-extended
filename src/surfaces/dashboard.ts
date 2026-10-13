@@ -108,16 +108,23 @@ export function starterWidgets(setup: Setup): SavedWidget[] {
 
 export function setupWidgets(setup: Setup): SavedWidget[] {
   const widgets = starterWidgets(setup);
-  const seen = new Set(widgets.map((w) => w.kind));
+  const positions = new Map(widgets.map((w, i) => [w.kind, i]));
   const phrases = (setup.request ?? "").toLowerCase().split(/,|\band\b/).map((part) => part.trim()).filter(Boolean);
   for (const phrase of phrases) {
     const kind = parseWidgetAsk(phrase);
-    if (kind && !seen.has(kind)) {
-      widgets.push({ id: `w_${kind}`, kind, source: "asked", watch: false });
-      seen.add(kind);
+    if (!kind) continue;
+    const position = positions.get(kind);
+    if (position !== undefined) widgets[position] = { ...widgets[position]!, watch: true };
+    else {
+      positions.set(kind, widgets.length);
+      widgets.push({ id: `w_${kind}`, kind, source: "asked", watch: true });
     }
   }
   return widgets;
+}
+
+export function unsupportedSetupRequests(setup: Setup): string[] {
+  return [...new Set((setup.request ?? "").toLowerCase().split(/,|\band\b/).map((part) => part.replace(/[?.!]/g, "").trim()).filter((part) => part && !parseWidgetAsk(part)))];
 }
 
 const UPI_APP = (vpa: string | null) => {
@@ -236,7 +243,7 @@ export function parseWidgetAsk(text: string): WidgetKind | null {
   if (/^(show )?success( rate)? by (bank|method)$/.test(t)) return "success_by_bank";
   if (/^(show |add )?overdue invoices?$/.test(t)) return "overdue";
   if (/^(show )?success( rate)?$/.test(t)) return "success_rate";
-  if (/^(show )?sales today$/.test(t)) return "sales_today";
+  if (/^(show )?(sales today|today'?s sales)$/.test(t)) return "sales_today";
   if (/^(show )?(disputes|chargebacks)( this month)?$/.test(t)) return "disputes";
   if (/^(show )?subscriptions?( at risk)?$/.test(t)) return "subs_risk";
   if (/^(show )?refunds?$/.test(t)) return "refunds";
@@ -495,7 +502,12 @@ export type DashboardView = {
   savedPreviews: SavedReportPreview[];
   pack: { month: string; reports: Report[] };
   nowLabel: string;
+  unsupportedRequests: string[];
 };
+
+export function watchedWidgetPreviews(widgets: DashboardView["widgets"]) {
+  return widgets.filter((w) => w.watch).map((w) => ({ title: w.title, value: w.data.value, definition: w.definition }));
+}
 
 export function dashboardView(a: Adapters, merchantId: string): DashboardView {
   const st = merchantStats(a, merchantId);
@@ -511,5 +523,6 @@ export function dashboardView(a: Adapters, merchantId: string): DashboardView {
     savedPreviews: readState<SavedReportPreview[]>(a, merchantId, "dash.report_previews") ?? [],
     pack: caPack(a, merchantId),
     nowLabel: formatClock(st.now),
+    unsupportedRequests: setup ? unsupportedSetupRequests(setup) : [],
   };
 }

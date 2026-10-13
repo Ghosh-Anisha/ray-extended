@@ -7,14 +7,13 @@
 import { Button, Heading } from "@/ui/kit";
 import Link from "next/link";
 import { useState } from "react";
-import { Empty, SimulatedTag, useAction } from "@/ui/bits";
+import { Empty, useAction } from "@/ui/bits";
 import { useView } from "@/ui/view";
 import type { MorningList, MorningRow } from "./morning";
 
-export function MorningListView({ list }: { list: MorningList }) {
+export function MorningListView({ list, focusBuyerId }: { list: MorningList; focusBuyerId?: string }) {
   const { view } = useView();
   const { busy, error, run } = useAction();
-  const [runNotice, setRunNotice] = useState<string | null>(null);
   const caseHref = (r: MorningRow) => `/merchant/${list.merchantId}/cases/${r.caseId}`;
   return (
     <section className="stack" aria-label="Invoice overdue" data-guided="collect">
@@ -29,18 +28,8 @@ export function MorningListView({ list }: { list: MorningList }) {
           <strong>{list.offer.title}</strong> {list.offer.text}
         </div>
       ) : (
-        <div className="row">
-          <Button size="small" isLoading={busy === "morning"} onClick={async () => {
-            const result = await run("morning", "/api/merchant/collect", { action: "morning", merchantId: list.merchantId });
-            if (result.ok) setRunNotice("Run completed through the Collect workflow. Open a case to review its simulated messages, status and any approval needed.");
-          }}>
-            {"Run today's chase"}
-          </Button>
-          <span className="muted">Payments come from Banking+ credits</span> <SimulatedTag />
-        </div>
+        <div className="banner" role="note">Review each buyer’s amount and message before running Collect. The engine rechecks invoice timing, consent and approval requirements. All messaging is simulated.</div>
       )}
-      {error && <span className="error">{error}</span>}
-      {runNotice && <div className="banner" role="status">{runNotice}</div>}
       {list.posted.map((p) => (
         <div key={p.actionId} className="banner hold" role="status">
           <span>
@@ -51,6 +40,7 @@ export function MorningListView({ list }: { list: MorningList }) {
           </Button>
         </div>
       ))}
+      {error && <span className="error" role="alert">{error}</span>}
       {list.rows.length === 0 ? (
         <Empty>{list.empty}</Empty>
       ) : view === "phone" ? (
@@ -67,6 +57,7 @@ export function MorningListView({ list }: { list: MorningList }) {
                 </span>
               </div>
               <Next row={r} href={caseHref(r)} />
+              {list.bankingPlus && <ReminderReview row={r} merchantId={list.merchantId} focus={r.buyerId === focusBuyerId} />}
               {r.caseId && <Note merchantId={list.merchantId} caseId={r.caseId} buyer={r.buyer} />}
             </div>
           ))}
@@ -99,6 +90,7 @@ export function MorningListView({ list }: { list: MorningList }) {
                 <td className="num">{r.priority.toLocaleString("en-IN")}</td>
                 <td>
                   <Next row={r} href={caseHref(r)} />
+                  {list.bankingPlus && <ReminderReview row={r} merchantId={list.merchantId} focus={r.buyerId === focusBuyerId} />}
                   {r.caseId && <Note merchantId={list.merchantId} caseId={r.caseId} buyer={r.buyer} />}
                 </td>
               </tr>
@@ -107,6 +99,40 @@ export function MorningListView({ list }: { list: MorningList }) {
         </table>
       )}
     </section>
+  );
+}
+
+function ReminderReview({ row, merchantId, focus }: { row: MorningRow; merchantId: string; focus: boolean }) {
+  const { busy, error, run } = useAction();
+  const [outcome, setOutcome] = useState<string | null>(null);
+  const caseHref = row.caseId ? `/merchant/${merchantId}/cases/${row.caseId}` : `/merchant/${merchantId}/cases?moment=collect`;
+  return (
+    <details open={focus} className="collect-reminder-review">
+      <summary className="btn secondary small">Review reminder for {row.buyer}</summary>
+      <div className="panel stack" style={{ padding: 12, gap: 8 }}>
+        <div className="row"><strong>{row.buyer}</strong><span>{row.overdue}</span><span className="chip simulated">Simulated</span></div>
+        <span className="muted">{row.invoices} {row.invoices === 1 ? "invoice" : "invoices"} · oldest {row.oldestDays} days overdue · {row.promise ?? "No promise recorded"}</span>
+        {row.flagged && <span className="chip notice">{row.flagged}</span>}
+        <span className="chip information">{row.previewTone}</span>
+        <span className="muted">Preview channel: {row.previewChannel}</span>
+        <pre className="collect-message-preview">{row.previewText}</pre>
+        <span className="muted">{row.previewNote}</span>
+        {row.lastActivity && <div className="banner" role="status">Latest recorded activity: {row.lastActivity}</div>}
+        <div className="row">
+          <Button size="small" isLoading={busy === `buyer-${row.buyerId}`} onClick={async () => {
+            const result = await run(`buyer-${row.buyerId}`, "/api/merchant/collect", { action: "buyer", merchantId, buyerId: row.buyerId });
+            if (!result.ok) return;
+            const data = result.result as { outcome?: string; state?: string | null; next?: string; activity?: string | null; caseId?: string };
+            if (data.outcome === "duplicate") setOutcome("This buyer’s Collect check already ran today. No duplicate reminder was sent.");
+            else if (data.activity) setOutcome(`Simulated reminder activity recorded: ${data.activity}. Current case status: ${data.state ?? "not available"}.`);
+            else setOutcome(`Collect checked this buyer. No reminder is reported as sent. ${data.next ?? data.state ?? "Review the case for the next step."}`);
+          }}>Run Collect for this buyer</Button>
+          <Link className="btn tertiary small" href={caseHref}>Open case activity and approvals</Link>
+        </div>
+        {outcome && <div className="banner" role="status">{outcome}</div>}
+        {error && <span className="error" role="alert">{error}</span>}
+      </div>
+    </details>
   );
 }
 

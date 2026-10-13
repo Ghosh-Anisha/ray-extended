@@ -39,7 +39,7 @@ function currentMonthBills(now: number) {
   });
 }
 
-type CollectRequest = { buyer: string; overdue: string; overdueMinor?: number; stage: string; state: string | null; promise: string | null; caseId?: string | null };
+type CollectRequest = { buyerId: string; buyer: string; overdue: string; overdueMinor?: number; stage: string; state: string | null; promise: string | null; caseId?: string | null };
 
 function InvoiceReview({ label, title, details }: { label: string; title: string; details: string[] }) {
   return (
@@ -134,7 +134,7 @@ export function Dues({ merchantId, now, collectRequests = [] }: { merchantId: st
         <div className="row"><h2 style={{ margin: 0 }}>Collect requests</h2><span className="chip simulated">Simulated demo data</span></div>
         <p className="muted">Outstanding amounts and statuses from the seeded Collect morning list. No live buyer requests or payment rails are connected; collection status is unverified.</p>
         <Link className="btn secondary small" href={`/merchant/${merchantId}/collect`}>Open Collect workflow</Link>
-        {collectRequests.length === 0 ? <span className="muted">No seeded Collect requests are outstanding.</span> : collectRequests.map((r) => <div className="due-row" key={r.buyer}><div><strong>{r.buyer}</strong><div className="muted">Amount: {r.overdue} · expected: {r.promise ?? "No date recorded"} · collection unverified</div><div className="row"><Link href={`/merchant/${merchantId}/collect`}>Review reminder</Link>{r.caseId && <Link href={`/merchant/${merchantId}/cases/${r.caseId}`}>Open case &amp; message preview</Link>}</div></div><span className="chip notice">{r.state ?? r.stage}</span></div>)}
+        {collectRequests.length === 0 ? <span className="muted">No seeded Collect requests are outstanding.</span> : collectRequests.map((r) => <div className="due-row" key={r.buyer}><div><strong>{r.buyer}</strong><div className="muted">Amount: {r.overdue} · expected: {r.promise ?? "No date recorded"} · collection unverified</div><div className="row"><Link href={`/merchant/${merchantId}/collect?buyerId=${encodeURIComponent(r.buyerId)}`}>Review reminder</Link>{r.caseId && <Link href={`/merchant/${merchantId}/cases/${r.caseId}`}>Open case &amp; message preview</Link>}</div></div><span className="chip notice">{r.state ?? r.stage}</span></div>)}
       </section></div>}
       {isLeafy && <InvoiceInbox />}
       <NudgeBar text={isLeafy ? "These simulated rows do not include a complete cash forecast or a payment rail." : "No account-specific dues data is loaded for this merchant."} action={isLeafy ? { label: "Review invoices", href: "#invoices" } : { label: "View cases", href: `/merchant/${merchantId}/cases` }} />
