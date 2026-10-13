@@ -36,6 +36,8 @@ export function CoachMarks({ id, steps }: { id: string; steps: Step[] }) {
       </div>
     </aside>
   </>;
+}
+
 export function CoachMark({ id, steps }: { id: string; steps: string[] }) {
   const [step, setStep] = useState<number | null>(null);
   useEffect(() => {
