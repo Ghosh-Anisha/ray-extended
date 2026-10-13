@@ -9,6 +9,10 @@ export const MOMENT_LABEL: Record<Moment, string> = {
   subscription: "Subscription stopped",
   chargeback: "Chargeback",
   collect: "Invoice overdue",
+  whose_side: "Is it me or Razorpay?",
+  ticket: "Ticket black hole",
+  settlement_hold: "Settlement held",
+  ai_chat_order: "AI-chat order",
 };
 
 export type Tone = "neutral" | "information" | "notice" | "positive" | "negative";
@@ -90,6 +94,10 @@ const CAUSE_LABEL: Record<string, string> = {
   cancel_request: "The customer asked to cancel",
   invoice_overdue: "The invoice is past its due date",
   dispute: "The customer disputed the payment with their bank",
+  success_rate_drop: "Success rate dropped for one payment method",
+  ticket_sla: "A support ticket missed its next update",
+  settlement_review: "A settlement is held for review",
+  ai_chat_drift: "The chat intent, order and payment do not match",
 };
 export const causeLabel = (cause: string) => CAUSE_LABEL[cause] ?? cause.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 

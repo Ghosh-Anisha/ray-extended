@@ -202,6 +202,17 @@ pre.raw { background: var(--canvas); padding: 8px; border-radius: 6px; overflow:
 .empty { padding: 24px; text-align: center; color: var(--muted); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius); }
 .error { color: var(--critical); }
 .sim-head { display: flex; align-items: center; gap: 8px; }
+.metric { display: flex; flex-direction: column; gap: 6px; }
+.metric strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.insight { color: var(--muted); font-size: 12px; }
+.dues-list { display: flex; flex-direction: column; gap: 0; }
+.due-row, .invoice-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--border); }
+.due-row > div { flex: 1; min-width: 160px; }
+.invoice-row .grow { min-width: 0; }
+.coach { position: fixed; right: 24px; bottom: 24px; width: min(360px, calc(100vw - 32px)); padding: 16px; background: var(--surface); border: 1px solid #bfd0ff; border-radius: 12px; box-shadow: 0 12px 36px rgba(15,23,42,.2); z-index: 80; }
+.coach-kicker { color: var(--primary); font-size: 12px; font-weight: 700; }
+.coach p { margin: 8px 0 16px; line-height: 1.45; }
+@media (max-width: 700px) { .due-row, .invoice-row { align-items: flex-start; flex-wrap: wrap; } .due-row > div, .invoice-row .grow { flex-basis: calc(100% - 32px); } .coach { right: 16px; bottom: 16px; } }
 
 .seg { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
 .seg[aria-pressed="true"] { background: var(--primary-soft); color: var(--primary); font-weight: 600; }

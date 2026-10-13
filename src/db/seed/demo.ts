@@ -29,6 +29,7 @@ import * as s from "../schema";
 import { DEMO_NOW, seed } from "../seed";
 import { CASE_REF_NOTE } from "@/surfaces/refs";
 import { seedHandling, seedLeafySubscriptions } from "./demo-handling";
+import { seedU7Cases } from "./demo-u7";
 import { seedHistory } from "./demo-history";
 import { BUYERS, DAY, HOUR, INVOICES, ist, KARAN, LEAFY, MIN, NEHA, rupees } from "./demo-people";
 
@@ -163,6 +164,7 @@ export async function seedDemo(db: Db, opts: { rehearse?: (w: DemoWorld) => Prom
   prepare(db, t0);
   seedHistory(db);
   await seedHandling(db);
+  seedU7Cases(db, DEMO_NOW);
   seedPaymentVolume(db, DEMO_NOW);
 
   // The engine, on a fake clock, with the AI always replaying recorded answers.
