@@ -79,7 +79,7 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
           )}
         </div>
         {waiting && (
-          <Link className="btn primary" href={`${base}/cases`}>
+          <Link className="btn primary" data-guided="review-cases" href={`${base}/cases`}>
             Review cases
             <ArrowRight size={16} aria-hidden="true" />
           </Link>

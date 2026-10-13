@@ -442,6 +442,8 @@ table.data tr.total td { background: var(--canvas); }
 .coach-arrow.up { top: -6px; }
 .coach-arrow.down { bottom: -6px; }
 .coach-ring { position: fixed; z-index: 89; border-radius: 10px; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.55), 0 0 0 7px rgba(37, 99, 235, 0.18); pointer-events: none; }
+.coach[aria-label^="Step "] { z-index: 120; }
+.guided-end { z-index: 120; }
 @keyframes coach-in { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .coach { animation: none; } }
 

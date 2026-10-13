@@ -48,16 +48,16 @@ export function OpenControlsOnParam({ onOpen }: { onOpen: () => void }) {
 function chapters(base: string, cases: Record<string, string>) {
   const c = (ref: string) => (cases[ref] ? `${base}/cases/${cases[ref]}` : `${base}/cases`);
   return [
-    { title: "Home", href: base },
-    { title: "Cases", href: `${base}/cases` },
-    { title: "Case page: paid, no order", href: c("RD-1042") },
-    { title: "Customer inbox", href: "/sim/inbox" },
-    { title: "RAY on WhatsApp", href: `${base}/whatsapp` },
-    { title: "Ask RAY", href: `${base}/ask` },
-    { title: "Chargeback", href: c("RD-1051") },
-    { title: "Subscription stopped", href: c("RD-1060") },
-    { title: "Invoice overdue", href: `${base}/collect` },
-    { title: "My dashboard", href: `${base}/dashboard` },
+    { title: "Home", href: `${base}?guided=1&step=1` },
+    { title: "Cases", href: `${base}/cases?guided=1&step=2` },
+    { title: "Case page: paid, no order", href: `${c("RD-1042")}?guided=1&step=3` },
+    { title: "Customer inbox", href: "/sim/inbox?guided=1&step=4" },
+    { title: "RAY on WhatsApp", href: `${base}/whatsapp?guided=1&step=5` },
+    { title: "Ask RAY", href: `${base}/rules?guided=1&step=6` },
+    { title: "Chargeback", href: `${c("RD-1051")}?guided=1&step=7` },
+    { title: "Subscription stopped", href: `${c("RD-1060")}?guided=1&step=8` },
+    { title: "Invoice overdue", href: `${base}/collect?guided=1&step=9` },
+    { title: "My dashboard", href: `${base}/dashboard?guided=1&step=10` },
   ];
 }
 

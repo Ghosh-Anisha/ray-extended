@@ -16,7 +16,7 @@ export function MorningListView({ list }: { list: MorningList }) {
   const { busy, error, run } = useAction();
   const caseHref = (r: MorningRow) => `/merchant/${list.merchantId}/cases/${r.caseId}`;
   return (
-    <section className="stack" aria-label="Invoice overdue">
+    <section className="stack" aria-label="Invoice overdue" data-guided="collect">
       <Heading size="large">
         Invoice overdue · {list.date}
       </Heading>

@@ -1,8 +1,7 @@
 "use client";
 
 // "See RAY in 3 minutes" (docs/ui-rebuild.md 3.1): shown until dismissed, per
-// browser. The guided demo itself comes in a later phase; the button goes to
-// its placeholder.
+// browser. The button starts the ten-step story in the shared shell overlay.
 import { Play } from "lucide-react";
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
@@ -34,7 +33,7 @@ export function GuidedDemoCard({ merchantId }: { merchantId: string }) {
         <strong>See RAY in 3 minutes: follow one day at Leafy Bakes.</strong>
         <div className="muted">Ten short steps, from a missed order to a filled dashboard.</div>
       </div>
-      <Link className="btn primary" href={`/merchant/${merchantId}/demo`}>
+      <Link className="btn primary" href={`/merchant/${merchantId}?guided=1&step=1`}>
         Start guided demo
       </Link>
       <button

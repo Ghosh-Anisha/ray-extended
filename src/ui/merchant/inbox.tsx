@@ -46,7 +46,7 @@ function RowItem({ r, merchantId, unread }: { r: CaseRow; merchantId: string; un
   const router = useRouter();
   const href = `/merchant/${merchantId}/cases/${r.id}`;
   return (
-    <tr className={`mail-row ${unread ? "unread" : ""}`} onClick={() => router.push(href)}>
+    <tr className={`mail-row ${unread ? "unread" : ""}`} data-guided={r.momentKey === "paid_no_order" && r.name.startsWith("Priya") ? "case-priya" : undefined} onClick={() => router.push(href)}>
       <td className="mail-who">
         <div className="who-inner">
           <span className="avatar sm" aria-hidden="true">{initials(r.name)}</span>
@@ -174,7 +174,7 @@ export function Inbox({
             <div className="stack">
               {rows.map((r) => (
                 <div key={r.id} className="stack" style={{ gap: 4 }}>
-                  <Link href={href(r)} className="case-card">
+                  <Link href={href(r)} className="case-card" data-guided={r.momentKey === "paid_no_order" && r.name.startsWith("Priya") ? "case-priya" : undefined}>
                     <div className="top">
                       <strong>{r.name}</strong>
                       <span className="num">{r.amount}</span>

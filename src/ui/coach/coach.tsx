@@ -88,10 +88,11 @@ export function CoachPopover({
     left = Math.min(Math.max(12, anchor.left + anchor.width / 2 - width / 2), vw - width - 12);
     arrowLeft = Math.min(Math.max(16, anchor.left + anchor.width / 2 - left - 6), width - 28);
   }
+  top = Math.min(Math.max(12, top), Math.max(12, vh - 210));
   return (
     <>
       {anchor && <div className="coach-ring" style={{ top: anchor.top - 4, left: anchor.left - 4, width: anchor.width + 8, height: anchor.height + 8 }} aria-hidden="true" />}
-      <div className="coach" role="dialog" aria-label={title ?? "Tip"} style={{ top, left, width }}>
+      <div className="coach" role="dialog" aria-label={title ?? "Tip"} style={{ top, left, width, bottom: "auto", right: "auto" }}>
         {anchor && <span className={`coach-arrow ${below ? "up" : "down"}`} style={{ left: arrowLeft }} aria-hidden="true" />}
         {title && <strong className="coach-title">{title}</strong>}
         <p className="coach-text">{text}</p>

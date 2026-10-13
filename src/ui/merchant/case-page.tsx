@@ -374,7 +374,7 @@ function EventsPane({ v }: { v: CaseView }) {
 function TapButton({ p, variant, caseId, busy, onTap }: { p: Proposal; variant: "primary" | "secondary"; caseId: string; busy: string | null; onTap: (key: string, body: unknown) => void }) {
   return (
     <div className="stack" style={{ gap: 2 }}>
-      <Button variant={variant} isFullWidth isDisabled={busy !== null} onClick={() => onTap(p.id, { caseId, choice: "approve", proposalId: p.id })}>
+      <Button variant={variant} isFullWidth isDisabled={busy !== null} data-guided={variant === "primary" ? "primary-action" : undefined} onClick={() => onTap(p.id, { caseId, choice: "approve", proposalId: p.id })}>
         {busy === p.id ? DOING_IT : p.label}
       </Button>
       <ApprovalLabel covered={p.covered} />
