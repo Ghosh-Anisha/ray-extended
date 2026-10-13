@@ -236,6 +236,11 @@ function TapButton({ p, variant, caseId, busy, onTap }: { p: Proposal; variant: 
         {busy === p.id ? DOING_IT : p.label}
       </Button>
       <ApprovalLabel covered={p.covered} />
+      {(p.then ?? []).map((x) => (
+        <span key={x} className="muted" style={{ fontSize: 12 }}>
+          {x}
+        </span>
+      ))}
     </div>
   );
 }

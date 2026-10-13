@@ -23,6 +23,11 @@ export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card
       ))}
       <div style={{ marginTop: 6 }}>
         <strong>{card.primary.label}</strong> · <ApprovalLabel covered={card.primary.covered} />
+        {(card.primary.then ?? []).map((x) => (
+          <div key={x} className="meta">
+            {x}
+          </div>
+        ))}
       </div>
       {card.changeAsked && <div className="meta">You asked: {card.changeAsked}</div>}
       <div className="card-actions">

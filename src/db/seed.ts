@@ -7,6 +7,7 @@ import { pathToFileURL } from "node:url";
 import { openMigratedDb, type Db } from "./client";
 import { proposeSetupRules } from "@/engine/setup-rules";
 import { createRepository } from "./repository";
+import { seedInternational } from "./seed/international";
 import type * as s from "./schema";
 
 export const SEED_NOW = Date.parse("2026-10-12T10:00:00+05:30");
@@ -403,6 +404,8 @@ export function seed(db: Db, now: number = SEED_NOW) {
       call("cus_karan", "opted_in", "checkout"),
       call("cus_deepa", "opted_out", "asked not to be called"),
     ]);
+
+    seedInternational(db, now);
   });
 }
 

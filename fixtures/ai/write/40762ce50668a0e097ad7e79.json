@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "40762ce50668a0e097ad7e79",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_three_ds_timed_out",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Emma",
+      "amount": "$49",
+      "for": "order nn_pro_annual_902",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_pro_annual_902",
+      "sign_off": "Team NoteNest",
+      "what_happened": "your bank's security check timed out",
+      "never_the_same_card": false
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Emma,\n\nYour payment of $49 to NoteNest for order nn_pro_annual_902 didn't finish because your bank's security check timed out.\n\nYou can try again on this fresh payment link from NoteNest for $49: https://pay.sim.example/l/plinkref1 If it's easier, you can pay with PayPal on the same page.\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}

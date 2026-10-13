@@ -12,6 +12,7 @@ export const SIM_NAV = [
   { href: "/sim/buyers", label: "Buyer inbox" },
   { href: "/sim/store", label: "Store admin" },
   { href: "/sim/calls", label: "Calls" },
+  { href: "/sim/international", label: "Checkout abroad" },
 ];
 
 // Simulators are always the desktop view and always carry the Simulated tag.

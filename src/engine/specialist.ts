@@ -96,6 +96,11 @@ export interface Specialist {
   // The merchant tapped Change with free text: redraft and offer the same
   // card again. Flows without it only record the text.
   onChange?(ctx: EngineContext, kase: Case, text: string, event: EngineEvent): Promise<ChangeResult>;
+  // Optional: when grouping finds no case for an event, a flow may claim it
+  // for one of its own open cases (the id), before any detector runs. Used
+  // when an event belongs to a case but carries a different payment, such as
+  // a buyer's later payment by another method. Flows without it are unchanged.
+  claim?(ctx: EngineContext, event: EngineEvent): string | null | Promise<string | null>;
 }
 
 export type Registry = {

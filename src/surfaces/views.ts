@@ -90,6 +90,13 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
   let amount = money(amountMinor, currency);
   // Foreign amounts show both: $49 (₹4,100).
   if (amountMinor !== null && currency !== "INR" && payment?.base_amount) amount = `${amount} (${money(payment.base_amount)})`;
+  // No payment yet (Step 8 F: an expired link or an abandoned checkout): the
+  // amount of the link or order the case cites.
+  if (amountMinor === null) {
+    const cited = repo.caseEvents.listByCase(kase.id).map((e) => e.evidence_ref).filter((x): x is string => !!x);
+    const rec = cited.map((id) => repo.rzpLinks.get(id) ?? repo.rzpOrders.get(id)).find((r) => r && r.merchant_id === kase.merchant_id);
+    if (rec) amount = money(rec.amount, rec.currency);
+  }
   return {
     name: customer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
@@ -235,7 +242,9 @@ export type ConversationItem = {
   voice: VoiceNoteView | null;
   call: CallView | null;
 };
-export type Proposal = { id: string; label: string; covered: boolean; draft: string | null };
+// then: the action's own follow-ups, done on the same tap and covered by the
+// same approval (a confirmation, the email after a request), listed on the card.
+export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; then: string[] };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
@@ -402,7 +411,8 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  return { id: p.id, label: p.label, covered: p.covered, draft };
+  const then = (p.followUps ?? []).map((f) => `Also on this tap: ${actLabel(f.tool)}${typeof f.args.to === "string" ? ` to ${f.args.to}` : ""}`);
+  return { id: p.id, label: p.label, covered: p.covered, draft, then };
 }
 
 export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };
@@ -483,9 +493,16 @@ export function caseView(a: Adapters, caseId: string): CaseView {
   const changes = timeline.filter((e) => e.payload.kind === "change_requested").map((e) => ({ at: dateTime(e.at), text: String(e.payload.text) }));
 
   const primary = proposals[0] ?? null;
+  // A flow that hands the case back after deciding (Step 8: a near-match
+  // transfer, a buyer's reply) records its question as a merchant_question
+  // note; the newer of that and the decision is what the merchant is asked.
+  const asked = timeline.findLast((e) => e.payload.kind === "merchant_question");
+  const askedLatest = asked && (!decided || (asked.seq ?? 0) > (decided.seq ?? 0));
   const question = unsure
     ? String(lastInvestigated?.payload.reason ?? "RAY needs one answer before it can act.")
-    : String(decided?.payload.summary ?? "What should RAY do?");
+    : askedLatest
+      ? String(asked.payload.text)
+      : String(decided?.payload.summary ?? "What should RAY do?");
 
   const view: CaseView = {
     id: kase.id,
