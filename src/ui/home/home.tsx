@@ -15,11 +15,11 @@ import { GuidedDemoCard } from "./guided-card";
 import { ProactiveCards } from "./proactive";
 
 const TOP_MOMENT_LINE: Record<string, string> = {
-  paid_no_order: "Most saves came from orders your store missed after payment.",
-  international: "Most saves came from customers abroad whose cards RAY got through.",
-  subscription: "Most saves came from subscriptions RAY kept running.",
-  chargeback: "Most saves came from chargebacks RAY helped you win.",
-  collect: "Most saves came from overdue invoices RAY chased until they were paid.",
+  paid_no_order: "Largest demo amount marked saved came from paid orders missing in the store.",
+  international: "Largest demo amount marked saved came from an international-card case.",
+  subscription: "Largest demo amount marked saved came from a subscription case.",
+  chargeback: "Largest demo amount marked saved came from a chargeback case.",
+  collect: "Largest demo amount marked saved came from an overdue-invoice case.",
 };
 
 function DateChips({ stats }: { stats: MerchantStats }) {
@@ -69,9 +69,9 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
         <div className="grow">
           {waiting ? (
             <>
-              <strong>{rupees(stats.needsYou.stake)} waiting on you.</strong>{" "}
+            <strong>{stats.needsYou.count} {stats.needsYou.count === 1 ? "case needs" : "cases need"} your tap.</strong>{" "}
               <span>
-                {stats.needsYou.count} {stats.needsYou.count === 1 ? "case needs" : "cases need"} a tap.
+              Case amounts use different bases and are not added here.
               </span>
             </>
           ) : (
@@ -95,16 +95,16 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
         </div>
         <div className="grid-4">
           <div className="panel stack" style={{ gap: 8 }}>
-            <span className="metric-label">₹ saved</span>
+            <span className="metric-label">Demo amount marked saved</span>
             <span className="big-number">{rupees(stats.saved.amount)}</span>
             {stats.saved.changePct !== null && stats.saved.changePct > 0 && <span className="trend" style={{ alignSelf: "flex-start" }}>↑ {stats.saved.changePct}% vs last month</span>}
             {stats.saved.topMoment && <Insight>{TOP_MOMENT_LINE[stats.saved.topMoment]}</Insight>}
           </div>
           <div className="panel stack" style={{ gap: 8 }}>
-            <span className="metric-label">Time saved</span>
+            <span className="metric-label">Estimated time</span>
             <span className="big-number">{hoursLabel(stats.timeSavedMinutes)}</span>
-            <span className="muted">Work you did not have to do</span>
-            <Insight>{`${stats.closed.byRay} of ${stats.closed.count} cases closed without you taking over.`}</Insight>
+            <span className="muted">Fixed minutes per case, not measured time</span>
+            <Insight>{`${stats.closed.byRay} of ${stats.closed.count} cases marked as handled by RAY.`}</Insight>
           </div>
           <div className="panel stack" style={{ gap: 8 }}>
             <span className="metric-label">Cases closed</span>
@@ -113,9 +113,9 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
             <Insight>Each one has a timeline you can open.</Insight>
           </div>
           <div className="panel stack" style={{ gap: 8 }}>
-            <span className="metric-label">Customers kept</span>
+            <span className="metric-label">Cases marked saved</span>
             <span className="big-number">{stats.kept}</span>
-            <span className="muted">Money or order sorted out</span>
+            <span className="muted">Case count, not unique customers</span>
             <Insight>They were told what happened in words they could check.</Insight>
           </div>
         </div>
@@ -131,9 +131,9 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
           {stats.byMoment.map((m) => (
             <Link key={m.moment} className="panel moment-card" href={`${base}/cases?moment=${m.moment}`}>
               <span className="name">{MOMENT_LABEL[m.moment]}</span>
-              <span className="stake">{rupees(m.stake)}</span>
+              <span className="stake">{m.open} open</span>
               <span className="muted">
-                {m.open} open · at stake
+                {m.open === 1 ? "case" : "cases"} · amounts not combined
               </span>
             </Link>
           ))}
@@ -189,8 +189,8 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
       <CoachMarks
         id="home-u6"
         steps={[
-          { target: "[data-coach='capabilities']", text: "Everything RAY can do for you. Each card says if it is On, ready to Try, or Coming soon." },
-          { target: "[data-coach='suggestions']", text: "RAY also suggests changes from your own numbers. You decide: Turn on or Not now." },
+          { target: "[data-coach='capabilities']", text: "Each card says if it is On, ready to Try, a Preview using seeded examples, or Coming soon without a preview." },
+          { target: "[data-coach='suggestions']", text: "RAY proposes levers from seeded demo numbers. Preview a modeled scenario or choose Not now; no live setting changes here." },
           { target: "[data-coach='try-it']", text: "Try it opens a short example on Leafy Bakes, with RAY pointing things out." },
         ]}
       />

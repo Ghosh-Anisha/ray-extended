@@ -9,7 +9,7 @@ export default async function DuesPage({ params }: { params: Promise<{ merchantI
   return (
     <PageShell killSwitch={merchantView(a, merchantId).killSwitch !== null}>
       <Breadcrumbs trail={[{ label: "Agentic Dashboard", href: `/merchant/${merchantId}` }, { label: "Dues" }]} />
-      <Dues merchantId={merchantId} />
+      <Dues merchantId={merchantId} now={a.clock.now()} />
     </PageShell>
   );
 }

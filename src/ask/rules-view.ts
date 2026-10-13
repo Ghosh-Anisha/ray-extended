@@ -54,7 +54,9 @@ export function rulesView(a: Adapters, merchantId: string): RulesView {
   const row = (r: (typeof rules)[number]): RuleCardRow => {
     const ids = usedBy.get(r.id) ?? [];
     const j = r.rule_json;
-    const limit = typeof j.max === "number" ? `Up to ${money(j.max)}` : typeof j.min === "number" ? `Above ${money(j.min)}` : typeof j.min_value === "number" ? `Worth more than ${money(j.min_value)}` : typeof j.max_amount === "number" ? `Up to ${money(j.max_amount)}` : null;
+    const limit = j.tool === "refund" && j.when === "duplicate" && typeof j.max === "number"
+      ? `Under ${money(j.max + 1)}`
+      : typeof j.max === "number" ? `Up to ${money(j.max)}` : typeof j.min === "number" ? `Above ${money(j.min)}` : typeof j.min_value === "number" ? `Worth more than ${money(j.min_value)}` : typeof j.max_amount === "number" ? `Up to ${money(j.max_amount)}` : null;
     const memory = r.status === "proposed" && r.source === "pattern" ? memories.find((x) => typeof j.tool === "string" && x.vector[j.tool as string] !== undefined) : undefined;
     return {
       key: r.id,

@@ -323,8 +323,8 @@ describe("E: Razorpay risk hold", () => {
     expect(ticket.result).toMatchObject({ status: "filed", simulated: true });
     expect(w.sim.riskTickets(NOTENEST).map((x) => x.id)).toEqual([ticket.id]);
     const told = w.repo.alerts.list(eq(s.alerts.case_id, k.id)).find((x) => x.kind === "intl_risk_hold")!;
-    expect(told.text).toMatch(/^Emma Clarke's \$49 \(₹4,100\) card payment was held by Razorpay's risk check\. I've filed a review ticket\. This one's on Razorpay, so it's free\./);
-    expect(caseView(w.a, k.id).side).toEqual({ label: "Razorpay's side", note: "Free. Razorpay owns this." });
+    expect(told.text).toMatch(/^Emma Clarke's \$49 \(₹4,100\) card payment was held by Razorpay's risk check\. I've filed a simulated review ticket\. The evidence points to Razorpay, but compensation terms are not confirmed\./);
+    expect(caseView(w.a, k.id).side).toEqual({ label: "Razorpay's side", note: "The evidence points to Razorpay; this does not confirm compensation terms." });
 
     await w.engine.advanceBy(2 * HOUR);
     expect(w.sent()).toEqual([]);

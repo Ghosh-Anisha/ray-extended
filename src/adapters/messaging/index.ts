@@ -102,6 +102,9 @@ export const sendInput = z
 export type SendInput = z.input<typeof sendInput>;
 
 export const receiveInput = z.object({
+  // Stable across delivery retries. It is the durable idempotency key for
+  // the inbound message and the event emitted from it.
+  messageId: z.string().min(1).max(120).optional(),
   channel: z.enum(s.CHANNELS),
   from: z.string().min(3),
   merchantId: z.string(),
@@ -339,8 +342,17 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       const to =
         input.to ??
         (lastOut?.channel === input.channel ? lastOut.from : address(input.merchantId, input.channel, "merchant_inbox")!);
+      const id = input.messageId ?? newId("msg");
+      const existing = repo.messages.get(id);
+      if (existing) {
+        const expectedChannel = input.voice ? "voice_note" : input.channel;
+        if (existing.direction !== "in" || existing.channel !== expectedChannel || existing.from !== input.from || existing.to !== to || existing.body !== input.body) {
+          throw new MessagingError("UNKNOWN_ADDRESS", `Inbound message id ${id} was already used for different content`);
+        }
+        return existing;
+      }
       return repo.messages.insert({
-        id: newId("msg"),
+        id,
         case_id: lastOut?.case_id ?? null,
         channel: input.voice ? "voice_note" : input.channel,
         transcript: input.voice ? input.body : null,

@@ -260,6 +260,7 @@ describe("D: cancel my plan (Karan, FitLoop)", () => {
     const resume = w.repo.timers.list(eq(s.timers.case_id, kase.id)).find((t) => t.kind === "sub_resume")!;
     expect(resume.due_at).toBe(w.a.clock.now() + 30 * DAY);
     expect(w.state(kase.id).state).toBe("verifying");
+    expect(caseView(w.a, kase.id).yourCall).toMatchObject({ primary: null, draft: null, question: "No action needs your approval right now. See the timeline for what happened." });
 
     await w.engine.advanceBy(30 * DAY);
     expect(w.repo.subscriptions.get(KARAN.sub)!.status).toBe("active");

@@ -50,7 +50,7 @@ export type Engine = {
   stop(): void;
 };
 
-export type VoiceNoteInput = { merchantId: string; from: string; to?: string; audio?: AudioInput; sampleId?: string };
+export type VoiceNoteInput = { merchantId: string; from: string; to?: string; messageId?: string; audio?: AudioInput; sampleId?: string };
 
 export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; adapters?: Adapters }): Engine {
   const { db, clock, registry, adapters } = opts;
@@ -284,8 +284,26 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     },
     async receiveVoiceNote(input) {
       if (!adapters) throw new Error("This engine has no voice adapter");
+      const existing = input.messageId ? repo.messages.get(input.messageId) : undefined;
+      if (existing) {
+        if (existing.direction !== "in" || existing.channel !== "voice_note" || existing.from !== input.from || existing.body !== existing.transcript) {
+          throw new Error(`Inbound voice message id ${input.messageId} was already used for different content`);
+        }
+        const message = await adapters.messaging.receive({
+          messageId: existing.id,
+          merchantId: input.merchantId,
+          channel: "whatsapp",
+          from: input.from,
+          to: existing.to,
+          body: existing.body,
+          voice: { audioRef: existing.audio_ref, durationS: existing.duration_s ?? 0 },
+        });
+        const r = await engine.handleEvent(fromMessage(message, input.merchantId));
+        return { ...r, messageId: message.id, transcript: message.transcript ?? message.body };
+      }
       const t = await adapters.voice.transcribe({ audio: input.audio, sampleId: input.sampleId });
       const m = await adapters.messaging.receive({
+        messageId: input.messageId,
         merchantId: input.merchantId,
         channel: "whatsapp",
         from: input.from,

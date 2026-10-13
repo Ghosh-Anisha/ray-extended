@@ -22,14 +22,14 @@ export const TOURS: Record<string, CoachStep[]> = {
   collect: moment("Overdue invoices. RAY reminds the buyer, notes each promise and matches the bank credit.", "Open one to see what was promised and what RAY sent."),
   grow: [
     { target: "[data-coach='grow-card']", text: "RAY found this in your own orders: big carts that never got paid." },
-    { target: "[data-coach='grow-actions']", text: "Turn on, or Not now. Two weeks later RAY shows what changed, before and after." },
+    { target: "[data-coach='grow-actions']", text: "Preview the modeled scenario, or choose Not now. Two weeks later the demo shows a simulated before and after, not measured growth." },
   ],
   dashboard: [
     { target: "[data-coach='dash-setup']", text: "Three quick questions. They are already picked from your data, so you can just build." },
     { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
     { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
     { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-    { target: "[data-coach='dash-reports']", text: "Reports in words: a short summary on top, then the table. Send it to your CA on WhatsApp." },
+    { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
   ],
 };
 
@@ -47,7 +47,7 @@ function Tour({ name }: { name: string }) {
     const timer = window.setInterval(() => {
       tries += 1;
       const all = TOURS[name];
-      const found = all.filter((s) => document.querySelector(s.target));
+      const found = all.filter((s) => s.target && document.querySelector(s.target));
       if (found.length > 0 && (found.length === all.length || tries >= 6)) {
         window.clearInterval(timer);
         setSteps(found);
@@ -58,7 +58,7 @@ function Tour({ name }: { name: string }) {
 
   const step = steps?.[i];
   useEffect(() => {
-    if (!step || closed) return;
+    if (!step || closed || !step.target) return;
     const el = document.querySelector<HTMLElement>(step.target);
     if (!el) return;
     el.scrollIntoView({ block: "center" });
@@ -82,6 +82,7 @@ function Tour({ name }: { name: string }) {
 
 export function TourHost() {
   const params = useSearchParams();
+  if (params.get("guided") === "1") return null;
   const name = params.get("tour");
   if (!name || !TOURS[name]) return null;
   return <Tour key={name} name={name} />;

@@ -47,6 +47,7 @@ export type CaseSpec = {
   keys: { email?: string; phone?: string; paymentId?: string };
   ref?: string; // "RD-1042"
   alert: string;
+  simulated?: boolean;
   steps: Step[];
 };
 
@@ -123,16 +124,18 @@ export function createBuilder(db: Db) {
           last = e.id;
           break;
         }
-        case "finding":
+        case "finding": {
+          const findingId = id("cev", c.id);
           repo.caseEvents.insert({
-            id: id("cev", c.id),
+            id: findingId,
             case_id: c.id,
             at: step.at,
             type: "finding",
-            payload: { text: step.text, ok: step.ok ?? true, source: step.source, cited_by: last },
-            evidence_ref: step.ref ?? last,
+            payload: { text: step.text, ok: step.ok ?? true, source: c.simulated ? "Simulated" : step.source, simulated: c.simulated ?? false, cited_by: last },
+            evidence_ref: step.ref ?? (c.simulated ? findingId : last),
           });
           break;
+        }
         case "note": {
           const e = repo.caseEvents.insert({ id: id("cev", c.id), case_id: c.id, at: step.at, type: "note", payload: step.payload, evidence_ref: step.ref ?? last });
           last = e.id;

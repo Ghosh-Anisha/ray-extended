@@ -32,8 +32,8 @@ export function AskChat({ initialQuery = "", compact }: { initialQuery?: string;
             <span className="tile-icon" aria-hidden="true">
               <Sparkles size={18} />
             </span>
-            <strong>{caseId ? "Ask RAY about this case" : "Ask RAY anything about your payments"}</strong>
-            <span className="muted">{caseId ? "RAY answers from what it found on this case." : "Questions, or tell RAY how to handle things. Every number comes from your own cases."}</span>
+            <strong>{caseId ? "Ask RAY about this case" : "Ask a supported question"}</strong>
+            <span className="muted">{caseId ? "RAY answers from what it found on this case." : "Answers use scripted routing and your seeded demo records. Rule requests always need your approval."}</span>
           </div>
         )}
         {thread.map((m) =>

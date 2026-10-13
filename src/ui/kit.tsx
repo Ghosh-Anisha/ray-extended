@@ -11,9 +11,9 @@ type ButtonProps = {
   isDisabled?: boolean;
   isFullWidth?: boolean;
   children?: ReactNode;
-} & Pick<ButtonHTMLAttributes<HTMLButtonElement>, "onClick" | "type" | "title">;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "className" | "disabled" | "aria-busy" | "children">;
 
-export function Button({ variant = "primary", size = "medium", isLoading, isDisabled, isFullWidth, children, type = "button", onClick, title }: ButtonProps) {
+export function Button({ variant = "primary", size = "medium", isLoading, isDisabled, isFullWidth, children, type = "button", onClick, title, ...attributes }: ButtonProps) {
   return (
     <button
       type={type}
@@ -22,6 +22,7 @@ export function Button({ variant = "primary", size = "medium", isLoading, isDisa
       disabled={isDisabled || isLoading}
       aria-busy={isLoading || undefined}
       onClick={onClick}
+      {...attributes}
     >
       {isLoading && <span className="spinner" aria-hidden="true" />}
       {children}

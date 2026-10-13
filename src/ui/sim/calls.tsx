@@ -15,7 +15,7 @@ export function CallScreen({ v }: { v: CallScreenView }) {
   return (
     <div className="stack">
       <SimTitle>Calls</SimTitle>
-      <p className="muted">{v.live ? "RAY's lines get generated audio on ElevenLabs." : "Transcripts only. Set ELEVENLABS_API_KEY for generated audio lines."}</p>
+      <p className="muted">{v.live ? "Some of RAY's lines have generated audio." : "These call previews are transcripts only."}</p>
       {v.calls.length === 0 ? <Empty>{EMPTY.calls}</Empty> : v.calls.map((c) => <CallCard key={c.id} call={c} meta={`${c.merchant} · ${c.at}`} />)}
       <CalleeSims callees={v.callees} outcomes={v.outcomes} />
     </div>
@@ -30,7 +30,7 @@ function CalleeSims({ callees, outcomes }: { callees: CalleeSim[]; outcomes: Cal
       <h2 style={{ margin: 0 }}>How the next call goes</h2>
       <label>
         Person{" "}
-        <select value={callee} onChange={(e) => setCallee(e.target.value)}>
+        <select className="field" value={callee} onChange={(e) => setCallee(e.target.value)}>
           {callees.map((c) => (
             <option key={c.callee} value={c.callee}>
               {c.name} ({c.merchant}) · {c.consent}
@@ -59,7 +59,7 @@ function CalleeForm({ c, outcomes }: { c: CalleeSim; outcomes: CallScreenView["o
     >
       <label>
         Outcome{" "}
-        <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+        <select className="field" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
           {outcomes.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
@@ -68,15 +68,15 @@ function CalleeForm({ c, outcomes }: { c: CalleeSim; outcomes: CallScreenView["o
         </select>
       </label>
       <label>
-        What {c.name.split(/[\s,]+/)[0]} says <input value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Okay, I'll check and reply tonight" />
+        What {c.name.split(/[\s,]+/)[0]} says <input className="field" value={reply} onChange={(e) => setReply(e.target.value)} placeholder="Okay, I'll check and reply tonight" />
       </label>
       {outcome === "answered" && (
         <label>
-          Promise or choice <input value={promise} onChange={(e) => setPromise(e.target.value)} placeholder="Will reply on WhatsApp by 9 PM" />
+          Promise or choice <input className="field" value={promise} onChange={(e) => setPromise(e.target.value)} placeholder="Will reply on WhatsApp by 9 PM" />
         </label>
       )}
       <div className="row">
-        <button type="submit" disabled={busy !== null}>
+        <button type="submit" className="btn secondary" disabled={busy !== null}>
           {busy ? DOING_IT : "Save"}
         </button>
         {error && <span className="error">{error}</span>}

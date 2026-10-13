@@ -100,6 +100,17 @@ describe("engine: a dummy specialist moves cases through every state on the fake
     expect(statePath(repo, caseId)).toHaveLength(9);
   });
 
+  it("handles a retried persisted inbound message once", async () => {
+    const { engine, repo } = setup();
+    const input = { merchantId: LEAFY, channel: "whatsapp" as const, from: PRIYA, body: "I paid but my order says pending", messageId: "inbound-retry-engine" };
+    const first = await engine.receiveMessage(input);
+    const retry = await engine.receiveMessage(input);
+    expect(retry.outcome).toBe("duplicate");
+    expect(repo.messages.list().filter((m) => m.id === input.messageId)).toHaveLength(1);
+    const caseId = "caseId" in first ? first.caseId : "";
+    expect(events(repo, caseId).filter((e) => e.type === "message_in" && e.evidence_ref === input.messageId)).toHaveLength(1);
+  });
+
   it("keeps the case open when the merchant says no, with the other options and Change", async () => {
     const { a, engine, repo } = setup();
     await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: "pay_LB1234PRIYA" });

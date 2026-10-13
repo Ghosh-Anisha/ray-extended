@@ -451,7 +451,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
         merchant_id: kase.merchant_id,
         case_id: kase.id,
         kind: "intl_risk_hold",
-        text: `${c.name}'s ${c.amountBoth} card payment was held by Razorpay's risk check. I've filed a review ticket. This one's on Razorpay, so it's free. ${c.first} was told you've been informed.`,
+        text: `${c.name}'s ${c.amountBoth} card payment was held by Razorpay's risk check. I've filed a simulated review ticket. The evidence points to Razorpay, but compensation terms are not confirmed. ${c.first} was told you've been informed.`,
         channel: "whatsapp",
         sent_at: ctx.clock.now(),
       });

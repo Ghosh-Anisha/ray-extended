@@ -6,10 +6,11 @@
 // Simulated, so it carries the tag.
 import { RotateCcw, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CLOCK_PRESETS } from "@/app/(sim)/dev/clock-presets";
 import { DevControls, type DevData } from "@/app/(sim)/dev/controls";
 import { SimulatedTag } from "../bits";
+import { useAccessibleDialog } from "../use-accessible-dialog";
 
 type State = {
   nowLabel: string;
@@ -68,6 +69,8 @@ export function DemoControls({ merchantId, onClose }: { merchantId: string; onCl
   const [busy, setBusy] = useState<string | null>(null);
   const [dev, setDev] = useState<DevData | null>(null);
   const [advanced, setAdvanced] = useState(false);
+  const panelRef = useRef<HTMLElement>(null);
+  useAccessibleDialog(panelRef, onClose);
 
   const load = async () => {
     try {
@@ -82,11 +85,6 @@ export function DemoControls({ merchantId, onClose }: { merchantId: string; onCl
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
   useEffect(() => {
     if (!advanced || dev) return;
     void fetch("/api/demo/dev-data", { cache: "no-store" })
@@ -108,7 +106,7 @@ export function DemoControls({ merchantId, onClose }: { merchantId: string; onCl
   return (
     <>
       <div className="drawer-scrim" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-label="Demo controls">
+      <aside ref={panelRef} className="drawer" role="dialog" aria-modal="true" aria-label="Demo controls" tabIndex={-1}>
         <div className="drawer-head">
           <h2>Demo controls</h2>
           <SimulatedTag />

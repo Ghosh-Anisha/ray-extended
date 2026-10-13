@@ -7,8 +7,10 @@ import { PageShell } from "@/ui/merchant/page-shell";
 import { caseRef } from "@/surfaces/refs";
 import { Breadcrumbs } from "@/ui/shell/breadcrumbs";
 
-export default async function CaseRoute({ params }: { params: Promise<{ merchantId: string; caseId: string }> }) {
+export default async function CaseRoute({ params, searchParams }: { params: Promise<{ merchantId: string; caseId: string }>; searchParams: Promise<{ returnTo?: string }> }) {
   const { merchantId, caseId } = await params;
+  const query = await searchParams;
+  const returnTo = query.returnTo?.startsWith(`/merchant/${merchantId}/cases`) && !query.returnTo.startsWith("//") ? query.returnTo : undefined;
   const a = getAdapters();
   const kase = createRepository(a.db).cases.get(caseId);
   if (!kase || kase.merchant_id !== merchantId) notFound();
@@ -22,7 +24,7 @@ export default async function CaseRoute({ params }: { params: Promise<{ merchant
           { label: `#${caseRef(a, caseId)}` },
         ]}
       />
-      <CasePage v={v} />
+      <CasePage v={v} returnTo={returnTo} />
     </PageShell>
   );
 }

@@ -60,18 +60,18 @@ export type Side = (typeof s.SIDES)[number];
 export const SIDE_LABEL: Record<Side, string> = {
   razorpay: "Razorpay's side",
   merchant: "Your side",
-  customer_or_bank: "Customer's bank",
+  customer_or_bank: "Customer or bank",
 };
 export const SIDE_NOTE: Record<Side, string> = {
-  razorpay: "Free. Razorpay owns this.",
+  razorpay: "The evidence points to Razorpay; this does not confirm compensation terms.",
   merchant: "Here's the fix.",
-  customer_or_bank: "RAY will handle the customer.",
+  customer_or_bank: "The available evidence does not always distinguish customer intent from a bank decision.",
 };
 export const RAZORPAY_PLUGIN_NOTE = "Razorpay's own plugin";
 
 export const COVERED = "Covered";
 export const YOUR_CALL = "Your call";
-export const COVERED_HINT = "If RAY gets this wrong, the proposed error cover applies.";
+export const COVERED_HINT = "Prototype label only. Error-cover terms are proposed and not confirmed or guaranteed.";
 export const YOUR_CALL_HINT = "This depends on your judgement.";
 
 // What the merchant reads for a case's cause (the flows keep short keys).
@@ -112,7 +112,7 @@ export const LET_RAY_FIX = "Let RAY fix these";
 // Same words as the orchestrator's HANDLE_MYSELF_LABEL.
 export const HANDLE_MYSELF = "I'll handle this myself";
 
-export const FINDING_SOURCES = ["Razorpay", "Store", "Customer", "Bank"] as const;
+export const FINDING_SOURCES = ["Razorpay", "Store", "Customer", "Bank", "Simulated"] as const;
 export type FindingSource = (typeof FINDING_SOURCES)[number];
 
 export const SENDER_MODE_LABEL: Record<(typeof s.SENDER_MODES)[number], (merchant: string) => string> = {

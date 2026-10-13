@@ -136,7 +136,7 @@ describe("the dummy case on every surface", () => {
     expect(alert).toMatchObject({ name: "Priya Sharma", amount: "₹1,299", moment: "Paid, no order" });
 
     const inbox = inboxView(ad, LEAFY);
-    expect(inbox.waitingOnYou).toBe("₹1,299 waiting on you");
+    expect(inbox.waitingOnYou).toBe("1 case needs your tap. Amounts are not added because their bases may differ.");
     expect(inbox.tabs.map((t) => t.label)).toEqual(["Needs you", "RAY is handling", "Closed"]);
     expect(inbox.tabs[0].rows).toMatchObject([{ id: caseId, name: "Priya Sharma", amount: "₹1,299", state: { label: "Needs you" }, confidence: { label: "Sure" } }]);
 

@@ -2,7 +2,7 @@
 
 // Checkout abroad (Simulated): the buyer's checkout with the cause-specific
 // failure message, payment links, MoneySaver transfers, Razorpay's risk desk
-// and the account's international settings. Always desktop, always tagged.
+// and the account's international settings. Responsive inside the shared shell.
 import { Button } from "@/ui/kit";
 import { useState } from "react";
 import { useAction } from "@/ui/bits";
@@ -38,10 +38,10 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
   return (
     <div className="stack">
       <SimTitle>Checkout abroad</SimTitle>
-      <div className="row">
+      <div className="row international-controls">
         <label>
           Seller{" "}
-          <select value={id} onChange={(e) => setId(e.target.value)}>
+          <select className="field" value={id} onChange={(e) => setId(e.target.value)}>
             {view.merchants.map((x) => (
               <option key={x.id} value={x.id}>
                 {x.name}
@@ -68,16 +68,16 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
         <div className="cols-2">
           <section className="panel">
             <h2>Checkout</h2>
-            <div className="row">
-              <select value={buyer} onChange={(e) => setBuyer(Number(e.target.value))} aria-label="Buyer">
+            <div className="row international-controls">
+              <select className="field" value={buyer} onChange={(e) => setBuyer(Number(e.target.value))} aria-label="Buyer">
                 {BUYERS.map((b, i) => (
                   <option key={b.email} value={i}>
                     {b.name} ({b.country})
                   </option>
                 ))}
               </select>
-              <input type="number" value={amount} min={1} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Amount" style={{ width: 90 }} />
-              <select value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Currency">
+              <input className="field" type="number" value={amount} min={1} onChange={(e) => setAmount(Number(e.target.value))} aria-label="Amount" style={{ width: 90 }} />
+              <select className="field" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Currency">
                 {["USD", "GBP", "EUR"].map((c) => (
                   <option key={c}>{c}</option>
                 ))}
@@ -92,10 +92,10 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
                 Open checkout
               </Button>
             </div>
-            <div className="row">
+            <div className="row international-controls">
               <label>
                 Card outcome{" "}
-                <select value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+                <select className="field" value={outcome} onChange={(e) => setOutcome(e.target.value)}>
                   {view.outcomes.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
@@ -107,7 +107,7 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
                 Check for checkouts left without paying
               </Button>
             </div>
-            <table className="data">
+            <div className="international-table-wrap"><table className="data international-table">
               <thead>
                 <tr>
                   <th>Order</th>
@@ -141,12 +141,12 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </section>
 
           <section className="panel">
             <h2>Payment links</h2>
-            <table className="data">
+            <div className="international-table-wrap"><table className="data international-table">
               <tbody>
                 {m.links.map((l) => (
                   <tr key={l.id}>
@@ -171,19 +171,19 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
 
             <h2>MoneySaver transfers</h2>
             {m.settings?.moneysaver ? (
-              <div className="row">
-                <input type="number" value={transfer.amount} onChange={(e) => setTransfer({ ...transfer, amount: Number(e.target.value) })} aria-label="Transfer amount" style={{ width: 90 }} />
-                <select value={transfer.currency} onChange={(e) => setTransfer({ ...transfer, currency: e.target.value })} aria-label="Transfer currency">
+              <div className="row international-controls">
+                <input className="field" type="number" value={transfer.amount} onChange={(e) => setTransfer({ ...transfer, amount: Number(e.target.value) })} aria-label="Transfer amount" style={{ width: 90 }} />
+                <select className="field" value={transfer.currency} onChange={(e) => setTransfer({ ...transfer, currency: e.target.value })} aria-label="Transfer currency">
                   {["GBP", "USD"].map((c) => (
                     <option key={c}>{c}</option>
                   ))}
                 </select>
-                <input value={transfer.remitterName} onChange={(e) => setTransfer({ ...transfer, remitterName: e.target.value })} aria-label="From" />
-                <input value={transfer.remitterReference} onChange={(e) => setTransfer({ ...transfer, remitterReference: e.target.value })} aria-label="Reference" />
+                <input className="field" value={transfer.remitterName} onChange={(e) => setTransfer({ ...transfer, remitterName: e.target.value })} aria-label="From" />
+                <input className="field" value={transfer.remitterReference} onChange={(e) => setTransfer({ ...transfer, remitterReference: e.target.value })} aria-label="Reference" />
                 <Button size="small" isDisabled={!!busy} onClick={() => run("transfer", URL, { action: "land_transfer", merchantId: m.id, ...transfer, amount: Math.round(transfer.amount * 100) })}>
                   Transfer lands
                 </Button>
@@ -191,7 +191,7 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
             ) : (
               <p className="muted">MoneySaver is off for {m.name}.</p>
             )}
-            <table className="data">
+            <div className="international-table-wrap"><table className="data international-table">
               <tbody>
                 {m.transfers.map((t) => (
                   <tr key={t.id}>
@@ -202,7 +202,7 @@ export function InternationalSim({ view }: { view: IntlSimView }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
 
             <h2>Razorpay risk desk</h2>
             {m.held.length === 0 && <p className="muted">No payments on hold. Payments Razorpay&apos;s risk check holds show up here.</p>}

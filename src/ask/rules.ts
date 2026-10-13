@@ -106,8 +106,8 @@ export type RuleCardData = {
   alreadyOn: boolean;
 };
 
-// "Under ₹500" is ₹499.00 and below, the same limit the suggested rule carries.
-const underPaise = (rupees: number) => rupees * 100 - 100;
+// "Under ₹500" includes every paise below ₹500, but excludes ₹500 exactly.
+export const underPaise = (rupees: number) => rupees * 100 - 1;
 
 const LEAFY_SCOPE = (a: Adapters, merchantId: string) => createRepository(a.db).merchants.get(merchantId)?.name ?? "Your account";
 
@@ -119,7 +119,7 @@ export function describePlan(a: Adapters, merchantId: string, plan: RulePlan): R
       return {
         ...base,
         sentence: `Refund duplicate charges under ${money(plan.rupees * 100)} automatically`,
-        scope: `${who} · Charged twice · up to ${money(plan.rupees * 100)}`,
+        scope: `${who} · Charged twice · under ${money(plan.rupees * 100)}`,
         does: "When a customer is charged twice for one order, RAY refunds the extra payment without asking you, and tells the customer. Anything above this amount still comes to you.",
         edit: { label: "Refund under", rupees: plan.rupees },
         alreadyOn: isOn(a, merchantId, "paid_no_order", (j) => j.tool === "refund" && j.when === "duplicate" && j.max === underPaise(plan.rupees)),

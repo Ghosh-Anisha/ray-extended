@@ -10,11 +10,10 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import { DEMO_NOW } from "@/db/seed";
 import { seedDemo } from "@/db/seed/demo";
-import { merchantStats, rupees } from "@/surfaces/stats";
 import { readSettings } from "@/surfaces/playbook";
 import { ask, FALLBACK_CHIPS, STARTER_CHIPS } from "./answer";
 import { capabilities } from "./capabilities";
-import { applyPlan, describePlan, parseRuleRequest, parseRupees } from "./rules";
+import { applyPlan, describePlan, parseRuleRequest, parseRupees, underPaise } from "./rules";
 import { rulesView } from "./rules-view";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -59,6 +58,14 @@ describe("rule parser", () => {
 });
 
 describe("rule cards", () => {
+  it("keeps an under-₹500 rule strictly below ₹500, including paise", () => {
+    const max = underPaise(500);
+    expect(max).toBe(49_999);
+    expect(49_900).toBeLessThanOrEqual(max);
+    expect(50_000).toBeGreaterThan(max);
+    expect(50_100).toBeGreaterThan(max);
+  });
+
   it("describes a rule and saves nothing until Approve rule", () => {
     const before = createRepository(db).playbookRules.list(eq(s.playbookRules.merchant_id, LEAFY)).length;
     const r = ask(a, LEAFY, "Call subscribers worth more than ₹3,000");
@@ -86,7 +93,9 @@ describe("rule cards", () => {
     applyPlan(a, LEAFY, { intent: "refund_duplicates", rupees: 500 });
     const rules = createRepository(db).playbookRules.list(eq(s.playbookRules.merchant_id, LEAFY)).filter((r) => r.rule_json.when === "duplicate" && r.rule_json.tool === "refund");
     expect(rules).toHaveLength(1);
-    expect(rules[0]).toMatchObject({ id: "rule_pattern_refund_dup_leafy", status: "approved", rule_json: { max: 49_900 } });
+    expect(rules[0]).toMatchObject({ id: "rule_pattern_refund_dup_leafy", status: "approved", rule_json: { max: 49_999 } });
+    expect(describePlan(a, LEAFY, { intent: "refund_duplicates", rupees: 500 }).scope).toContain("under ₹500");
+    expect(rulesView(a, LEAFY).active.find((r) => r.id === "rule_pattern_refund_dup_leafy")?.limit).toBe("Under ₹500");
     expect(rulesView(a, LEAFY).suggested.map((r) => r.sentence)).not.toContain("Refund duplicate charges under ₹500 automatically");
     expect(describePlan(a, LEAFY, { intent: "refund_duplicates", rupees: 500 }).alreadyOn).toBe(true);
   });
@@ -120,7 +129,7 @@ describe("answers", () => {
     expect(why.text).toContain("Priya Sharma");
     expect(why.cites[0]).toMatchObject({ href: expect.stringMatching(/\/cases\//), label: expect.stringContaining("RD-1042") });
     const waiting = ask(a, LEAFY, "What's waiting on me?");
-    expect(waiting.text).toBe(`4 cases need you, ${rupees(merchantStats(a, LEAFY).needsYou.stake)} in all. Biggest first:`);
+    expect(waiting.text).toBe("4 cases need your tap. Case amounts are shown individually because their bases may differ.");
     expect(waiting.cites.map((c) => c.label)).toEqual([expect.stringContaining("Karan"), expect.stringContaining("Neha"), expect.stringContaining("Priya"), expect.stringContaining("Rahul")]);
   });
 
@@ -148,10 +157,11 @@ describe("answers", () => {
     expect(can.capabilities).toHaveLength(12);
     expect(can.capabilities.slice(0, 5).every((c) => c.moment !== null)).toBe(true);
     // Most money waiting first, from the open cases.
-    const stakes = can.capabilities.slice(0, 5).map((c) => c.waiting);
-    expect(stakes).toEqual([...stakes].sort((x, y) => y - x));
-    expect(stakes[0]).toBeGreaterThan(0);
+    const openCases = can.capabilities.slice(0, 5).map((c) => c.openCases);
+    expect(openCases).toEqual([...openCases].sort((x, y) => y - x));
+    expect(openCases[0]).toBeGreaterThan(0);
     expect(capabilities(a, LEAFY).find((c) => c.key === "tickets")!.status).toBe("Coming soon");
+    expect(capabilities(a, LEAFY).find((c) => c.key === "tickets")).toMatchObject({ preview: true, moment: "ticket", href: expect.stringContaining("moment=ticket") });
     const first = ask(a, LEAFY, "What should I set up first?");
     expect(first.bullets.length).toBeGreaterThan(0);
   });
@@ -159,6 +169,31 @@ describe("answers", () => {
   it("falls back with chips for anything else", () => {
     const r = ask(a, LEAFY, "Tell me a joke");
     expect(r).toMatchObject({ kind: "fallback", chips: FALLBACK_CHIPS });
-    expect(r.text).toBe("I can't set or answer that yet. Here's what I can do:");
+    expect(r.text).toContain("I can't answer that from this demo");
+    expect(r.text).toContain("general-purpose investigator");
+  });
+
+  it("keeps payable/liquidity questions separate from receivables", () => {
+    const payables = ask(a, LEAFY, "Can I pay all my vendor dues by the end of this month?");
+    expect(payables.text).toContain("can't assess whether you can pay your dues");
+    expect(payables.text).not.toContain("₹6,10,000");
+    expect(payables.chips).toContain("Who owes me?");
+    const receivables = ask(a, LEAFY, "Who owes me?");
+    expect(receivables.text).toContain("₹6,10,000 is overdue");
+    expect(receivables.bullets.join(" ")).toContain("seeded open B2B invoice cases");
+  });
+
+  it("answers savings questions with the demo metric's actual limits", () => {
+    const r = ask(a, LEAFY, "How much did RAY save?");
+    expect(r.text).toContain("not verified recovered revenue");
+    expect(r.bullets.join(" ")).toContain("not unique customers");
+    expect(r.bullets.join(" ")).toContain("estimated from fixed minutes per case");
+  });
+
+  it("shows the records or state behind supported aggregate answers", () => {
+    expect(ask(a, LEAFY, "What's the success rate?").bullets.join(" ")).toContain("seeded demo");
+    expect(ask(a, LEAFY, "How many disputes this month?").bullets.join(" ")).toContain("seeded dispute records");
+    expect(ask(a, LEAFY, "How much sales today?").bullets.join(" ")).toContain("captured payment rows");
+    expect(ask(a, LEAFY, "Show refunds by product").bullets.join(" ")).toContain("seeded refund records");
   });
 });

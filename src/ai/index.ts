@@ -18,7 +18,9 @@ export { canAct } from "./runner";
 export type { AiContext, AiResult, AiRunMode } from "./types";
 
 export function aiModeFrom(env: Record<string, string | undefined> = process.env): AiRunMode {
-  const mode = env.AI_MODE ?? "replay";
+  // Local .env files commonly define an empty value. Treat it like the
+  // documented default, not like an unsupported run mode.
+  const mode = env.AI_MODE?.trim() || "replay";
   if (!(AI_RUN_MODES as readonly string[]).includes(mode)) throw new Error(`AI_MODE must be one of ${AI_RUN_MODES.join(", ")}`);
   return mode as AiRunMode;
 }

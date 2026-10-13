@@ -27,10 +27,10 @@ export const MINUTES_PER_CASE: Record<Moment, number> = {
 };
 
 export const DEFINITIONS = {
-  saved: "Money kept or recovered on cases RAY closed in the last 30 days.",
-  time: "Minutes you would have spent on each case RAY resolved, added up. Cases that fixed themselves, got no reply or that you took over do not count.",
+  saved: "Sum of case amounts marked saved in the demo data, last 30 days. This is not verified recovered revenue.",
+  time: "Estimated minutes from fixed per-case assumptions, not measured work time.",
   closed: "Cases that ended in the last 30 days, whoever finished them.",
-  kept: "Customers whose case ended with their money or order sorted out.",
+  kept: "Cases marked saved, not a count of unique customers retained.",
   success: "Captured payments divided by captured and failed payments, last 7 days.",
 } as const;
 

@@ -31,7 +31,7 @@ export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card
       </div>
       {card.changeAsked && <div className="meta">You asked: {card.changeAsked}</div>}
       <div className="card-actions">
-        <button type="button" disabled={busy !== null} onClick={() => run("approve", "/api/merchant/tap", { caseId: card.caseId, choice: "approve", proposalId: card.primary.id })}>
+        <button type="button" data-guided={card.lines.some((line) => line.includes("Rahul")) ? "approve-rahul" : undefined} disabled={busy !== null} onClick={() => run("approve", "/api/merchant/tap", { caseId: card.caseId, choice: "approve", proposalId: card.primary.id })}>
           {busy === "approve" ? DOING_IT : APPROVE}
         </button>
         <button type="button" aria-expanded={changing} onClick={() => setChanging((c) => !c)}>

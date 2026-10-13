@@ -47,7 +47,9 @@ html, body { margin: 0; padding: 0; }
 body {
   background: var(--canvas);
   color: var(--text);
-  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  /* Do not depend on an undefined Next font variable: invalid font-family
+     declarations fall back to the browser's serif default (often Times). */
+  font-family: Inter, Arial, Helvetica, system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -194,7 +196,7 @@ pre.raw { background: var(--canvas); padding: 8px; border-radius: 6px; overflow:
 .card-actions { display: flex; flex-direction: column; border-top: 1px solid var(--border); margin-top: 8px; }
 .card-actions button { background: none; border: 0; border-bottom: 1px solid var(--border); padding: 10px; color: #027eb5; font-weight: 600; cursor: pointer; }
 
-.action-bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 10px 12px; z-index: 20; }
+.action-bar { position: fixed; left: 0; right: 0; bottom: 0; max-height: 55vh; overflow-y: auto; background: var(--surface); border-top: 1px solid var(--border); padding: 10px 12px; z-index: 20; }
 .action-bar .inner { max-width: 420px; margin: 0 auto; display: flex; flex-direction: column; gap: 6px; }
 
 .case-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit; }
@@ -226,6 +228,18 @@ pre.raw { background: var(--canvas); padding: 8px; border-radius: 6px; overflow:
 .mail-folders strong { margin-bottom: 8px; }
 .mail-folder { display: flex; justify-content: space-between; border: 0; background: transparent; text-align: left; padding: 9px 10px; border-radius: 8px; cursor: pointer; color: var(--text); }
 .mail-folder.active, .mail-folder:hover { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.mail-folder { align-items: center; gap: 8px; }
+.mail-folder span { color: var(--muted); font-size: 12px; }
+.mail-list .pick { font: inherit; color: var(--text); }
+.mail-list .pick:hover, .mail-list .pick[aria-pressed="true"] { background: var(--primary-soft); }
+.mail-list .pick[aria-pressed="true"] { box-shadow: inset 3px 0 var(--primary); }
+.quick-replies button { font: inherit; }
+.other-options { padding: 8px 10px; background: var(--canvas); border: 1px solid var(--border); border-radius: 8px; }
+.other-options summary { font-weight: 600; }
+select, input[type="text"], input[type="number"], input[type="email"], textarea { max-width: 100%; font: inherit; }
+select, input[type="text"], input[type="number"], input[type="email"], textarea { border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); }
+select, input[type="text"], input[type="number"], input[type="email"] { min-height: 36px; padding: 6px 10px; }
+textarea { padding: 8px 10px; }
 .mail-list { overflow: auto; }
 .mail-row-top { display: flex; justify-content: space-between; gap: 8px; }
 .mail-subject { font-weight: 600; margin-top: 2px; }
@@ -238,6 +252,16 @@ pre.raw { background: var(--canvas); padding: 8px; border-radius: 6px; overflow:
 .quick-replies button { border: 1px solid #cfdcff; background: var(--primary-soft); color: var(--primary); border-radius: 999px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
 .store-admin-head { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px 20px; background: #24292f; color: #fff; border-radius: var(--radius); }
 .store-admin-head h2 { color: #fff; margin: 0; font-size: 20px; }
+.field { min-height: 36px; max-width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+textarea.field { min-height: 76px; resize: vertical; }
+.mail-layout[data-mobile-detail="true"] .mail-list { display: block; }
+.mail-layout[data-mobile-detail="true"] .mail-reading { display: block; }
+.mail-back { display: none; }
+.thread-list { max-height: 70vh; overflow: auto; }
+.ref-control { display: inline-flex; align-items: center; gap: 6px; }
+.international-table { min-width: 760px; }
+.international-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; }
+.cols-2 > * { min-width: 0; }
 .store-admin-head .muted { color: #cbd5e1; }
 .eyebrow { margin: 0 0 4px; text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: #9ca3af; }
 .store-plugin { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; font-size: 12px; }
@@ -291,9 +315,13 @@ button.link:disabled { opacity: 0.6; }
   .panel { padding: 16px; }
   .wa-story { flex-direction: column; align-items: stretch; }
   .wa-explainer { width: auto; margin-top: 0; }
-  .mail-layout { grid-template-columns: 1fr; min-height: 0; }
+  .mail-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .mail-folders { flex-direction: row; align-items: center; overflow: auto; }
   .mail-folders strong { margin: 0 8px 0 0; }
+  .mail-layout[data-mobile-detail="true"] .mail-list { display: none; }
+  .mail-layout[data-mobile-detail="true"] .mail-reading { display: flex; }
+  .mail-layout[data-mobile-detail="false"] .mail-reading { display: none; }
+  .mail-back { display: inline-flex; }
 }
 @media (max-width: 520px) {
   .grid-4, .grid-5 { grid-template-columns: 1fr; }
@@ -301,6 +329,16 @@ button.link:disabled { opacity: 0.6; }
   .shell-brand span { display: none; }
   .split { grid-template-columns: minmax(0, 1fr); }
   .shell-ray { padding: 0 10px; }
+  .mail-folders { padding: 10px; }
+  .mail-folder { flex: none; gap: 12px; }
+  .voice-compose { align-items: stretch; flex-direction: column; }
+  .voice-compose label, .voice-compose .btn { width: 100%; }
+  .voice-compose select, .voice-compose input[type="file"] { max-width: 100%; }
+  .sim-form-row > * { min-width: 0; max-width: 100%; }
+  .international-table-wrap { overflow-x: auto; max-width: 100%; }
+  .international-controls { display: flex; flex-direction: column; align-items: stretch; }
+  .international-controls .row { align-items: stretch; }
+  .international-controls input, .international-controls select { min-width: 0; max-width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
   .shell-nav { transition: none; }
@@ -337,7 +375,7 @@ button.link:disabled { opacity: 0.6; }
 .guided { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; background: var(--primary-soft); border-color: #cfdcff; }
 .guided .icon { width: 40px; height: 40px; border-radius: 10px; background: var(--primary); color: #fff; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 
-.nudge { position: sticky; bottom: 12px; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 4px 16px rgba(15, 23, 42, 0.1); z-index: 15; }
+.nudge { position: static; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06); }
 .nudge > svg { color: var(--primary); flex: none; }
 .page.phone .nudge { position: static; }
 
@@ -393,7 +431,7 @@ table.mail tr:last-child td { border-bottom: 0; }
 }
 @media (max-width: 960px) {
   .inbox-layout { grid-template-columns: minmax(0, 1fr); }
-  .nudge { bottom: 8px; }
+  .nudge { bottom: auto; }
   .toast { bottom: 88px; }
 }
 

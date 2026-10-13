@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 export type CapabilityStatus = "on" | "try" | "soon";
-type Capability = { key: string; title: string; line: string; moment?: string; tour?: string; href?: (base: string) => string };
+type Capability = { key: string; title: string; line: string; moment?: string; tour?: string; href?: (base: string) => string; preview?: boolean };
 
 // Designs built elsewhere link to their routes even before they exist here.
 const CAPABILITIES: Capability[] = [
@@ -14,12 +14,12 @@ const CAPABILITIES: Capability[] = [
   { key: "sub", title: "Saves stopping subscriptions", line: "Offers a pause, a discount or a retry before they leave.", moment: "subscription", tour: "subscription" },
   { key: "cb", title: "Fights chargebacks", line: "Gathers proof and drafts the reply before the deadline.", moment: "chargeback", tour: "chargeback" },
   { key: "col", title: "Chases overdue invoices", line: "Reminds buyers, notes promises and matches the bank credit.", moment: "collect", tour: "collect" },
-  { key: "whose", title: "Tells you if it's you or Razorpay", line: "Splits a drop in payments by method and bank.", href: (b) => `${b}/cases?moment=whose_side` },
-  { key: "ticket", title: "Follows up your support tickets", line: "Answers first from live data, then chases on the clock.", href: (b) => `${b}/cases?moment=ticket` },
-  { key: "hold", title: "Explains held settlements", line: "Plain reason, cash impact and the proof to send.", href: (b) => `${b}/cases?moment=settlement_hold` },
-  { key: "chat", title: "Checks AI-chat orders", line: "Compares what was asked, ordered and paid.", href: (b) => `${b}/cases?moment=ai_chat_order` },
-  { key: "dues", title: "Plans your dues", line: "One list of what is due, against cash in the bank.", href: (b) => `${b}/dues` },
-  { key: "grow", title: "Grows sales with features you already have", line: "Suggestions from your own orders, with the trade-off.", tour: "grow" },
+  { key: "whose", title: "Tells you if it's you or Razorpay", line: "Preview: splits a seeded payment example by method and bank. No live investigation is connected.", href: (b) => `${b}/cases?moment=whose_side`, preview: true },
+  { key: "ticket", title: "Follows up your support tickets", line: "Preview: shows a seeded ticket example. No support-ticket integration is connected.", href: (b) => `${b}/cases?moment=ticket`, preview: true },
+  { key: "hold", title: "Explains held settlements", line: "Preview: shows a seeded hold example. No settlement feed is connected.", href: (b) => `${b}/cases?moment=settlement_hold`, preview: true },
+  { key: "chat", title: "Checks AI-chat orders", line: "Preview: compares a seeded chat, order and payment example. No AI-chat integration is connected.", href: (b) => `${b}/cases?moment=ai_chat_order`, preview: true },
+  { key: "dues", title: "Plans your dues", line: "Illustrative date-based arithmetic only. No complete ledger or payment rail is connected.", href: (b) => `${b}/dues` },
+  { key: "grow", title: "Grows sales with features you already have", line: "Proposes modeled levers from seeded demo orders; results are simulated, not measured.", tour: "grow" },
   { key: "dash", title: "Builds your dashboard", line: "Your numbers, with definitions, watched for you.", href: (b) => `${b}/dashboard?tour=dashboard` },
 ];
 
@@ -49,12 +49,13 @@ export function Capabilities({ merchantId, rayOn, dashboardSet }: { merchantId: 
                   {st === "on" && <Check size={12} aria-hidden="true" />}
                   {st === "on" ? "On" : st === "try" ? "Try it" : "Coming soon"}
                 </span>
+                {c.preview && <span className="chip simulated">Preview · simulated</span>}
               </div>
               <span className="muted">{c.line}</span>
               {st !== "soon" && (
                 <span className="cap-actions">
                   <Link className={`btn small ${st === "try" ? "primary" : "secondary"}`} href={href(c, base, st)} data-coach={i === 0 ? "try-it" : undefined}>
-                    {st === "try" ? "Try it" : "See cases"}
+                    {c.preview ? "Open preview" : st === "try" ? "Try it" : "See cases"}
                     <ArrowRight size={14} aria-hidden="true" />
                   </Link>
                   {st === "on" && c.tour && (

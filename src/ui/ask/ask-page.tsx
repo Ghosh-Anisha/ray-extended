@@ -15,19 +15,19 @@ export function AskPage({ merchantId, initialQuery, suggestion }: { merchantId: 
     <div className="ask-page">
       <div className="stack" style={{ gap: 4 }}>
         <h1 className="page-title">Ask RAY</h1>
-        <p className="page-sub">Ask about any payment or case, or tell RAY how to handle things. RAY answers from your own cases and shows where each number came from.</p>
+        <p className="page-sub">Ask a supported case or payment question, or ask for a rule. This demo uses scripted intent routing and seeded records, not a general-purpose agent; unsupported questions get a limitation instead of a guessed answer.</p>
       </div>
       <div className="ask-full">
         <AskChat initialQuery={initialQuery} />
       </div>
       <NudgeBar
-        text={suggestion ? `RAY suggests a rule: ${suggestion}.` : "Tell RAY how to handle things, and it will do it the same way every time."}
+        text={suggestion ? `RAY suggests a rule: ${suggestion}.` : "Ask a supported question or propose a rule. Answers use seeded records; rule requests need your approval."}
         action={{ label: suggestion ? "Review rule" : "Open Rules", href: `/merchant/${merchantId}/rules` }}
       />
       <CoachMarks
         id="ask-page"
         steps={[
-          { target: ".ask-page [data-coach='ask-chips']", title: "Start with a question", text: "Tap a question, or type your own. Every number links back to the cases it came from." },
+          { target: ".ask-page [data-coach='ask-chips']", title: "Start with a question", text: "Ask a supported question or rule request. Answers use seeded demo records and show their basis or link to the case; unsupported questions get a limitation, not a guessed investigation." },
           { target: ".ask-page [data-coach='ask-input']", title: "Tell RAY a rule", text: "Type how you want things handled. RAY shows the rule first and only saves it when you tap Approve rule." },
         ]}
       />

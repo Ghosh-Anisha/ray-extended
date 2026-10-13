@@ -9,6 +9,6 @@ import { handle } from "../../dev/handle";
 export async function POST(req: Request) {
   return handle(async () => {
     const r = await tap(getEngine(), getAdapters(), await req.json());
-    return { outcome: r.outcome, caseId: "caseId" in r ? r.caseId : null };
+    return { outcome: r.outcome, caseId: "caseId" in r ? r.caseId : null, state: "case" in r ? r.case.state : null };
   });
 }

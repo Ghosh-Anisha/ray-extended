@@ -35,7 +35,7 @@ import { seedHistory } from "./demo-history";
 import { BUYERS, DAY, HOUR, INVOICES, ist, KARAN, LEAFY, MIN, NEHA, rupees } from "./demo-people";
 
 // Bump when the demo world changes, so a database seeded earlier is rebuilt.
-export const DEMO_SEED_VERSION = 2;
+export const DEMO_SEED_VERSION = 3;
 
 // The refs the story names (section 4).
 const REFS = { priya: "RD-1042", rahul: "RD-1043", neha: "RD-1051", karan: "RD-1060", sanjay: "RD-1047" } as const;
@@ -113,7 +113,7 @@ function prepare(db: Db, t0: number) {
   // Rules: the lane that contests duplicate chargebacks is on (approved below), and
   // RAY suggests one more after the merchant made the same choice three times.
   repo.playbookRules.insert({
-    id: "rule_pattern_refund_dup_leafy", merchant_id: LEAFY, moment: "paid_no_order", rule_json: { tool: "refund", when: "duplicate", max: 49_900 },
+    id: "rule_pattern_refund_dup_leafy", merchant_id: LEAFY, moment: "paid_no_order", rule_json: { tool: "refund", when: "duplicate", max: 49_999 },
     text: "Refund duplicate charges under ₹500 automatically", source: "pattern", status: "proposed", approved_at: null,
   });
   repo.memory.insert({

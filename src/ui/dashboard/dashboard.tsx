@@ -180,7 +180,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
           { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
           { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-          { target: "[data-coach='dash-reports']", text: "Reports in words: a short summary on top, then the table. Send it to your CA on WhatsApp." },
+          { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
         ]}
       />
     </>
@@ -302,7 +302,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           <span className="muted">Say what you need. RAY gives a short summary and the table.</span>
         </div>
         <form className="row" onSubmit={(e) => { e.preventDefault(); void submitReport(reportText); }}>
-          <input className="input grow" value={reportText} onChange={(e) => setReportText(e.target.value)} placeholder="Try “Settlements for September with fees and GST”" aria-label="Ask for a report" />
+          <input className="input grow" value={reportText} onChange={(e) => setReportText(e.target.value)} placeholder="Try “Estimated net collections for September”" aria-label="Ask for a report" />
           <button type="submit" className="btn primary" disabled={busy !== null || !reportText.trim()}>Build report</button>
         </form>
         <div className="row">{REPORT_EXAMPLES.map((c) => <button key={c} type="button" className="seg" onClick={() => void submitReport(c)}>{c}</button>)}</div>
@@ -312,12 +312,12 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
 
         <div className="pack stack" style={{ gap: 8 }}>
           <div className="row" style={{ justifyContent: "space-between" }}>
-            <span><strong>Month-end CA pack, {view.pack.month}</strong><br /><span className="muted">Settlements with fees and GST, refunds and disputes in one go.</span></span>
+            <span><strong>Month-end CA pack, {view.pack.month}</strong><br /><span className="muted">Estimated net collections with assumed fees/GST, refunds and disputes.</span></span>
             <span className="row">
               <button type="button" className="btn secondary" onClick={() => setPackOpen(!packOpen)} aria-expanded={packOpen}>{packOpen ? "Hide preview" : "Preview"}</button>
               <button type="button" className="btn primary" disabled={busy !== null} onClick={async () => { const r = await call("pack", { action: "schedule", what: "pack" }); if (r?.message) setPackDone(r.message); }}>
                 <MessageCircle size={16} aria-hidden="true" />
-                Schedule to CA on WhatsApp
+                Save demo schedule
               </button>
               <span className="chip simulated">Simulated</span>
             </span>
@@ -346,7 +346,7 @@ export function Dashboard({ view, merchantId }: { view: DashboardView; merchantI
           { target: "[data-coach='dash-widgets']", text: "Each number comes from your payments and cases, with its definition underneath." },
           { target: "[data-coach='dash-ask']", text: "Ask for a widget in plain words, like “show refunds by product”." },
           { target: "[data-coach='dash-watch']", text: "RAY watches pinned numbers against your normal. When one moves, you get a badge and a Why?." },
-          { target: "[data-coach='dash-reports']", text: "Reports in words: a short summary on top, then the table. Send it to your CA on WhatsApp." },
+          { target: "[data-coach='dash-reports']", text: "Reports use captured-payment data and estimated fees. You can save a demo schedule, but no CA recipient is connected, so nothing is sent." },
         ]}
       />
       <NudgeBar

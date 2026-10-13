@@ -248,6 +248,8 @@ describe("live and record", () => {
 
   it("AI_MODE defaults to replay and rejects anything else", () => {
     expect(aiModeFrom({})).toBe("replay");
+    expect(aiModeFrom({ AI_MODE: "" })).toBe("replay");
+    expect(aiModeFrom({ AI_MODE: "  " })).toBe("replay");
     expect(aiModeFrom({ AI_MODE: "record" })).toBe("record");
     expect(() => aiModeFrom({ AI_MODE: "yolo" })).toThrow();
   });

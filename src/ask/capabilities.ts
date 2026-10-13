@@ -10,7 +10,7 @@ import type { Moment } from "@/db/schema";
 import { merchantStats } from "@/surfaces/stats";
 
 export type CapabilityStatus = "On" | "Try it" | "Coming soon";
-export type Capability = { key: string; title: string; line: string; status: CapabilityStatus; moment: Moment | null; href: string | null; waiting: number };
+export type Capability = { key: string; title: string; line: string; status: CapabilityStatus; moment: Moment | null; href: string | null; openCases: number; preview?: boolean };
 
 const MOMENT_CAPS: { moment: Moment; title: string; line: string }[] = [
   { moment: "paid_no_order", title: "Fixes paid orders that didn't show up", line: "Finds the payment, the missing order and the cause, then marks it paid or refunds." },
@@ -20,13 +20,13 @@ const MOMENT_CAPS: { moment: Moment; title: string; line: string }[] = [
   { moment: "collect", title: "Chases overdue invoices", line: "Reminds buyers, logs promises and matches the bank credit when it lands." },
 ];
 
-const LATER: { key: string; title: string; line: string }[] = [
-  { key: "me_or_razorpay", title: "Tells you if it's you or Razorpay", line: "Splits a drop in success rate by method and bank, and says whose side it is." },
-  { key: "tickets", title: "Follows up your support tickets", line: "Chases Razorpay on time so a ticket doesn't go quiet." },
-  { key: "settlements", title: "Explains held settlements", line: "Says why money is held, how long, and what to send." },
-  { key: "ai_orders", title: "Checks AI-chat orders", line: "Compares what the buyer asked for, the order and the payment." },
+const LATER: { key: string; title: string; line: string; moment?: Moment }[] = [
+  { key: "me_or_razorpay", moment: "whose_side", title: "Tells you if it's you or Razorpay", line: "Preview: splits seeded success-rate examples by method and bank. No live investigation is connected." },
+  { key: "tickets", moment: "ticket", title: "Follows up your support tickets", line: "Preview: shows a seeded ticket example. No support-ticket integration is connected." },
+  { key: "settlements", moment: "settlement_hold", title: "Explains held settlements", line: "Preview: shows a seeded hold example. No settlement feed is connected." },
+  { key: "ai_orders", moment: "ai_chat_order", title: "Checks AI-chat orders", line: "Preview: compares a seeded chat, order and payment example. No AI-chat integration is connected." },
   { key: "dues", title: "Plans your dues", line: "One list of what you owe, when, and what to pay first." },
-  { key: "grow", title: "Grows sales with features you already have", line: "Suggests a setting to turn on, with the money it could add." },
+  { key: "grow", title: "Grows sales with features you already have", line: "Preview: models a lever from seeded demo orders; results are simulated, not measured." },
 ];
 
 export function capabilities(a: Adapters, merchantId: string): Capability[] {
@@ -51,13 +51,20 @@ export function capabilities(a: Adapters, merchantId: string): Capability[] {
       status: handled.has(c.moment) ? "On" : "Try it",
       moment: c.moment,
       href: `${base}/cases?moment=${c.moment}`,
-      waiting: stat?.stake ?? 0,
+      openCases: stat?.open ?? 0,
     };
   });
   // Money waiting first, then the rest in the order of the list.
-  moments.sort((x, y) => y.waiting - x.waiting);
-  const dashboard: Capability = { key: "dashboard", title: "Builds your dashboard", line: "Your own numbers from three questions, with the meaning of each.", status: "Try it", moment: null, href: `${base}/dashboard`, waiting: 0 };
-  const later = LATER.map((l): Capability => ({ ...l, status: "Coming soon", moment: null, href: null, waiting: 0 }));
+  moments.sort((x, y) => y.openCases - x.openCases);
+  const dashboard: Capability = { key: "dashboard", title: "Builds your dashboard", line: "Your own numbers from three questions, with the meaning of each.", status: "Try it", moment: null, href: `${base}/dashboard`, openCases: 0 };
+  const later = LATER.map((l): Capability => ({
+    ...l,
+    status: "Coming soon",
+    moment: l.moment ?? null,
+    href: l.moment ? `${base}/cases?moment=${l.moment}` : null,
+    openCases: 0,
+    preview: !!l.moment,
+  }));
   return [...moments, dashboard, ...later];
 }
 

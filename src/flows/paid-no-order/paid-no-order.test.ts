@@ -65,11 +65,14 @@ describe("B: the 200-but-dropped plugin failure (the hero case)", () => {
     const confirmation = w.sent(caseId).at(-1)!;
     expect(confirmation.body).toMatch(/#1234/);
     expect(w.state(caseId).state).toBe("verifying");
+    expect(caseView(w.a, caseId).results).toContain("Simulated action completed. The customer outcome is not verified yet.");
 
     await w.engine.advanceBy(20 * MIN);
     await w.says(PRIYA_EMAIL, "The order arrived, thank you!", "email");
     const done = w.state(caseId);
     expect(done).toMatchObject({ state: "closed", outcome: "arrived", counts_as_saved: true, razorpay_plugin: true });
+    expect(caseView(w.a, caseId).results[0]).toMatch(/^Simulated outcome checked in demo data:/);
+    expect(caseView(w.a, caseId).events.some((event) => event.what.startsWith("Simulated demo-data check:"))).toBe(true);
     expect(done.closed_at! - t0).toBeLessThan(40 * MIN);
     noFallbacks();
   });
@@ -82,7 +85,7 @@ describe("B: the 200-but-dropped plugin failure (the hero case)", () => {
     expect(v.yourCall.primary?.label).toBe("Mark paid & ship");
     expect(v.yourCall.primary?.covered).toBe(true);
     expect(v.orderNumber).toBe("#1234");
-    expect(v.side).toEqual({ label: "Razorpay's side", note: "Free. Razorpay owns this. Razorpay's own plugin." });
+    expect(v.side).toEqual({ label: "Razorpay's side", note: "The evidence points to Razorpay; this does not confirm compensation terms. Razorpay's own plugin." });
     expect(v.yourCall.sendFrom).toBe("RAY will send this from support@leafybakes.in");
     const reply = v.conversation.find((m) => m.direction === "out")!;
     expect(reply.from).toBe("Leafy Bakes (support@leafybakes.in)");

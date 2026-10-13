@@ -4,14 +4,14 @@
 // what RAY found, your call), the case timeline below, the WhatsApp card in a
 // side panel. Phone: one column, findings first, then the conversation, with
 // the action bar fixed to the bottom.
-import { ArrowLeft, Check, Mail, MessageCircle, Mic, Phone, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, Check, Clock3, Copy, Mail, MessageCircle, Mic, Phone, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CaseView, Finding, Proposal } from "@/surfaces/views";
 import { DOING_IT, EMPTY, HANDLE_MYSELF, SOMETHING_ELSE } from "@/surfaces/words";
 import { Button, Text } from "@/ui/kit";
-import { ApprovalLabel, Chip, HoldBanner, SimulatedTag, post, useAction, type PostResult } from "../bits";
+import { ApprovalLabel, Chip, HoldBanner, post, useAction, type PostResult } from "../bits";
 import { NudgeBar } from "../nudge";
 import { useToast } from "../toast";
 import { useView } from "../view";
@@ -22,7 +22,7 @@ import { CoachMark } from "../coach-mark";
 // Set after a tap until the refreshed case arrives (or a few seconds pass).
 type Pending = { state: string; results: number } | null;
 
-export function CasePage({ v }: { v: CaseView }) {
+export function CasePage({ v, returnTo }: { v: CaseView; returnTo?: string }) {
   const { view } = useView();
   const phone = view === "phone";
   const [pending, setPending] = useState<Pending>(null);
@@ -69,8 +69,8 @@ export function CasePage({ v }: { v: CaseView }) {
         </div>
       ))}
       {v.results.map((r, i) => (
-        <div key={i} className="banner success" role="status">
-          <Check size={16} aria-hidden="true" />
+        <div key={i} className={`banner ${r.includes("outcome checked in demo data:") || r.startsWith("Test-mode outcome checked:") ? "success" : "promise"}`} role="status">
+          {r.includes("outcome checked in demo data:") || r.startsWith("Test-mode outcome checked:") ? <Check size={16} aria-hidden="true" /> : <Clock3 size={16} aria-hidden="true" />}
           <span className="grow">{r}</span>
         </div>
       ))}
@@ -82,7 +82,7 @@ export function CasePage({ v }: { v: CaseView }) {
   return (
     <div className="stack">
       <p style={{ margin: 0 }}>
-        <BackLink href={`/merchant/${v.merchant.id}/cases`} />
+        <BackLink href={returnTo ?? `/merchant/${v.merchant.id}/cases`} />
       </p>
       <Header v={v} />
       {phone && banners}
@@ -100,36 +100,29 @@ export function CasePage({ v }: { v: CaseView }) {
           )}
         </>
       ) : (
-        <div className={v.card ? "with-side" : ""}>
-          <div className="stack">
-            <div className="panes-3">
-              <ConversationPane v={v} />
-              <FindingsPane v={v} />
-              <section className="panel stack" style={{ gap: 12 }} aria-label="Your call">
-                <h2 style={{ margin: 0 }}>Your call</h2>
-                {banners}
-                {v.open && !v.merchant.killSwitch ? <YourCall v={v} pending={pending !== null} onTapped={onTapped} /> : <Text color="surface.text.gray.muted">{v.open ? "Actions are paused." : "This case is finished."}</Text>}
-              </section>
-            </div>
-            <EventsPane v={v} />
+        <div className="stack">
+          <div className="panes-3">
+            <ConversationPane v={v} />
+            <FindingsPane v={v} />
+            <section className="panel stack" style={{ gap: 12 }} aria-label="Your call">
+              <h2 style={{ margin: 0 }}>Your call</h2>
+              {banners}
+              {v.open && !v.merchant.killSwitch ? <YourCall v={v} pending={pending !== null} onTapped={onTapped} /> : <Text color="surface.text.gray.muted">{v.open ? "Actions are paused." : "This case is finished."}</Text>}
+            </section>
           </div>
-          {v.card && (
-            <aside className="panel" aria-label="WhatsApp card">
-              <div className="sim-head">
-                <h2 style={{ margin: 0 }}>WhatsApp</h2>
-                <SimulatedTag />
-              </div>
-              <div className="wa" style={{ marginTop: 8 }}>
-                <ApprovalCard card={v.card} merchantId={v.merchant.id} showOpen={false} />
-              </div>
-            </aside>
-          )}
+          <EventsPane v={v} />
+          {v.card && <details className="panel">
+            <summary>WhatsApp approval card <span className="chip simulated">Simulated</span></summary>
+            <div className="wa" style={{ marginTop: 8, maxWidth: 440 }}>
+              <ApprovalCard card={v.card} merchantId={v.merchant.id} showOpen={false} />
+            </div>
+          </details>}
         </div>
       )}
-      <NudgeBar
-        text={next ? `RAY recommends: ${next}. ${v.yourCall.primary?.covered ? "It is covered, so it costs you nothing." : "It is your call."}` : v.open ? "Nothing needs your tap on this case right now." : "This case is finished. Back to the rest of your list."}
+      {(next || !v.open) && <NudgeBar
+        text={next ? `RAY suggests: ${next}. This suggestion uses the evidence shown here; cost and alternatives may not be fully modeled. ${v.yourCall.primary?.covered ? "Prototype cover is proposed, not an approved guarantee." : "It is your call."}` : v.open ? "Nothing needs your tap on this case right now." : "This case is finished. Back to the rest of your list."}
         action={{ label: "All cases", href: `/merchant/${v.merchant.id}/cases` }}
-      />
+      />}
       {v.simulated && <CoachMark id={`case-${v.id}`} steps={["This is a replayed U7 case using the same findings, timeline and Your call layout as a live case.", "Every external system on this case is labelled Simulated. RAY's checks are visible in the middle pane."]} />}
     </div>
   );
@@ -137,18 +130,8 @@ export function CasePage({ v }: { v: CaseView }) {
 
 // Back goes to the same tab and scroll position when there is a history to go back to.
 function BackLink({ href }: { href: string }) {
-  const router = useRouter();
   return (
-    <Link
-      href={href}
-      className="back"
-      onClick={(e) => {
-        if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
-          e.preventDefault();
-          router.back();
-        }
-      }}
-    >
+    <Link href={href} className="back">
       <ArrowLeft size={16} aria-hidden="true" />
       Back to cases
     </Link>
@@ -160,16 +143,12 @@ function Header({ v }: { v: CaseView }) {
     <section className="panel stack" style={{ gap: 6 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <h1 className="page-title">{`${v.name} · ${v.amount}`}</h1>
-        <span className="row"><Chip chip={v.state} />{v.simulated && <SimulatedTag />}</span>
+        <span className="row"><Chip chip={v.state} />{v.simulated && <span className="chip simulated">Preview · Simulated</span>}</span>
       </div>
       <div className="row muted">
         <span>{v.moment}</span>
         {v.orderNumber && <span>· Order {v.orderNumber}</span>}
-        {v.paymentId && (
-          <span title={v.paymentId} tabIndex={0}>
-            · {v.paymentShort}
-          </span>
-        )}
+        {v.paymentId && <PaymentReference v={v} />}
       </div>
       <div className="row">
         <Chip chip={v.confidence} />
@@ -179,7 +158,32 @@ function Header({ v }: { v: CaseView }) {
   );
 }
 
-function Evidence({ merchantId, refId }: { merchantId: string; refId: string }) {
+function PaymentReference({ v }: { v: CaseView }) {
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState("");
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(v.paymentId!);
+      setStatus("Payment ID copied");
+    } catch {
+      setOpen(true);
+      setStatus("Select and copy the full ID");
+    }
+  }
+  return <span className="stack" style={{ display: "inline-flex", gap: 4 }}>
+    <button type="button" className="linkbtn" aria-expanded={open} onClick={() => setOpen((value) => !value)}>· {v.paymentShort} · Payment reference</button>
+    {open && <span className="panel stack" style={{ padding: 10, gap: 6 }}>
+      <strong>Payment reference</strong>
+      <code tabIndex={0} style={{ userSelect: "all", overflowWrap: "anywhere" }}>{v.paymentId}</code>
+      <span className="muted">{v.amount} · {v.openedAtLabel}</span>
+      {v.orderNumber && <Link href="/sim/store">Related store order #{v.orderNumber}</Link>}
+      <Button size="small" variant="secondary" onClick={() => void copy()}><Copy size={14} aria-hidden="true" /> Copy payment ID</Button>
+      {status && <span role="status" className="muted">{status}</span>}
+    </span>}
+  </span>;
+}
+
+function Evidence({ merchantId, refId, simulated = false }: { merchantId: string; refId: string; simulated?: boolean }) {
   const [record, setRecord] = useState<string | null>(null);
   return (
     <details
@@ -191,7 +195,7 @@ function Evidence({ merchantId, refId }: { merchantId: string; refId: string }) 
       }}
     >
       <summary>Show evidence</summary>
-      <div className="muted" style={{ fontSize: 12 }}>Details for your developer</div>
+      <div className="muted" style={{ fontSize: 12 }}>{simulated ? "Seeded demo finding; not an external source record" : "Details for your developer"}</div>
       <pre className="raw">{record ?? "Loading…"}</pre>
     </details>
   );
@@ -207,7 +211,7 @@ function FindingRow({ f, merchantId }: { f: Finding; merchantId: string }) {
         <div>{f.text}</div>
         <div className="row">
           <span className="chip neutral">{f.source}</span>
-          {f.evidenceRef && <Evidence merchantId={merchantId} refId={f.evidenceRef} />}
+          {f.evidenceRef && <Evidence merchantId={merchantId} refId={f.evidenceRef} simulated={f.source === "Simulated"} />}
         </div>
       </div>
     </div>
@@ -220,7 +224,7 @@ function FindingRow({ f, merchantId }: { f: Finding; merchantId: string }) {
 function investigationSteps(v: CaseView): string[] {
   const sources = [...new Set(v.findings.map((f) => f.source))];
   const lines = sources.map((s) =>
-    s === "Razorpay" ? (v.paymentShort ? `Checked payment ${v.paymentShort}` : "Checked Razorpay's records") : s === "Store" ? `Checked store order${v.orderNumber ? ` ${v.orderNumber}` : ""}` : s === "Customer" ? "Read what the customer wrote" : "Checked the bank record",
+    s === "Razorpay" ? (v.paymentShort ? `Checked payment ${v.paymentShort}` : "Checked Razorpay's records") : s === "Store" ? `Checked store order${v.orderNumber ? ` ${v.orderNumber}` : ""}` : s === "Customer" ? "Read what the customer wrote" : s === "Bank" ? "Checked the bank record" : "Read a seeded simulated finding",
   );
   return [...lines, v.side ? "Found the cause" : "Put the findings together"];
 }
@@ -407,8 +411,16 @@ function YourCall({ v, compact, pending, onTapped }: { v: CaseView; compact?: bo
         <Text color="surface.text.gray.muted">RAY isn&apos;t sure yet, so it will only ask. Nothing moves until it is.</Text>
       ) : yc.canTap && yc.primary ? (
         <>
+          <Text color="surface.text.gray.muted">Suggestion based on the evidence shown above. Costs and alternatives may not be fully modeled.</Text>
           <TapButton p={yc.primary} variant="primary" caseId={v.id} busy={busy} onTap={tap} />
-          {!compact && yc.secondary.map((p) => <TapButton key={p.id} p={p} variant="secondary" caseId={v.id} busy={busy} onTap={tap} />)}
+          {yc.secondary.length > 0 && (compact ? (
+            <details className="other-options">
+              <summary>Other options</summary>
+              <div className="stack" style={{ marginTop: 8, gap: 8 }}>
+                {yc.secondary.map((p) => <TapButton key={p.id} p={p} variant="secondary" caseId={v.id} busy={busy} onTap={tap} />)}
+              </div>
+            </details>
+          ) : yc.secondary.map((p) => <TapButton key={p.id} p={p} variant="secondary" caseId={v.id} busy={busy} onTap={tap} />))}
           <button type="button" className="linkbtn" onClick={() => setChanging((c) => !c)} aria-expanded={changing}>
             {SOMETHING_ELSE}
           </button>

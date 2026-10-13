@@ -57,6 +57,9 @@ export function useAction() {
     setBusy(key);
     setError(null);
     const r = await post(url, body);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ray:merchant-action", { detail: r.ok ? { url, ok: true, result: r.result } : { url, ok: false, error: r.error } }));
+    }
     if (!r.ok) setError(r.error);
     router.refresh();
     setBusy(null);
@@ -76,7 +79,7 @@ export function HoldBanner({ hold, merchantId, compact }: { hold: Hold; merchant
     return () => clearInterval(t);
   }, [hold]);
   return (
-    <div className="banner hold" role="status">
+    <div className="banner hold" role="status" data-guided={hold.control === "Undo" ? "refund-hold" : undefined}>
       <span>
         {hold.text} in <span aria-hidden="true">{left.clock}</span>
         <span className="sr-only" style={{ position: "absolute", left: -9999 }}>{left.words}</span>

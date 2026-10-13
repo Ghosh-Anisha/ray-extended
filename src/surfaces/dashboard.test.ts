@@ -49,6 +49,10 @@ describe("My dashboard", () => {
   it("adds the supported widgets by phrase, says no to the rest, and removes", () => {
     expect(parseWidgetAsk("show refunds by product")).toBe("refunds_by_product");
     expect(parseWidgetAsk("show success rate by bank")).toBe("success_by_bank");
+    expect(parseWidgetAsk("show sales today")).toBe("sales_today");
+    expect(parseWidgetAsk("Add overdue invoices")).toBe("overdue");
+    expect(parseWidgetAsk("show revenue by channel")).toBeNull();
+    expect(parseWidgetAsk("show sales for the last 90 days")).toBeNull();
     expect(dashboardAction(a, { action: "ask", merchantId: M, text: "predict my lottery numbers" }).chips).toHaveLength(3);
     dashboardAction(a, { action: "ask", merchantId: M, text: "show refunds by product" });
     expect(dashboardView(a, M).widgets.some((w) => w.kind === "refunds_by_product")).toBe(true);
@@ -75,17 +79,24 @@ describe("My dashboard", () => {
 });
 
 describe("Reports in words", () => {
-  it("builds the September settlements with a 3-line summary that matches the table", () => {
-    const r = buildReport(a, M, "Settlements for September with fees and GST")!;
+  it("labels the September report as an estimate and reconciles displayed rounded rows", () => {
+    const r = buildReport(a, M, "Estimated net collections for September with fees and GST")!;
     expect(r.summary).toHaveLength(3);
     expect(r.total[1]).toBe(String(r.rows.reduce((n, row) => n + Number(row[1]), 0)));
-    expect(r.summary[0]).toContain("16 payments");
+    expect(r.summary[0]).toContain("16 captured payments");
+    expect(r.title).toContain("Estimated net collections");
+    expect(r.summary.join(" ")).toContain("not a settlement or bank-credit report");
+    for (const row of [...r.rows, r.total]) {
+      const [gross, fee, gst, net] = row.slice(2).map((v) => Number(v.replace(/[^\d-]/g, "")));
+      expect(gross - fee - gst).toBe(net);
+    }
   });
 
   it("schedules the report and the month-end pack as Simulated records", () => {
     const one = dashboardAction(a, { action: "schedule", merchantId: M, what: "report", text: "Refunds for September" });
     const pack = dashboardAction(a, { action: "schedule", merchantId: M, what: "pack" });
-    expect(one.scheduled?.to).toBe("your CA on WhatsApp");
+    expect(one.scheduled?.to).toBe("No recipient configured");
+    expect(one.message).toContain("nothing will be sent");
     expect(pack.scheduled?.title).toContain("September 2026");
     expect(dashboardView(a, M).schedules).toHaveLength(2);
   });
@@ -112,6 +123,8 @@ describe("Grow lane 1 and the invoice card", () => {
 
   it("offers to take over invoice chasing, from the overdue invoices", () => {
     expect(chaseCard(a, M)?.line).toContain("₹6,10,000");
+    expect(chaseCard(a, M)?.line).toContain("seeded demo");
+    expect(chaseCard(a, M)?.line).toContain("no live bank feed");
   });
 
   it("shows the result card two weeks after Turn on", () => {
@@ -121,5 +134,7 @@ describe("Grow lane 1 and the invoice card", () => {
     const r = emiCard(a, M);
     expect(r?.phase).toBe("result");
     if (r?.phase === "result") expect(r.after.dropped).toBeLessThan(r.before.dropped);
+    if (r?.phase === "result") expect(r.line).toContain("not measured growth");
   });
+
 });

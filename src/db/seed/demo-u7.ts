@@ -21,9 +21,9 @@ export function seedU7Cases(db: Db, now: number) {
   const specs: CaseSpec[] = [
     {
       id: "case_u7_whose_side", merchantId: LEAFY, moment: "whose_side", confidence: "sure", side: "razorpay", plugin: true,
-      amount: rupees(1800), openedAt: now - 2 * HOUR, ref: "RD-1071", cause: "success_rate_drop", alert: "RAY spotted a success-rate drop by payment method.", keys: common(now, CUSTOMER_ROWS[0]),
+      amount: rupees(1800), openedAt: now - 2 * HOUR, ref: "RD-1071", cause: "success_rate_drop", alert: "RAY spotted a success-rate drop by payment method.", keys: common(now, CUSTOMER_ROWS[0]), simulated: true,
       steps: [
-        { at: now - 2 * HOUR, kind: "finding", text: "HDFC netbanking was down from 7:40 to 8:10 PM in Razorpay's downtime feed.", source: "Razorpay" },
+        { at: now - 2 * HOUR, kind: "finding", text: "Simulated prior-evening outage fixture: HDFC netbanking was down from 7:40 to 8:10 PM.", source: "Razorpay" },
         { at: now - 115 * MIN, kind: "finding", text: "Other banks stayed within the normal success-rate range.", source: "Razorpay" },
         { at: now - 110 * MIN, kind: "finding", text: "Payment updates are turned off in your store.", ok: false, source: "Store" },
         { at: now - 105 * MIN, kind: "in", channel: "email", from: CUSTOMER_ROWS[0].email, to: "support@leafybakes.example.com", body: "I tried twice but the payment page did not finish." },
@@ -33,7 +33,7 @@ export function seedU7Cases(db: Db, now: number) {
       ],
     },
     {
-      id: "case_u7_ticket", merchantId: LEAFY, moment: "ticket", confidence: "likely", side: "razorpay", amount: rupees(499), openedAt: now - 5 * HOUR, ref: "RD-1072", cause: "ticket_sla", alert: "A support ticket has not had its promised update.", keys: common(now, CUSTOMER_ROWS[1]),
+      id: "case_u7_ticket", merchantId: LEAFY, moment: "ticket", confidence: "likely", side: "razorpay", amount: rupees(499), openedAt: now - 5 * HOUR, ref: "RD-1072", cause: "ticket_sla", alert: "A support ticket has not had its promised update.", keys: common(now, CUSTOMER_ROWS[1]), simulated: true,
       steps: [
         { at: now - 5 * HOUR, kind: "finding", text: "Ticket RZ-218 is open at the payments support stage.", source: "Razorpay" },
         { at: now - 4 * HOUR, kind: "finding", text: "The next update was due 42 minutes ago.", ok: false, source: "Razorpay" },
@@ -44,7 +44,7 @@ export function seedU7Cases(db: Db, now: number) {
       ],
     },
     {
-      id: "case_u7_settlement", merchantId: LEAFY, moment: "settlement_hold", confidence: "sure", side: "razorpay", amount: rupees(24500), openedAt: now - DAY, ref: "RD-1073", cause: "settlement_review", alert: "A settlement is held for review.", keys: common(now, CUSTOMER_ROWS[2]),
+      id: "case_u7_settlement", merchantId: LEAFY, moment: "settlement_hold", confidence: "sure", side: "razorpay", amount: rupees(24500), openedAt: now - DAY, ref: "RD-1073", cause: "settlement_review", alert: "A settlement is held for review.", keys: common(now, CUSTOMER_ROWS[2]), simulated: true,
       steps: [
         { at: now - DAY, kind: "finding", text: "₹24,500 is held; the review window is 2 days.", source: "Razorpay" },
         { at: now - 23 * HOUR, kind: "finding", text: "The evidence pack has payment, refund and KYC checks ready.", source: "Razorpay" },
@@ -55,7 +55,7 @@ export function seedU7Cases(db: Db, now: number) {
       ],
     },
     {
-      id: "case_u7_ai_chat", merchantId: LEAFY, moment: "ai_chat_order", confidence: "likely", side: "merchant", amount: rupees(1299), openedAt: now - 75 * MIN, ref: "RD-1074", cause: "ai_chat_drift", alert: "An AI-chat order does not match its payment.", keys: common(now, CUSTOMER_ROWS[3]),
+      id: "case_u7_ai_chat", merchantId: LEAFY, moment: "ai_chat_order", confidence: "likely", side: "merchant", amount: rupees(1299), openedAt: now - 75 * MIN, ref: "RD-1074", cause: "ai_chat_drift", alert: "An AI-chat order does not match its payment.", keys: common(now, CUSTOMER_ROWS[3]), simulated: true,
       steps: [
         { at: now - 75 * MIN, kind: "finding", text: "The chat intent says chocolate box, 12 pieces.", source: "Customer" },
         { at: now - 70 * MIN, kind: "finding", text: "The store order says assorted cookies, 6 pieces.", ok: false, source: "Store" },

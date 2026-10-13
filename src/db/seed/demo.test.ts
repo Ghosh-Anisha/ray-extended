@@ -13,7 +13,7 @@ import { DEMO_NOW } from "@/db/seed";
 import { openProposals } from "@/engine/orchestrator";
 import { heroCases } from "@/surfaces/refs";
 import { hoursLabel, merchantStats, rupees } from "@/surfaces/stats";
-import { caseView, inboxView } from "@/surfaces/views";
+import { alertsView, caseView, inboxView } from "@/surfaces/views";
 import { seedDemo } from "./demo";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -68,6 +68,38 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     expect(caseView(a, refs["RD-1042"]).yourCall.primary?.label).toBe("Mark paid & ship");
   });
 
+  it("does not assign customer requests or unmatched payments to a bank", () => {
+    const cases = createRepository(db).cases.list(eq(s.cases.merchant_id, LEAFY));
+    const cancel = cases.find((c) => c.cause === "cancel_request")!;
+    const unmatched = cases.find((c) => c.cause === "no_matching_payment")!;
+    expect(caseView(a, cancel.id).side).toMatchObject({ label: "Customer request" });
+    expect(caseView(a, unmatched.id).side).toMatchObject({ label: "Cause not established" });
+    expect(caseView(a, "case_demo_emma").side).toMatchObject({ label: "Customer's bank", note: "The case includes a bank finding that records an issuer decline." });
+  });
+
+  it("marks U7 evidence as simulated and does not call it a customer wait", () => {
+    const v = caseView(a, "case_u7_whose_side");
+    expect(v.state.label).toBe("Simulated preview · no customer action pending");
+    expect(inboxView(a, LEAFY).tabs[1]!.rows.find((row) => row.id === v.id)?.state.label).toBe(v.state.label);
+    expect(alertsView(a, LEAFY).alerts.find((row) => row.caseId === v.id)?.state?.label).toBe(v.state.label);
+    expect(v.findings[0]).toMatchObject({ source: "Simulated", text: expect.stringContaining("prior-evening outage fixture") });
+    const cited = createRepository(db).caseEvents.get(v.findings[0]!.evidenceRef!)!;
+    expect(cited.id).toBe(v.findings[0]!.id);
+    expect(cited.payload.simulated).toBe(true);
+  });
+
+  it("opens Priya's case from payment and webhook signals before her first message", () => {
+    const kase = createRepository(db).cases.get(heroCases(a, LEAFY)["RD-1042"]!)!;
+    const events = createRepository(db).caseEvents.listByCase(kase.id);
+    const signalAt = events.find((e) => e.type === "webhook" && e.payload.event === "payment.captured")!.at;
+    const firstCustomerMessage = events.find((e) => e.type === "message_in")!.at;
+    const v = caseView(a, kase.id);
+    expect(signalAt).toBeLessThan(firstCustomerMessage);
+    expect(v.findings.map((f) => f.text).join(" ")).toMatch(/webhook|plugin|pending/i);
+    expect(v.side?.note).toContain("Razorpay's own plugin");
+    expect(v.yourCall.primary?.label).toBe("Mark paid & ship");
+  });
+
   it("contests the duplicate chargeback under the merchant's rule, with a Stop window of 1 h 40 min", () => {
     const refs = heroCases(a, LEAFY);
     const held = createRepository(db).actions.list(eq(s.actions.case_id, refs["RD-1047"])).find((x) => x.tool === "contest_dispute")!;
@@ -80,6 +112,7 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     const rules = createRepository(db).playbookRules.list(eq(s.playbookRules.merchant_id, LEAFY)).filter((r) => typeof r.rule_json.setting !== "string");
     expect(rules.filter((r) => r.status === "approved").length).toBe(2);
     expect(rules.filter((r) => r.status === "proposed" && r.source === "pattern").map((r) => r.text)).toContain("Refund duplicate charges under ₹500 automatically");
+    expect(rules.find((r) => r.id === "rule_pattern_refund_dup_leafy")?.rule_json.max).toBe(49_999);
   });
 
   it("has two voice notes, one simulated call and a thread for every case", () => {

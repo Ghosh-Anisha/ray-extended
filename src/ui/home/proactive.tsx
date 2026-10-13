@@ -45,15 +45,16 @@ export function ProactiveCards({ merchantId, emi, chase }: { merchantId: string;
             <span className="tile-icon"><Lightbulb size={18} aria-hidden="true" /></span>
             {emi.phase === "offer" && (
               <>
-                <strong>Your carts above ₹5,000 drop at payment. Cardless EMI is off. Turn it on?</strong>
+                <span className="chip simulated" style={{ alignSelf: "flex-start" }}>Proposed · seeded demo orders</span>
+                <strong>The seeded demo shows unpaid carts above ₹5,000. Cardless EMI is shown as a proposed lever.</strong>
                 <span>
-                  {emi.dropped} of {emi.carts} carts above ₹5,000 in the last 30 days were left unpaid, {emi.droppedValue} in all. Turning EMI on could bring back about <strong>{emi.estimate}</strong>.
+                  {emi.dropped} of {emi.carts} seeded demo orders above ₹5,000 were left unpaid, {emi.droppedValue} in all. Under the displayed assumption, the modeled amount is about <strong>{emi.estimate}</strong>; this is not measured or incremental revenue.
                 </span>
                 <span className="muted">{emi.assumption}</span>
                 <span className="muted"><strong>The trade-off:</strong> {emi.tradeOff}</span>
                 <div className="row" data-coach="grow-actions">
                   <button type="button" className="btn primary" disabled={busy !== null} onClick={() => post("on", { merchantId, card: "emi", choice: "on" })}>
-                    {busy === "on" ? "Turning on…" : "Turn on Cardless EMI"}
+                    {busy === "on" ? "Saving choice…" : "Preview Cardless EMI"}
                   </button>
                   <button type="button" className="btn secondary" disabled={busy !== null} onClick={() => post("no", { merchantId, card: "emi", choice: "not_now" })}>
                     Not now
@@ -64,8 +65,8 @@ export function ProactiveCards({ merchantId, emi, chase }: { merchantId: string;
             )}
             {emi.phase === "on" && (
               <>
-                <strong>Cardless EMI is on since {emi.since}.</strong>
-                <span className="muted">RAY will check again on {emi.checkOn} and show you before and after.</span>
+                <strong>Simulated choice saved on {emi.since}.</strong>
+                <span className="muted">This demo will show a modeled scenario on {emi.checkOn}; it does not turn on a live payment setting.</span>
                 <span className="chip simulated" style={{ alignSelf: "flex-start" }}>Simulated</span>
               </>
             )}
@@ -93,7 +94,8 @@ export function ProactiveCards({ merchantId, emi, chase }: { merchantId: string;
         {chase && (
           <div className="panel stack suggest" style={{ gap: 10 }}>
             <span className="tile-icon"><Lightbulb size={18} aria-hidden="true" /></span>
-            <strong>You chase invoices by hand. Want RAY to do it?</strong>
+            <span className="chip simulated" style={{ alignSelf: "flex-start" }}>Proposed · simulated workflow</span>
+            <strong>Preview a seeded invoice chase</strong>
             <span>{chase.line}</span>
             <div className="row">
               <Link className="btn primary" href={chase.href}>

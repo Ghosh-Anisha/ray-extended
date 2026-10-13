@@ -51,7 +51,11 @@ describe("customer voice notes", () => {
   it("a Hinglish voice note from Priya becomes a transcript the understand job reads", async () => {
     const { repo } = world();
     await a.webhooks.emit({ merchantId: LEAFY, event: "payment.captured", paymentId: PAY });
-    const r = await engine.receiveVoiceNote({ merchantId: LEAFY, from: PRIYA, sampleId: "priya_hinglish" });
+    const input = { merchantId: LEAFY, from: PRIYA, sampleId: "priya_hinglish", messageId: "inbound-voice-retry" };
+    const r = await engine.receiveVoiceNote(input);
+    const retry = await engine.receiveVoiceNote({ ...input, sampleId: "customer_where_order" });
+    expect(retry).toMatchObject({ outcome: "duplicate", messageId: r.messageId, transcript: r.transcript });
+    expect(repo.messages.list().filter((m) => m.id === input.messageId)).toHaveLength(1);
 
     // The message keeps the transcript (and the audio, when there is any).
     const m = repo.messages.get(r.messageId)!;

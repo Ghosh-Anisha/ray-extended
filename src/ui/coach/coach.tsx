@@ -8,8 +8,9 @@ import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore
 
 const PREFIX = "ray-coach-";
 const REPLAY_EVENT = "ray:coach-replay";
+const GUIDED_EVENT = "ray:guided-mode";
 
-export type CoachStep = { target: string; title?: string; text: string };
+export type CoachStep = { target?: string; title?: string; text: string };
 
 const read = (id: string) => {
   try {
@@ -58,6 +59,7 @@ export function CoachPopover({
   step,
   total,
   nextLabel,
+  nextDisabled,
   onNext,
   onBack,
   onExit,
@@ -69,6 +71,7 @@ export function CoachPopover({
   step: number;
   total: number;
   nextLabel: string;
+  nextDisabled?: boolean;
   onNext: () => void;
   onBack?: () => void;
   onExit: () => void;
@@ -113,7 +116,7 @@ export function CoachPopover({
               {exitLabel}
             </button>
           )}
-          <button type="button" className="btn primary small" onClick={onNext}>
+            <button type="button" className="btn primary small" disabled={nextDisabled} onClick={onNext}>
             {nextLabel}
           </button>
         </div>
@@ -130,7 +133,7 @@ export function CoachMarks({ id, steps, enabled = true }: { id: string; steps: C
 
   // Join the queue after the first paint, unless this was dismissed before.
   const join = useCallback(() => {
-    if (!enabled || read(id)) return;
+    if (!enabled || window.location.search.includes("guided=1") || read(id)) return;
     setDone(false);
     setI(0);
     if (!queue.includes(id)) queue = [...queue, id];
@@ -139,10 +142,18 @@ export function CoachMarks({ id, steps, enabled = true }: { id: string; steps: C
 
   useEffect(() => {
     const t = window.setTimeout(join, 600);
+    const guidedMode = (event: Event) => {
+      if (!(event as CustomEvent<boolean>).detail) return;
+      setDone(true);
+      queue = queue.filter((x) => x !== id);
+      emit();
+    };
     window.addEventListener(REPLAY_EVENT, join);
+    window.addEventListener(GUIDED_EVENT, guidedMode);
     return () => {
       window.clearTimeout(t);
       window.removeEventListener(REPLAY_EVENT, join);
+      window.removeEventListener(GUIDED_EVENT, guidedMode);
       queue = queue.filter((x) => x !== id);
       emit();
     };
@@ -161,6 +172,9 @@ export function CoachMarks({ id, steps, enabled = true }: { id: string; steps: C
   // Find the element; a step whose element isn't on the page is skipped.
   useLayoutEffect(() => {
     if (!shown || !step) return;
+    if (!step.target) {
+      return;
+    }
     const el = document.querySelector<HTMLElement>(step.target);
     if (!el || el.getBoundingClientRect().width === 0) {
       const t = window.setTimeout(() => (i < steps.length - 1 ? setI(i + 1) : finish()), 0);
@@ -187,11 +201,11 @@ export function CoachMarks({ id, steps, enabled = true }: { id: string; steps: C
     return () => window.removeEventListener("keydown", onKey);
   }, [shown, finish]);
 
-  if (!shown || !step || !rect) return null;
+  if (!shown || !step || (step.target && !rect)) return null;
   const last = i === steps.length - 1;
   return (
     <CoachPopover
-      anchor={rect}
+      anchor={step.target ? rect : null}
       title={step.title}
       text={step.text}
       step={i}

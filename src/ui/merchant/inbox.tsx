@@ -42,9 +42,8 @@ function QuickAction({ row }: { row: CaseRow }) {
   );
 }
 
-function RowItem({ r, merchantId, unread }: { r: CaseRow; merchantId: string; unread: boolean }) {
+function RowItem({ r, merchantId, unread, href }: { r: CaseRow; merchantId: string; unread: boolean; href: string }) {
   const router = useRouter();
-  const href = `/merchant/${merchantId}/cases/${r.id}`;
   return (
     <tr className={`mail-row ${unread ? "unread" : ""}`} data-guided={r.momentKey === "paid_no_order" && r.name.startsWith("Priya") ? "case-priya" : undefined} onClick={() => router.push(href)}>
       <td className="mail-who">
@@ -95,7 +94,11 @@ export function Inbox({
   const [moment, setMoment] = useState<Moment | null>(initialMoment);
   const current = inbox.tabs.find((t) => t.key === tab)!;
   const rows = moment ? current.rows.filter((r) => r.momentKey === moment) : current.rows;
-  const href = (r: CaseRow) => `/merchant/${merchantId}/cases/${r.id}`;
+  const listParams = new URLSearchParams();
+  if (tab !== "needs_you") listParams.set("tab", tab);
+  if (moment) listParams.set("moment", moment);
+  const listHref = `/merchant/${merchantId}/cases${listParams.size ? `?${listParams}` : ""}`;
+  const href = (r: CaseRow) => `/merchant/${merchantId}/cases/${r.id}?returnTo=${encodeURIComponent(listHref)}`;
 
   function remember(nextTab: InboxTab, nextMoment: Moment | null) {
     setTab(nextTab);
@@ -205,7 +208,7 @@ export function Inbox({
               </thead>
               <tbody>
                 {rows.map((r) => (
-                  <RowItem key={r.id} r={r} merchantId={merchantId} unread={r.state.label === "Needs you"} />
+                  <RowItem key={r.id} r={r} merchantId={merchantId} unread={r.state.label === "Needs you"} href={href(r)} />
                 ))}
               </tbody>
             </table>

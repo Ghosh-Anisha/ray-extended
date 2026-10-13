@@ -7,6 +7,7 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import type { CaseState, Moment } from "@/db/schema";
 import { openProposals } from "@/engine/orchestrator";
+import { HANDLED_BY_MERCHANT } from "@/engine/outcomes";
 import type { ProposedAction } from "@/engine/specialist";
 import type { Case } from "@/engine/state-machine";
 import { actLabel } from "@/guards";
@@ -221,7 +222,7 @@ function caseRow(a: Adapters, kase: Case, cache?: SubjectCache): CaseRow {
     name: sub.name,
     amount: sub.amount,
     amountMinor: sub.amountMinor ?? 0,
-    state: { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] },
+    state: stateChip(kase),
     confidence: { label: CONFIDENCE_LABEL[kase.confidence], tone: CONFIDENCE_TONE[kase.confidence] },
     age: age(kase.opened_at, a.clock.now()),
     openedAt: kase.opened_at,
@@ -260,8 +261,8 @@ export function inboxView(a: Adapters, merchantId: string, moment: Moment | null
     label: t.label,
     rows: rows.filter(({ c }) => tabFor(c.state) === t.key).map(({ row }) => row).sort(byStakeThenAge),
   }));
-  const waiting = tabs.find((t) => t.key === "needs_you")!.rows.reduce((sum, r) => sum + r.amountMinor, 0);
-  return { waitingOnYou: `${money(waiting)} waiting on you`, tabs };
+  const waiting = tabs.find((t) => t.key === "needs_you")!.rows.length;
+  return { waitingOnYou: `${waiting} ${waiting === 1 ? "case needs" : "cases need"} your tap. Amounts are not added because their bases may differ.`, tabs };
 }
 
 // ---- Free alerts
@@ -286,7 +287,7 @@ export function alertsView(a: Adapters, merchantId: string): { merchant: Merchan
         name: sub?.name ?? "",
         amount: sub?.amount ?? "",
         cause: kase?.cause ? causeLabel(kase.cause) : al.text,
-        state: kase ? { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] } : null,
+        state: kase ? stateChip(kase) : null,
       };
     }),
   };
@@ -343,6 +344,7 @@ export type CaseView = {
   amount: string;
   paymentId: string | null;
   paymentShort: string | null;
+  openedAtLabel: string;
   orderNumber: string | null;
   open: boolean;
   state: Chip;
@@ -367,10 +369,17 @@ export type CaseView = {
 };
 
 const FINAL: CaseState[] = ["closed", "fixed_itself"];
+const PREVIEW_MOMENTS: Moment[] = ["whose_side", "ticket", "settlement_hold", "ai_chat_order"];
+function stateChip(kase: Case): Chip {
+  if (PREVIEW_MOMENTS.includes(kase.moment)) {
+    return { label: kase.state === "waiting_customer" ? "Simulated preview · no customer action pending" : `Simulated preview · ${STATE_LABEL[kase.state]}`, tone: "neutral" };
+  }
+  return { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] };
+}
 
 function findingSource(repo: Repo, ref: string | null, payload: Record<string, unknown>): FindingSource {
   const given = payload.source;
-  if (given === "Razorpay" || given === "Store" || given === "Customer" || given === "Bank") return given;
+  if (given === "Razorpay" || given === "Store" || given === "Customer" || given === "Bank" || given === "Simulated") return given;
   if (!ref) return "Razorpay";
   if (repo.messages.get(ref)) return "Customer";
   if (repo.storeOrders.get(ref)) return "Store";
@@ -411,7 +420,7 @@ function stepOf(e: CaseEvent): TimelineStep | null {
     return { label: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no" : "You took over", failed: false };
   }
   if (e.type === "tool_call") {
-    if (p.kind === "action_done") return { label: "Done", failed: false };
+    if (p.kind === "action_done") return { label: "Action completed", failed: false };
     if (p.kind === "action_blocked" || p.kind === "action_failed") return { label: "Stopped by a check", failed: true };
     if (p.kind === "action_held") return { label: "On hold", failed: false };
     if (p.kind === "action_undone") return { label: "Undone", failed: false };
@@ -443,7 +452,7 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
       const by = p.approved_by === "tap" ? "You (tap)" : p.approved_by ? `Your rule: ${repo.playbookRules.get(String(p.approved_by))?.text ?? p.approved_by}` : "RAY";
       const label = actLabel(String(p.tool));
       const what = {
-        action_done: `Done: ${label}`,
+        action_done: `Action completed: ${label}`,
         action_held: `On hold: ${label}`,
         action_blocked: `A check stopped ${label}: ${String(p.reason ?? "")}`,
         action_failed: `Couldn't finish ${label}`,
@@ -534,10 +543,12 @@ export function caseView(a: Adapters, caseId: string): CaseView {
 
   const lastInvestigated = timeline.findLast((e) => e.payload.kind === "investigated");
   const decided = timeline.findLast((e) => e.payload.kind === "decided");
-  const proposals = openProposals({ db: a.db, repo, clock: a.clock }, caseId).map(proposalOf);
   const settings = readSettings(a.db, kase.merchant_id, kase.moment);
   const unsure = kase.confidence === "unsure";
   const waiting = kase.state === "waiting_merchant";
+  // A proposal is an active decision only while the case is waiting for the
+  // merchant. Keep superseded drafts in the event history, not the current card.
+  const proposals = waiting ? openProposals({ db: a.db, repo, clock: a.clock }, caseId).map(proposalOf) : [];
 
   const findings: Finding[] = timeline
     .filter((e) => e.type === "finding")
@@ -558,11 +569,15 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     ),
   ];
 
-  const results = timeline
-    .filter((e) => e.type === "tool_call" && e.payload.kind === "action_done")
-    .map((e) => {
-      return `Done: ${actLabel(String(e.payload.tool))} ✓`;
-    });
+  const lastVerified = timeline.findLast((e) => e.payload.kind === "verified");
+  const hasCompletedAction = timeline.some((e) => e.type === "tool_call" && e.payload.kind === "action_done");
+  const actionMode = a.razorpay(kase.merchant_id).mode;
+  const verifiedOutcome = kase.state === "closed" && kase.outcome !== HANDLED_BY_MERCHANT && lastVerified;
+  const results = verifiedOutcome && lastVerified
+    ? [`${actionMode === "mock" ? "Simulated outcome checked in demo data" : "Test-mode outcome checked"}: ${String(lastVerified.payload.reason ?? "The case check passed.")}`]
+    : hasCompletedAction
+      ? [`${actionMode === "mock" ? "Simulated action completed" : "Test-mode action completed"}. The customer outcome is not verified yet.`]
+      : [];
 
   const changes = timeline.filter((e) => e.payload.kind === "change_requested").map((e) => ({ at: dateTime(e.at), text: String(e.payload.text) }));
 
@@ -574,7 +589,9 @@ export function caseView(a: Adapters, caseId: string): CaseView {
   const askedLatest = asked && (!decided || (asked.seq ?? 0) > (decided.seq ?? 0));
   const question = unsure
     ? String(lastInvestigated?.payload.reason ?? "RAY needs one answer before it can act.")
-    : askedLatest
+    : !waiting
+      ? "No action needs your approval right now. See the timeline for what happened."
+      : askedLatest
       ? String(asked.payload.text)
       : String(decided?.payload.summary ?? "What should RAY do?");
 
@@ -586,23 +603,41 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     amount: sub.amount,
     paymentId: sub.paymentId,
     paymentShort: sub.paymentId ? shortId(sub.paymentId) : null,
+    openedAtLabel: dateTime(kase.opened_at),
     orderNumber: sub.orderNumber,
     open: !FINAL.includes(kase.state),
-    state: { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] },
+    state: stateChip(kase),
     confidence: {
       label: CONFIDENCE_LABEL[kase.confidence],
       tone: CONFIDENCE_TONE[kase.confidence],
       reason: String(lastInvestigated?.payload.reason ?? "Based on what RAY has checked so far."),
     },
     side: kase.side
-      ? { label: SIDE_LABEL[kase.side], note: kase.side === "razorpay" && kase.razorpay_plugin ? `${SIDE_NOTE.razorpay} ${RAZORPAY_PLUGIN_NOTE}.` : SIDE_NOTE[kase.side] }
+      ? kase.side === "customer_or_bank" && kase.cause === "cancel_request"
+        ? { label: "Customer request", note: "The case records a cancellation request, not a bank fault." }
+        : kase.side === "customer_or_bank" && kase.cause === "no_matching_payment"
+          ? { label: "Cause not established", note: "No matching payment record is available, so responsibility is not assigned." }
+          : kase.side === "customer_or_bank" && kase.cause === "international_declined" && timeline.some((e) => e.type === "finding" && e.payload.source === "Bank")
+            ? { label: "Customer's bank", note: "The case includes a bank finding that records an issuer decline." }
+          : { label: SIDE_LABEL[kase.side], note: kase.side === "razorpay" && kase.razorpay_plugin ? `${SIDE_NOTE.razorpay} ${RAZORPAY_PLUGIN_NOTE}.` : SIDE_NOTE[kase.side] }
       : null,
     promiseLine:
       kase.promised_by && !FINAL.includes(kase.state)
         ? `${firstName(sub.name)} was told to expect a reply by ${formatTime(kase.promised_by)}`
         : null,
     timeline: dedup,
-    events: timeline.map((e) => ({ id: e.id, at: dateTime(e.at), ...describe(repo, e), evidenceRef: e.evidence_ref, details: e.payload })),
+    events: timeline.map((e) => {
+      const description = describe(repo, e);
+      const simulatedCheck = actionMode === "mock" && e.payload.kind === "verified";
+      return {
+        id: e.id,
+        at: dateTime(e.at),
+        ...description,
+        ...(simulatedCheck ? { what: `Simulated demo-data check: ${String(e.payload.reason ?? "Outcome checked")}`, who: "RAY (Simulated)" } : {}),
+        evidenceRef: e.evidence_ref,
+        details: e.payload,
+      };
+    }),
     findings,
     checking: kase.state === "likely",
     conversation: conversationOf(a, kase, sub.name),

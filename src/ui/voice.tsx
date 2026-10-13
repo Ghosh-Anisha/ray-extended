@@ -19,9 +19,7 @@ export function PlayButton({ audioRef, label }: { audioRef: string | null; label
   const [playing, setPlaying] = useState(false);
   if (!audioRef) {
     return (
-      <button type="button" className="play" disabled aria-label={`${label}: no audio, transcript only`} title="No audio, transcript only">
-        ▶
-      </button>
+      <span className="chip neutral" aria-label={`${label}: transcript only`}>Transcript only</span>
     );
   }
   return (
@@ -48,8 +46,7 @@ export function VoiceNoteBubble({ note, mine, meta }: { note: VoiceNoteView; min
   return (
     <div className={`bubble voice-note ${mine ? "mine" : ""}`} data-testid="voice-note">
       <div className="row" style={{ gap: 8 }}>
-        <PlayButton audioRef={note.audioRef} label="voice note" />
-        <span className="muted">{note.duration}</span>
+        {note.audioRef ? <><PlayButton audioRef={note.audioRef} label="voice note" /><span className="muted">{note.duration}</span></> : <span className="muted">Transcript only</span>}
       </div>
       <div lang="und" style={{ marginTop: 4 }}>
         {note.transcript}

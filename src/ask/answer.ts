@@ -34,7 +34,11 @@ const norm = (t: string) => t.toLowerCase().replace(/[’']/g, "'").replace(/\s+
 const has = (t: string, re: RegExp) => re.test(t);
 
 const fallback = (): AskReply =>
-  reply({ kind: "fallback", text: "I can't set or answer that yet. Here's what I can do:", chips: FALLBACK_CHIPS });
+  reply({
+    kind: "fallback",
+    text: "I can't answer that from this demo. Ask about a seeded case or payment, cases waiting on you, refunds by product, or rules. I don't have a general-purpose investigator or connected bank, settlement or supplier records.",
+    chips: FALLBACK_CHIPS,
+  });
 
 function citeCase(a: Adapters, merchantId: string, r: Pick<CaseRow, "id" | "name" | "amount">): Cite {
   return { label: `#${caseRef(a, r.id)} · ${r.name} · ${r.amount}`, href: `/merchant/${merchantId}/cases/${r.id}` };
@@ -49,10 +53,9 @@ function allRows(a: Adapters, merchantId: string) {
 function whatsWaiting(a: Adapters, merchantId: string): AskReply {
   const view = inboxView(a, merchantId);
   const rows = view.tabs.find((t) => t.key === "needs_you")!.rows;
-  if (rows.length === 0) return reply({ text: "You're all caught up. Nothing needs your tap right now.", chips: ["What can you do?"] });
-  const total = rows.reduce((sum, r) => sum + r.amountMinor, 0);
+  if (rows.length === 0) return reply({ text: "You're all caught up. Nothing needs your tap right now.", bullets: ["Basis: no seeded cases are currently in the Needs you state."], chips: ["What can you do?"] });
   return reply({
-    text: `${rows.length} case${rows.length === 1 ? " needs" : "s need"} you, ${money(total)} in all. Biggest first:`,
+    text: `${rows.length} case${rows.length === 1 ? " needs" : "s need"} your tap. Case amounts are shown individually because their bases may differ.`,
     bullets: rows.map((r) => `${r.name} · ${r.summary} · ${r.amount}`),
     cites: rows.map((r) => citeCase(a, merchantId, r)),
     chips: ["Why did Priya's order not show up?", "What can you do?"],
@@ -105,12 +108,16 @@ function refundsByProduct(a: Adapters, merchantId: string): AskReply {
     const t = totals.get(item) ?? { amount: 0, n: 0 };
     totals.set(item, { amount: t.amount + r.amount, n: t.n + 1 });
   }
-  if (refunds.length === 0) return reply({ text: "No refunds in the last 30 days.", chips: STARTER_CHIPS.slice(0, 2) });
+  if (refunds.length === 0) return reply({ text: "No refunds in the last 30 days.", bullets: ["Basis: checked the seeded refund records for this 30-day window; none were found."], chips: STARTER_CHIPS.slice(0, 2) });
   const list = [...totals].sort((x, y) => y[1].amount - x[1].amount);
   const total = refunds.reduce((sum, r) => sum + r.amount, 0);
   return reply({
     text: `${refunds.length} refund${refunds.length === 1 ? "" : "s"} in the last 30 days, ${money(total)} in all, by product (the first item on the order):`,
-    bullets: [...list.map(([name, t]) => `${name}: ${money(t.amount)} (${t.n})`), ...(unmatched ? [`No order found: ${money(unmatched)}`] : [])],
+    bullets: [
+      `Basis: seeded refund records from the last 30 days; grouped by the first item on the linked store order. ${unmatched ? "Refunds without a linked order are listed separately." : ""}`.trim(),
+      ...list.map(([name, t]) => `${name}: ${money(t.amount)} (${t.n})`),
+      ...(unmatched ? [`No order found: ${money(unmatched)}`] : []),
+    ],
     chips: ["What's waiting on me?"],
   });
 }
@@ -119,35 +126,45 @@ function numbers(a: Adapters, merchantId: string, q: string): AskReply | null {
   const st = merchantStats(a, merchantId);
   const rows = allRows(a, merchantId);
   const casesOf = (momentKey: string, tabs?: string[]) => rows.filter((x) => x.row.momentKey === momentKey && (!tabs || tabs.includes(x.tab))).map((x) => x.row);
-  if (has(q, /\b(saved|saving|recovered|kept)\b/)) {
+  if (has(q, /\b(save|saved|saving|recovered|kept)\b/)) {
     const closed = rows.filter((x) => x.tab === "closed").map((x) => x.row).slice(0, 5);
     return reply({
-      text: `RAY saved ${rupees(st.saved.amount)} in the last 30 days.`,
-      bullets: [`${st.closed.count} cases closed, ${st.closed.byRay} of them by RAY`, `${hoursLabel(st.timeSavedMinutes)} of your time saved`, `${st.kept} customers kept`],
+      text: `Demo cases marked saved total ${rupees(st.saved.amount)} in the last 30 days. This is not verified recovered revenue.`,
+      bullets: [`${st.closed.count} cases closed, ${st.closed.byRay} marked as handled by RAY`, `${hoursLabel(st.timeSavedMinutes)} estimated from fixed minutes per case`, `${st.kept} cases marked saved, not unique customers`],
       cites: closed.map((r) => citeCase(a, merchantId, r)),
     });
   }
   if (has(q, /success rate/)) {
-    return reply({ text: st.successRatePct === null ? "There are no payments in the last 7 days to work a success rate from." : `Your success rate is ${st.successRatePct}% over the last 7 days.`, bullets: ["Captured payments divided by captured and failed payments."] });
+    return reply({ text: st.successRatePct === null ? "There are no payments in the last 7 days to work a success rate from." : `The seeded demo payment records show a ${st.successRatePct}% success rate over the last 7 days.`, bullets: ["Basis: captured payments divided by captured and failed payment records in the seeded demo; this is not a live account report."] });
   }
   if (has(q, /\b(dispute|chargeback)s?\b/)) {
     const d = st.disputesThisMonth;
     const open = casesOf("chargeback", ["needs_you", "handling"]);
-    return reply({ text: `${d.total} dispute${d.total === 1 ? "" : "s"} this month: ${d.won} won, ${d.open} still open.`, cites: open.map((r) => citeCase(a, merchantId, r)) });
+    return reply({ text: `${d.total} dispute${d.total === 1 ? "" : "s"} this month: ${d.won} won, ${d.open} still open.`, bullets: ["Basis: seeded dispute records for this calendar month. Open cases are linked below; closed dispute rows are part of the demo data."], cites: open.map((r) => citeCase(a, merchantId, r)) });
   }
-  if (has(q, /\b(overdue|invoices?|owe|owed|dues?)\b/)) {
+  // Receivables are not payables, and neither is a cash forecast. Do not let
+  // shared words like "dues" or "owe" turn a liquidity question into AR.
+  if (has(q, /\b(can i pay|pay all|vendor dues|supplier dues|cash ?flow|cash position|liquidity|afford)\b/)) {
+    return reply({
+      text: "I can't assess whether you can pay your dues yet. This demo has no connected bank balance, complete bills ledger, settlement/reconciliation feed, supplier payment rail or verified recipient.",
+      bullets: ["The Dues screen is an illustrative arithmetic example, not a cash-flow forecast or payment workflow. I can show money owed to you in overdue invoices, but that is not the same as money you owe suppliers."],
+      chips: ["Who owes me?", "Show overdue invoices"],
+    });
+  }
+  if (has(q, /\b(who owes me|owed to me|customers owe|overdue|invoices?)\b/)) {
     const open = casesOf("collect", ["needs_you", "handling"]);
     return reply({
       text: `${rupees(st.overdue.amount)} is overdue across ${st.overdue.buyers} buyer${st.overdue.buyers === 1 ? "" : "s"} (${st.overdue.invoices} invoice${st.overdue.invoices === 1 ? "" : "s"}).`,
+      bullets: ["Basis: seeded open B2B invoice cases, not supplier payables or a connected ledger."],
       cites: open.map((r) => citeCase(a, merchantId, r)),
     });
   }
   if (has(q, /\bsubscri/)) {
     const open = casesOf("subscription", ["needs_you", "handling"]);
-    return reply({ text: `${st.subscriptionsAtRisk} subscription${st.subscriptionsAtRisk === 1 ? " is" : "s are"} at risk, and ${open.length} case${open.length === 1 ? " is" : "s are"} open.`, cites: open.map((r) => citeCase(a, merchantId, r)) });
+    return reply({ text: `${st.subscriptionsAtRisk} subscription${st.subscriptionsAtRisk === 1 ? " is" : "s are"} at risk, and ${open.length} case${open.length === 1 ? " is" : "s are"} open.`, bullets: ["Basis: seeded subscription and case states in this demo."], cites: open.map((r) => citeCase(a, merchantId, r)) });
   }
   if (has(q, /\b(sales|revenue|sold|selling)\b/)) {
-    return reply({ text: `Today's sales so far are ${rupees(st.todaysSales)}.`, bullets: ["Captured payments in rupees since midnight."] });
+    return reply({ text: `The seeded demo records show ${rupees(st.todaysSales)} in captured sales today so far.`, bullets: ["Basis: captured payment rows since midnight in this demo, not a live sales report."] });
   }
   return null;
 }
@@ -159,7 +176,7 @@ function rulesSummary(a: Adapters, merchantId: string): AskReply {
   const proposed = rules.filter((r) => r.status === "proposed");
   return reply({
     text: `${on.length} rule${on.length === 1 ? " is" : "s are"} on${proposed.length ? `, and RAY suggests ${proposed.length} more` : ""}.`,
-    bullets: [...on.map((r) => `On: ${r.text}`), ...proposed.map((r) => `Suggested: ${r.text}`)],
+    bullets: ["Basis: saved playbook rules for this merchant in the demo." , ...on.map((r) => `On: ${r.text}`), ...proposed.map((r) => `Suggested: ${r.text}`)],
     cites: [{ label: "Rules", href: `/merchant/${merchantId}/rules` }],
     chips: proposed.slice(0, 1).map((r) => r.text),
   });
@@ -169,20 +186,20 @@ function rulesSummary(a: Adapters, merchantId: string): AskReply {
 function whatCanYouDo(a: Adapters, merchantId: string, first: boolean): AskReply {
   const caps = capabilities(a, merchantId);
   if (!first) {
-    return reply({ kind: "capabilities", text: "Here's what RAY can do for you, with the most money waiting first.", capabilities: caps, chips: ["What should I set up first?", "What's waiting on me?"] });
+    return reply({ kind: "capabilities", text: "Here's what this demo can do, with the most money waiting first.", bullets: ["Availability and open-case counts come from seeded demo records; Preview lanes are not live integrations."], capabilities: caps, chips: ["What should I set up first?", "What's waiting on me?"] });
   }
   const p = playbookView(a, merchantId);
   const suggested = p.moments.flatMap((m) => m.rules.filter((r) => r.status === "proposed"));
   const tryIt = caps.filter((c) => c.status === "Try it");
   const bullets = [
     ...suggested.map((r) => `Turn on "${r.text}". RAY suggested it from your own choices.`),
-    ...caps.filter((c) => c.waiting > 0).slice(0, 2).map((c) => `${c.title}: ${money(c.waiting)} is waiting here now.`),
+    ...caps.filter((c) => c.openCases > 0).slice(0, 2).map((c) => `${c.title}: ${c.openCases} open ${c.openCases === 1 ? "case" : "cases"}.`),
     ...tryIt.map((c) => `Try: ${c.title}.`),
   ].slice(0, 5);
   return reply({
     kind: "capabilities",
     text: "Start where your money is. In order:",
-    bullets,
+    bullets: [...bullets, "Basis: seeded demo case counts and saved rule choices; preview lanes are not live integrations."],
     capabilities: caps,
     cites: [{ label: "Rules", href: `/merchant/${merchantId}/rules` }],
     chips: suggested.slice(0, 1).map((r) => r.text),
@@ -228,7 +245,7 @@ export function ask(a: Adapters, merchantId: string, text: string, caseId: strin
       const v = caseView(a, caseId);
       const p = v.yourCall.primary;
       return reply({
-        text: p ? `If you tap "${p.label}", RAY does it and keeps following up until it is done.` : "There is no tap on this case right now.",
+        text: p ? `If you tap "${p.label}", the guarded demo action runs. Follow-up and verification depend on the connected systems and case evidence.` : "There is no tap on this case right now.",
         bullets: [...(p ? [p.covered ? "Covered: if RAY gets this wrong, the error cover applies." : "Your call: this depends on your judgement."] : []), ...(p?.then ?? []).map((t) => `Then: ${t}`)],
         cites: [{ label: `#${caseRef(a, caseId)} · ${v.name} · ${v.amount}`, href: `/merchant/${merchantId}/cases/${caseId}` }],
       });

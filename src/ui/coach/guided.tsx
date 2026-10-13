@@ -8,11 +8,11 @@ type DemoState = { cases?: Record<string, string> };
 type GuidedStep = { title: string; text: string; target: string; next: string; href: (base: string, cases: Record<string, string>) => string };
 
 const STEPS: GuidedStep[] = [
-  { title: "This is Leafy Bakes", text: "RAY saved ₹1,84,300 this month. ₹8,450 is waiting on you.", target: "[data-guided='review-cases']", next: "Review cases", href: (b) => `${b}/cases?guided=1&step=2` },
-  { title: "Biggest first", text: "Priya paid ₹1,299 but her order never showed up.", target: "[data-guided='case-priya']", next: "Open Priya's case", href: (b, c) => `${b}/cases/${c["RD-1042"] ?? ""}?guided=1&step=3` },
-  { title: "RAY found the cause", text: "The plugin accepted the payment and dropped the order update. It is on Razorpay, so it is free. Tap Mark paid & ship, then continue.", target: "[data-guided='primary-action']", next: "Mark paid & ship", href: () => `/sim/inbox?guided=1&step=4` },
-  { title: "Here's what Priya received", text: "Skip to next morning and watch the reply close the loop.", target: "[data-tour='thread-list']", next: "Skip to next morning", href: (b) => `${b}/whatsapp?guided=1&step=5` },
-  { title: "RAY on WhatsApp", text: "Most merchants live here. Rahul was charged twice. Approve the duplicate refund, then continue. A 10-minute Undo window appears on the case.", target: "[data-testid='approval-card']", next: "Approve Rahul's duplicate refund", href: (b) => `${b}/rules?guided=1&step=6` },
+  { title: "This is Leafy Bakes", text: "Demo cases marked saved: ₹1,84,300. This is not verified recovered revenue. Open a case to review the evidence and approval boundary.", target: "[data-guided='review-cases']", next: "Review cases", href: (b) => `${b}/cases?guided=1&step=2` },
+  { title: "Priya's case", text: "Before Priya contacted Leafy, Razorpay had recorded the payment and two webhook deliveries returned 200, while the store order stayed pending. RAY opened this case from that signal.", target: "[data-guided='case-priya']", next: "Open Priya's case", href: (b, c) => `${b}/cases/${c["RD-1042"] ?? ""}?guided=1&step=3` },
+  { title: "RAY's diagnosis", text: "RAY compared the captured ₹1,299 payment, two HTTP 200 webhook deliveries marked unprocessed, Leafy's pending order and a report from another store on the same plugin version. That report corroborates a plugin issue but does not prove the identical cause or confirm compensation. Review the evidence, then approve Mark paid & ship.", target: "[data-guided='primary-action']", next: "Approve Mark paid & ship", href: () => `/sim/inbox?guided=1&step=4&person=cus_priya` },
+  { title: "Next morning reply", text: "Move the demo clock through the engine, then send Priya's reply through the inbound-message path. The demo checks that the case reaches Resolved with an arrived outcome; this is simulated, not a live customer confirmation.", target: "[data-guided-customer='priya']", next: "Skip to next morning", href: (b) => `${b}/whatsapp?guided=1&step=5` },
+  { title: "RAY on WhatsApp", text: "Rahul was charged twice. Approve the duplicate refund. The case will show its real 10-minute Undo window.", target: "[data-guided='approve-rahul']", next: "Approve Rahul's duplicate refund", href: (b) => `${b}/rules?guided=1&step=6` },
   { title: "Make a repeated choice a rule", text: "Tap the example or type: Refund duplicate charges under ₹500 automatically. Then approve the rule.", target: "[data-coach='rules-chat']", next: "See chargebacks", href: (b, c) => `${b}/cases/${c["RD-1051"] ?? ""}?guided=1&step=7` },
   { title: "Chargebacks", text: "RAY found delivery proof and prepared the reply before Neha's deadline.", target: "[data-guided='primary-action']", next: "See subscriptions", href: (b, c) => `${b}/cases/${c["RD-1060"] ?? ""}?guided=1&step=8` },
   { title: "Save a subscription", text: "Karan wants to cancel. Choose a pause, then RAY schedules the resume.", target: "[data-guided='primary-action']", next: "See the morning list", href: (b) => `${b}/collect?guided=1&step=9` },
@@ -35,8 +35,62 @@ export function GuidedDemoHost() {
   const [state, setState] = useState<DemoState>({});
   const [anchor, setAnchor] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
   const [finished, setFinished] = useState(false);
+  const [completedStep, setCompletedStep] = useState<number | null>(null);
+  const [busyStep, setBusyStep] = useState<number | null>(null);
+  const [status, setStatus] = useState<{ step: number; text: string } | null>(null);
+  const [morningRequestId, setMorningRequestId] = useState(() => crypto.randomUUID());
   const step = STEPS[stepNumber - 1]!;
+  const refundParam = params.get("refund");
+  const refundShown = stepNumber === 5 && refundParam === "1";
+  const actionDone = completedStep === stepNumber;
+  const busy = busyStep === stepNumber;
+  const resultText = status?.step === stepNumber ? status.text : "";
+  const activeTarget = refundShown ? "[data-guided='refund-hold']" : step.target;
   const base = useMemo(() => baseFor(path), [path]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("ray:guided-mode", { detail: guided }));
+  }, [guided]);
+
+  useEffect(() => {
+    const onAction = (event: Event) => {
+      const detail = (event as CustomEvent<{ url: string; ok: boolean; error?: string; result?: unknown }>).detail;
+      if (!guided || detail.url !== "/api/merchant/tap" || (stepNumber !== 3 && stepNumber !== 5)) return;
+      if (!detail.ok) {
+        setBusyStep(null);
+        setStatus({ step: stepNumber, text: detail.error ?? "The action did not complete. Nothing was marked successful." });
+        return;
+      }
+      const response = detail.result as { outcome?: string; caseId?: string | null; state?: string | null };
+        if (response.outcome !== "handled" || !response.caseId || response.state !== "verifying") {
+        setBusyStep(null);
+        setStatus({ step: stepNumber, text: "The tap was recorded, but the case did not pass through to the intended action. The case remains in its actual engine state." });
+        return;
+      }
+      if (stepNumber === 3) {
+        setCompletedStep(stepNumber);
+        setStatus({ step: stepNumber, text: "Merchant approval recorded. The guarded demo action ran, and the case is Checking it worked. The next step verifies the simulated store and customer outcome." });
+      }
+      else {
+        setStatus({ step: stepNumber, text: "Refund approved. Opening the case to show its 10-minute Undo window." });
+        router.push(`${base}/cases/${response.caseId}?guided=1&step=5&refund=1`);
+      }
+    };
+    window.addEventListener("ray:merchant-action", onAction);
+    return () => window.removeEventListener("ray:merchant-action", onAction);
+  }, [guided, stepNumber, router, base]);
+
+  useEffect(() => {
+    if (!guided || !refundShown) return;
+    const timer = window.setInterval(() => {
+      if (document.querySelector("[data-guided='refund-hold']")) {
+        setCompletedStep(5);
+        setBusyStep(null);
+        window.clearInterval(timer);
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [guided, refundShown, activeTarget]);
 
   useEffect(() => {
     if (!guided) return;
@@ -47,7 +101,7 @@ export function GuidedDemoHost() {
     if (!guided || finished) return;
     let tries = 0;
     const timer = window.setInterval(() => {
-      const el = document.querySelector<HTMLElement>(step.target);
+      const el = document.querySelector<HTMLElement>(activeTarget);
       tries += 1;
       if (el) {
         window.clearInterval(timer);
@@ -62,12 +116,38 @@ export function GuidedDemoHost() {
       } else if (tries > 20) window.clearInterval(timer);
     }, 100);
     return () => window.clearInterval(timer);
-  }, [guided, finished, step]);
+  }, [guided, finished, step, activeTarget]);
 
   if (!guided) return null;
   const next = async () => {
+    if ((stepNumber === 3 || stepNumber === 5) && !actionDone) {
+      const target = document.querySelector<HTMLElement>(activeTarget);
+      if (!target) { setStatus({ step: stepNumber, text: "The intended action is not available on this screen." }); return; }
+      setBusyStep(stepNumber);
+      target.click();
+      return;
+    }
     if (stepNumber === 4) {
-      await fetch("/api/dev/clock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ms: 24 * 60 * 60 * 1000 }) });
+      setBusyStep(stepNumber);
+      try {
+        const clockResponse = await fetch("/api/dev/clock", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ms: 24 * 60 * 60 * 1000 }) });
+        const clockJson = await clockResponse.json() as { ok: boolean; error?: string };
+        if (!clockJson.ok) throw new Error(clockJson.error ?? "Clock did not advance");
+        const response = await fetch("/api/dev/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: "cus_priya", channel: "whatsapp", body: "mil gaya, thanks", requestId: morningRequestId }) });
+        const json = await response.json() as { ok: boolean; error?: string; result?: { outcome?: string; case?: { state?: string; outcome?: string; counts_as_saved?: boolean; amount?: number | null } } };
+        const kase = json.result?.case;
+        if (!json.ok || json.result?.outcome !== "handled" || kase?.state !== "closed" || kase.outcome !== "arrived" || !kase.counts_as_saved) {
+          throw new Error(json.error ?? "Priya's reply did not resolve the case");
+        }
+        const saved = ((kase?.amount ?? 129900) / 100).toLocaleString("en-IN");
+        setStatus({ step: stepNumber, text: `Simulated demo outcome verified: the store action completed and Priya replied “mil gaya, thanks”. Her case is Resolved and ₹${saved} is marked saved in demo data.` });
+        setCompletedStep(stepNumber);
+        setMorningRequestId(crypto.randomUUID());
+        router.refresh();
+      } catch (error) {
+        setStatus({ step: stepNumber, text: error instanceof Error ? error.message : "The next-morning reply did not complete." });
+      } finally { setBusyStep(null); }
+      return;
     }
     if (stepNumber === STEPS.length) setFinished(true);
     else router.push(step.href(base, state.cases ?? {}));
@@ -85,5 +165,7 @@ export function GuidedDemoHost() {
       </aside>
     );
   }
-  return <CoachPopover anchor={anchor} title={`Step ${stepNumber} of 10 · ${step.title}`} text={step.text} step={stepNumber - 1} total={10} nextLabel={step.next} onNext={() => void next()} onBack={stepNumber > 1 ? () => window.history.back() : undefined} onExit={() => router.push(base)} exitLabel="Exit" />;
+  const shownText = resultText || (refundShown ? "Refund approved. The case and its 10-minute Undo window are shown here." : step.text);
+  const nextLabel = busy ? "Doing it…" : actionDone ? "Continue" : step.next;
+  return <CoachPopover anchor={anchor} title={`Step ${stepNumber} of 10 · ${step.title}`} text={shownText} step={stepNumber - 1} total={10} nextLabel={nextLabel} nextDisabled={busy || (refundShown && !actionDone)} onNext={() => void next()} onBack={stepNumber > 1 ? () => router.push(STEPS[stepNumber - 2]!.href(base, state.cases ?? {})) : undefined} onExit={() => router.push(base)} exitLabel="Exit" />;
 }

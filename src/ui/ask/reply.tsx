@@ -121,9 +121,12 @@ export function ReplyView({ merchantId, reply, onChip }: { merchantId: string; r
             <li key={c.key}>
               <div className="grow">
                 <strong>{c.title}</strong>
-                <div className="muted">{c.waiting > 0 ? `${c.line} Money waiting here now.` : c.line}</div>
+                <div className="muted">{c.openCases > 0 ? `${c.line} ${c.openCases} open ${c.openCases === 1 ? "case" : "cases"} in this demo.` : c.line}</div>
               </div>
-              {c.href && c.status !== "Coming soon" ? (
+              {c.preview && <span className="chip simulated">Preview · simulated</span>}
+              {c.href && c.preview ? (
+                <Link className="chip neutral" href={c.href}>Open preview</Link>
+              ) : c.href && c.status !== "Coming soon" ? (
                 <Link className={`chip ${STATUS_TONE[c.status]}`} href={c.href}>
                   {c.status}
                 </Link>

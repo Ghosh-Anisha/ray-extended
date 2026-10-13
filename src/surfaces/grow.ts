@@ -48,7 +48,7 @@ export function emiCard(a: Adapters, merchantId: string): EmiCard | null {
       since: formatDate(saved.at),
       before: { dropped: saved.before.dropped, value: rupees(saved.before.droppedValue) },
       after: { dropped: afterDropped, value: rupees(afterValue) },
-      line: `Big carts left unpaid fell from ${saved.before.dropped} to ${afterDropped}, about ${rupees(saved.before.droppedValue - afterValue)} that stayed in your sales.`,
+      line: `Simulated scenario, not measured growth: unpaid big carts move from ${saved.before.dropped} to ${afterDropped}, a modeled difference of ${rupees(saved.before.droppedValue - afterValue)}. No observed or incremental revenue is verified.`,
     };
   }
   const c = bigCarts(a, merchantId, now - 30 * DAY, now + 1);
@@ -60,7 +60,7 @@ export function emiCard(a: Adapters, merchantId: string): EmiCard | null {
     droppedValue: rupees(c.droppedValue),
     estimate: rupees(Math.round(c.droppedValue * RECOVERY)),
     assumption: `Estimate: ${Math.round(RECOVERY * 100)}% of the carts left unpaid finish with EMI. It is an assumption, not a promise.`,
-    tradeOff: "Customers pay in parts, you are paid in full, and Razorpay's EMI fee on those orders comes out of your side. Check your plan's rate in Settings before you decide.",
+    tradeOff: "Customers pay in parts. Plan-specific EMI pricing is not connected to this preview, so RAY cannot show your fee or margin impact. Check your current plan pricing outside this prototype before deciding.",
   };
 }
 
@@ -75,7 +75,7 @@ export function chaseCard(a: Adapters, merchantId: string): { line: string; href
   const st = merchantStats(a, merchantId);
   if (st.overdue.invoices === 0) return null;
   return {
-    line: `${rupees(st.overdue.amount)} is overdue across ${st.overdue.buyers} buyers. RAY can send the reminders, note each promise and match payments, and bring you only what needs a decision.`,
+    line: `In this seeded demo, ${rupees(st.overdue.amount)} is overdue across ${st.overdue.buyers} buyers. Preview simulated reminders, promises and matched credits; no live bank feed is connected.`,
     href: `/merchant/${merchantId}/collect`,
   };
 }

@@ -1,10 +1,11 @@
 "use client";
 
-// Send a voice note: pick a recorded sample, or (with ELEVENLABS_API_KEY
-// set) record one or pick an audio file, transcribed live on ElevenLabs.
+// Send a voice note: pick a speaker-scoped recorded sample, or record/upload
+// audio when live transcription is configured for the demo.
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { DOING_IT } from "@/surfaces/words";
+import { Button } from "./kit";
 import type { PostResult } from "./bits";
 
 async function send(url: string, fields: Record<string, string>, audio: Blob | null): Promise<PostResult> {
@@ -39,14 +40,15 @@ export function VoiceCompose({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
   const rec = useRef<MediaRecorder | null>(null);
 
   async function go(audio: Blob | null) {
     setBusy(true);
     setError(null);
-    const r = await send(url, audio ? fields : { ...fields, sampleId: sample }, audio);
+    const r = await send(url, audio ? { ...fields, requestId } : { ...fields, sampleId: sample, requestId }, audio);
     if (!r.ok) setError(r.error);
-    else onSent?.(r.result);
+    else { onSent?.(r.result); setRequestId(crypto.randomUUID()); }
     router.refresh();
     setBusy(false);
   }
@@ -79,7 +81,7 @@ export function VoiceCompose({
       <div className="voice-compose">
         <label>
           Voice note{" "}
-          <select value={sample} onChange={(e) => setSample(e.target.value)} aria-label="Recorded sample">
+          <select className="field" value={sample} onChange={(e) => { setSample(e.target.value); setRequestId(crypto.randomUUID()); }} aria-label="Recorded sample">
             {samples.map((x) => (
               <option key={x.id} value={x.id}>
                 {x.label}
@@ -87,14 +89,14 @@ export function VoiceCompose({
             ))}
           </select>
         </label>
-        <button type="button" disabled={busy || !sample} onClick={() => go(null)}>
+        <Button type="button" isDisabled={busy || !sample} onClick={() => go(null)}>
           {busy ? DOING_IT : sendLabel}
-        </button>
+        </Button>
         {live && (
           <>
-            <button type="button" disabled={busy} onClick={toggleRecording} aria-pressed={recording}>
+            <Button type="button" variant="secondary" isDisabled={busy} onClick={toggleRecording} aria-pressed={recording}>
               {recording ? "Stop and send" : "Record"}
-            </button>
+            </Button>
             <label className="muted">
               or a file{" "}
               <input type="file" accept="audio/*" disabled={busy} onChange={(e) => e.target.files?.[0] && go(e.target.files[0])} />
@@ -103,7 +105,7 @@ export function VoiceCompose({
         )}
       </div>
       <span className="muted" style={{ fontSize: 12 }}>
-        {live ? "Recordings are transcribed on ElevenLabs." : "Recorded samples. Set ELEVENLABS_API_KEY to record your own."}
+        {live ? "Recordings are transcribed for this demo." : "Choose a recorded sample to send its transcript."}
       </span>
       {error && <span className="error">{error}</span>}
     </div>

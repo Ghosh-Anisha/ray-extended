@@ -86,17 +86,17 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
       return {};
     case "report": {
       const report = buildReport(a, m, i.text);
-      if (!report) return { message: "I can't build that report yet. Here's what I can do:", chips: ["Settlements for September with fees and GST", "Refunds for September", "Disputes this month"] };
+      if (!report) return { message: "I can't build that report yet. Here's what I can do:", chips: ["Estimated net collections for September with fees and GST", "Refunds for September", "Disputes this month"] };
       return { report };
     }
     case "schedule": {
       const report = i.what === "pack" ? null : buildReport(a, m, i.text ?? "");
       const title = i.what === "pack" ? `Month-end CA pack, ${caPack(a, m).month}` : report?.title;
       if (!title) throw new Error("Pick a report first");
-      const schedule: Schedule = { id: `sch_${a.clock.now()}`, reportId: report?.id ?? "pack", title, to: "your CA on WhatsApp", when: "On the 1st of every month, 9:00 AM", at: a.clock.now() };
+      const schedule: Schedule = { id: `sch_${a.clock.now()}`, reportId: report?.id ?? "pack", title, to: "No recipient configured", when: "On the 1st of every month, 9:00 AM", at: a.clock.now() };
       const list = readState<Schedule[]>(a, m, "dash.schedules") ?? [];
       writeState(a, m, "dash.schedules", [...list.filter((x) => x.reportId !== schedule.reportId), schedule]);
-      return { scheduled: schedule, message: `Scheduled. ${title} will go to your CA on WhatsApp (Simulated).` };
+      return { scheduled: schedule, message: `Demo schedule saved for ${title}. No recipient is configured, so nothing will be sent.` };
     }
   }
 }

@@ -67,7 +67,7 @@ export type SavedWidget = { id: string; kind: WidgetKind; source: "starter" | "a
 export const WIDGET_TITLE: Record<WidgetKind, string> = {
   sales_today: "Today's sales",
   success_rate: "Success rate",
-  saved: "₹ saved by RAY",
+  saved: "Demo amount marked saved",
   needs_you: "Cases needing you",
   refunds: "Refunds",
   disputes: "Disputes and deadlines",
@@ -80,7 +80,7 @@ export const WIDGET_TITLE: Record<WidgetKind, string> = {
 export const WIDGET_DEFINITION: Record<WidgetKind, string> = {
   sales_today: "Captured rupee payments since midnight today.",
   success_rate: "Captured payments ÷ captured and failed payments, last 7 days.",
-  saved: "Money kept or recovered on cases RAY closed in the last 30 days.",
+  saved: "Sum of demo case amounts marked saved in the last 30 days. Not verified recovered revenue.",
   needs_you: "Cases waiting for your tap, with the money they hold.",
   refunds: "Refunds ÷ captured payments, last 30 days.",
   disputes: "Chargebacks raised this month, and the next reply deadline.",
@@ -156,7 +156,7 @@ export function widgetData(a: Adapters, merchantId: string, kind: WidgetKind, st
     case "saved":
       return { value: rupees(st.saved.amount), note: "Last 30 days", trend: st.saved.changePct && st.saved.changePct > 0 ? { text: `↑ ${st.saved.changePct}% vs last month`, good: true } : undefined, href: `${base}/cases?tab=closed` };
     case "needs_you":
-      return { value: String(st.needsYou.count), note: `${rupees(st.needsYou.stake)} waiting on you`, href: `${base}/cases` };
+      return { value: String(st.needsYou.count), note: "Case amounts use different bases and are not added", href: `${base}/cases` };
     case "refunds": {
       const refunds = refundsIn(a, merchantId, now - 30 * DAY, now + 1);
       const captured = windowPayments(a, merchantId, now - 30 * DAY, now + 1).filter((p) => p.status === "captured").length;
@@ -217,17 +217,17 @@ function bankRows(a: Adapters, merchantId: string, from: number, to: number): Ba
 
 
 export function parseWidgetAsk(text: string): WidgetKind | null {
-  const t = text.toLowerCase().replace(/[?.!]/g, "").trim();
-  if (/refunds?.*by product|product.*refunds?/.test(t)) return "refunds_by_product";
-  if (/success.*by (bank|method)|bank.*success/.test(t)) return "success_by_bank";
-  if (/overdue|invoices?/.test(t)) return "overdue";
-  if (/success/.test(t)) return "success_rate";
-  if (/sales|revenue/.test(t)) return "sales_today";
-  if (/dispute|chargeback/.test(t)) return "disputes";
-  if (/subscription/.test(t)) return "subs_risk";
-  if (/refund/.test(t)) return "refunds";
-  if (/saved|savings/.test(t)) return "saved";
-  if (/cases?|waiting/.test(t)) return "needs_you";
+  const t = text.toLowerCase().replace(/[?.!]/g, "").replace(/\s+/g, " ").trim();
+  if (/^(show )?refunds? by product$/.test(t)) return "refunds_by_product";
+  if (/^(show )?success( rate)? by (bank|method)$/.test(t)) return "success_by_bank";
+  if (/^(show |add )?overdue invoices?$/.test(t)) return "overdue";
+  if (/^(show )?success( rate)?$/.test(t)) return "success_rate";
+  if (/^(show )?sales today$/.test(t)) return "sales_today";
+  if (/^(show )?(disputes|chargebacks)( this month)?$/.test(t)) return "disputes";
+  if (/^(show )?subscriptions?( at risk)?$/.test(t)) return "subs_risk";
+  if (/^(show )?refunds?$/.test(t)) return "refunds";
+  if (/^(show )?(saved|savings)$/.test(t)) return "saved";
+  if (/^(show )?(cases|cases waiting|waiting on me)$/.test(t)) return "needs_you";
   return null;
 }
 
@@ -362,7 +362,8 @@ export function suggestion(a: Adapters, merchantId: string, widgets: SavedWidget
 export type Report = { id: string; title: string; summary: string[]; columns: string[]; rows: string[][]; total: string[] };
 
 const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
-// The prototype has no settlement feed, so fees are an assumed standard rate, said so in the summary.
+// No settlement feed is available: this is an estimated net-collections view,
+// never a settlement or bank-reconciliation report.
 const FEE_RATE = 0.02;
 const GST_RATE = 0.18;
 
@@ -385,26 +386,34 @@ export function buildReport(a: Adapters, merchantId: string, text: string): Repo
     let gross = 0;
     let fee = 0;
     let gst = 0;
+    let net = 0;
     for (const [day, amounts] of [...byDay].sort((x, y) => x[0] - y[0])) {
       const g = amounts.reduce((x, y) => x + y, 0);
       const f = Math.round(g * FEE_RATE);
       const gs = Math.round(f * GST_RATE);
-      gross += g;
-      fee += f;
-      gst += gs;
-      rows.push([formatDate(day), String(amounts.length), rupees(g), rupees(f), rupees(gs), rupees(g - f - gs)]);
+      // Reports display whole rupees. Round each displayed component, then
+      // derive displayed net so every visible row and total reconciles.
+      const gd = Math.round(g / 100);
+      const fd = Math.round(f / 100);
+      const gsd = Math.round(gs / 100);
+      const nd = gd - fd - gsd;
+      gross += gd;
+      fee += fd;
+      gst += gsd;
+      net += nd;
+      rows.push([formatDate(day), String(amounts.length), rupees(gd * 100), rupees(fd * 100), rupees(gsd * 100), rupees(nd * 100)]);
     }
     return {
-      id: `report_settlements_${MONTHS[m]}`,
-      title: `Settlements for ${month}`,
+      id: `report_estimated_net_collections_${MONTHS[m]}`,
+      title: `Estimated net collections for ${month}`,
       summary: [
-        `${paid.length} payments came to ${rupees(gross)} in ${month}.`,
-        `Fees were ${rupees(fee)} and GST on the fees ${rupees(gst)}, at an assumed ${FEE_RATE * 100}% fee and ${GST_RATE * 100}% GST.`,
-        `That leaves ${rupees(gross - fee - gst)} after fees and GST.`,
+        `${paid.length} captured payments total ${rupees(gross * 100)} in ${month}; this is not a settlement or bank-credit report.`,
+        `Estimated fees are ${rupees(fee * 100)} and GST on those fees is ${rupees(gst * 100)}, using assumed ${FEE_RATE * 100}% fee and ${GST_RATE * 100}% GST rates.`,
+        `Estimated net collections are ${rupees(net * 100)} after displayed whole-rupee rounding.`,
       ],
-      columns: ["Day", "Payments", "Gross", "Fees", "GST", "Net"],
+      columns: ["Day", "Payments", "Gross", "Est. fees", "Est. GST", "Est. net"],
       rows,
-      total: ["Total", String(paid.length), rupees(gross), rupees(fee), rupees(gst), rupees(gross - fee - gst)],
+      total: ["Total", String(paid.length), rupees(gross * 100), rupees(fee * 100), rupees(gst * 100), rupees(net * 100)],
     };
   }
   if (/refund/.test(t)) {
@@ -441,7 +450,7 @@ export function caPack(a: Adapters, merchantId: string): { month: string; report
   const d = new Date(a.clock.now() + IST_MS);
   const prev = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
   const name = MONTHS[prev.getUTCMonth()];
-  const reports = [`Settlements for ${name} with fees and GST`, `Refunds for ${name}`, `Disputes for ${name}`].map((q) => buildReport(a, merchantId, q)!);
+  const reports = [`Estimated net collections for ${name} with fees and GST`, `Refunds for ${name}`, `Disputes for ${name}`].map((q) => buildReport(a, merchantId, q)!);
   return { month: `${name[0].toUpperCase()}${name.slice(1)} ${prev.getUTCFullYear()}`, reports };
 }
 

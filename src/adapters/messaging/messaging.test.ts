@@ -99,6 +99,15 @@ describe("Messaging contract: simulated WhatsApp and email", () => {
     await expect(msg.send({ merchantId: LEAFY, channel: "whatsapp", to: PRIYA, senderMode: "merchant_inbox", body: "Any update?" })).rejects.toSatisfy(code("WINDOW_CLOSED"));
   });
 
+  it("returns the persisted inbound message on retry and rejects key reuse with different content", async () => {
+    const input = { messageId: "inbound-demo-retry", merchantId: LEAFY, channel: "whatsapp" as const, from: PRIYA, body: "Where is my order?" };
+    const first = await msg.receive(input);
+    const retry = await msg.receive(input);
+    expect(retry).toEqual(first);
+    expect(msg.thread(LEAFY, PRIYA).filter((m) => m.direction === "in")).toHaveLength(1);
+    await expect(msg.receive({ ...input, body: "Different message" })).rejects.toThrow(/already used for different content/);
+  });
+
   it("a message to another merchant does not open this merchant's window", async () => {
     await msg.receive({ merchantId: "m_fitloop", channel: "whatsapp", from: PRIYA, body: "Hi" });
     expect(msg.window(LEAFY, PRIYA).open).toBe(false);

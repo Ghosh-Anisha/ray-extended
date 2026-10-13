@@ -4,6 +4,8 @@
 // also starts its 30 s timer tick, so timers fire without anyone opening a page.
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { aiModeFrom } = await import("@/ai");
+    aiModeFrom();
     const { ensureDemoWorld } = await import("@/demo/world");
     await ensureDemoWorld();
   }

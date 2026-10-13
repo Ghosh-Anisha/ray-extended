@@ -12,6 +12,7 @@ import { CHANNEL_LABEL } from "./views";
 export type Thread = {
   id: string;
   at: string;
+  sortAt?: number;
   direction: "in" | "out";
   channel: string;
   with: string;
@@ -34,6 +35,7 @@ function threadFor(a: Adapters, addresses: (string | null)[]): Thread[] {
       out.push({ ms: m.at, t: {
         id: m.id,
         at: dateTime(m.at),
+        sortAt: m.at,
         direction: received ? "in" : "out",
         channel: CHANNEL_LABEL[m.channel],
         with: m.channel === "call" ? callView(a, m).merchant : a.messaging.senderLabel(received ? m.from : m.to),

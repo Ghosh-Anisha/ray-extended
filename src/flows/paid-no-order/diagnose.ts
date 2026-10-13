@@ -14,7 +14,7 @@ import { idAliases } from "../shared/stable-ids";
 
 // The causes this moment knows, and whose side each is on.
 export const CAUSES = {
-  plugin_dropped_capture: { side: "razorpay", razorpayPlugin: true, merchant: "Razorpay's plugin got the payment and dropped it. This one's on Razorpay's plugin, so it's free." },
+  plugin_dropped_capture: { side: "razorpay", razorpayPlugin: true, merchant: "Razorpay's plugin got the payment and dropped it. The evidence points to Razorpay's plugin; compensation terms are not confirmed." },
   site_down: { side: "merchant", razorpayPlugin: false, merchant: "Your site was down when the payment came in, so the order didn't update." },
   webhook_disabled: { side: "merchant", razorpayPlugin: false, merchant: "Payment updates are turned off in your plugin settings, so your site never heard about the payment." },
   wrong_settings: { side: "merchant", razorpayPlugin: false, merchant: "Your plugin's secret doesn't match your Razorpay account, so your site turned the payment update away." },

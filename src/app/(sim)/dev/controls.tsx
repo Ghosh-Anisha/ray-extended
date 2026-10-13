@@ -75,6 +75,7 @@ export function DevControls({ data }: { data: DevData }) {
   const [customerId, setCustomerId] = useState(data.customers[0]?.id ?? "");
   const [channel, setChannel] = useState<"whatsapp" | "email">("whatsapp");
   const [body, setBody] = useState("");
+  const [inboundRequestId, setInboundRequestId] = useState(() => crypto.randomUUID());
 
   async function run(e: FormEvent, url: string, payload: unknown) {
     e.preventDefault();
@@ -192,11 +193,18 @@ export function DevControls({ data }: { data: DevData }) {
       </Simulated>
 
       <Simulated title="Customer sends a message">
-        <form onSubmit={(e) => run(e, "/api/dev/messages", { customerId, channel, body })}>
+        <form onSubmit={async (e) => {
+          e.preventDefault();
+          setStatus("Sending...");
+          const result = await post("/api/dev/messages", { customerId, channel, body, requestId: inboundRequestId });
+          setStatus(result);
+          if (result.startsWith("Done") || result === "No flow handles this yet") setInboundRequestId(crypto.randomUUID());
+          router.refresh();
+        }}>
           <div style={row}>
             <label>
               Customer{" "}
-              <select value={customerId} onChange={(e) => setCustomerId(e.target.value)}>
+              <select value={customerId} onChange={(e) => { setCustomerId(e.target.value); setInboundRequestId(crypto.randomUUID()); }}>
                 {data.customers.map((c) => (
                   <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
@@ -204,14 +212,14 @@ export function DevControls({ data }: { data: DevData }) {
             </label>
             <label>
               Channel{" "}
-              <select value={channel} onChange={(e) => setChannel(e.target.value as "whatsapp" | "email")}>
+              <select value={channel} onChange={(e) => { setChannel(e.target.value as "whatsapp" | "email"); setInboundRequestId(crypto.randomUUID()); }}>
                 <option value="whatsapp">WhatsApp</option>
                 <option value="email">Email</option>
               </select>
             </label>
           </div>
           <div style={row}>
-            <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} cols={60} placeholder="I paid but my order still says pending" />
+            <textarea value={body} onChange={(e) => { setBody(e.target.value); setInboundRequestId(crypto.randomUUID()); }} rows={3} cols={60} placeholder="I paid but my order still says pending" />
           </div>
           <button type="submit" disabled={!body.trim()}>Send as customer</button>
         </form>
