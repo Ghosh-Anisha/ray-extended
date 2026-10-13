@@ -11,6 +11,7 @@ import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import type { Engine, HandleResult } from "@/engine/engine";
 import { normalizeEmail, normalizePhone } from "@/engine/events";
+import { listCollectHandoffs } from "@/flows/subscriptions/handoff";
 import { chaseable } from "./data";
 import { BANK_CREDIT_EVENT, BANKING_SOURCE, COLLECT_HANDOFF, COLLECT_SOURCE, MORNING_KIND, type HandoffPayload } from "./resolve";
 import { dayKey } from "./stages";
@@ -18,9 +19,12 @@ import { dayKey } from "./stages";
 export async function collectMorningRun(engine: Engine, a: Adapters, merchantId: string): Promise<HandleResult[]> {
   const repo = createRepository(a.db);
   const m = repo.merchants.get(merchantId);
+  // Unpaid B2B renewals Subscriptions (Step 9) handed over first, so their
+  // invoices are on file (read-only view included) before buyers are checked.
+  const handed = await pickUpHandoffs(engine, a, merchantId);
   if (!m?.banking_plus) return [];
   const now = a.clock.now();
-  const out: HandleResult[] = [];
+  const out: HandleResult[] = [...handed.filter((r) => r.outcome !== "unmatched" && r.outcome !== "duplicate")];
   for (const b of repo.buyers.list(eq(s.buyers.merchant_id, merchantId))) {
     if (!chaseable(a.db, b, now).length) continue;
     out.push(
@@ -31,6 +35,26 @@ export async function collectMorningRun(engine: Engine, a: Adapters, merchantId:
         sourceId: `collect_morning_${b.id}_${dayKey(now)}`,
         keys: { email: normalizeEmail(b.email), phone: normalizePhone(b.phone) },
         payload: { source: COLLECT_SOURCE, kind: MORNING_KIND, buyer_id: b.id },
+      }),
+    );
+  }
+  return out;
+}
+
+// Step 9 records each hand-off as a collect.handoff note on its own
+// subscription case. Each becomes one engine event (its note id is the
+// source id, so a second run is a duplicate), in Step 9's own shape.
+export async function pickUpHandoffs(engine: Engine, a: Adapters, merchantId: string): Promise<HandleResult[]> {
+  const out: HandleResult[] = [];
+  for (const h of listCollectHandoffs(a.db, merchantId)) {
+    out.push(
+      await engine.handleEvent({
+        kind: "webhook",
+        merchantId,
+        at: h.at,
+        sourceId: `handoff_${h.event_id}`,
+        keys: { email: normalizeEmail(h.buyer.email), phone: normalizePhone(h.buyer.phone) },
+        payload: { source: "subscriptions", event: COLLECT_HANDOFF, subscription_id: h.subscription_id, sub_invoice_id: h.invoice.id, customer_id: h.buyer.customer_id, amount: h.invoice.amount, due_date: h.invoice.billing_start, from_case: h.case_id },
       }),
     );
   }

@@ -134,7 +134,7 @@ Merged `origin/main` into the branch (no rebase). Where main had built the same 
 - The approval guard keeps both: main's "a pause rule covers its own resume" and Collect's rule follow-ups (`followUpOf`) and thresholds (`min`, `max`).
 - The orchestrator's close-from-investigate patch now applies only when the flow passes an `outcome`, so Subscriptions keeps the outcome it sets itself.
 
-**Open item**: Step 9 records its handoff as a `collect.handoff` note on the subscription case (`invoice`, `buyer` objects), while Collect handles a `collect.handoff` engine event in the shape from decision 9. Nothing feeds Step 9's notes into Collect yet.
+**Hand-off from Step 9, connected after the merge**: Step 9 records each hand-off as a `collect.handoff` note on its subscription case (`invoice`, `buyer` objects) and closes that case as `handed_to_collect`. Collect's morning run (`pickUpHandoffs` in `run.ts`) reads those notes with Step 9's own `listCollectHandoffs` and sends each through `handleEvent` once (the note id is the source id), mapping Step 9's fields onto decision 9's payload (`sub_invoice_id` = `invoice.id`, `customer_id` = `buyer.customer_id`, due date = the renewal's billing date). Banking+ merchants get a Collect case for the buyer; others get the invoice on the read-only list. Tested end to end with Stackly's real Acme renewal.
 
 ## Final run
 

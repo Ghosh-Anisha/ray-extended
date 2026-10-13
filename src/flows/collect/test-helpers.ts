@@ -13,6 +13,7 @@ import { createEngine } from "@/engine/engine";
 import { openProposals } from "@/engine/orchestrator";
 import { createRegistry, type EngineContext } from "@/engine/specialist";
 import { requestChange, tap as tapSurface } from "@/surfaces/actions";
+import { createSubscriptionsSpecialist } from "@/flows/subscriptions";
 import { createCollectSpecialist } from ".";
 import { defaultReader } from "./advice";
 import { invoicesOf, openCaseForBuyer, owedOn } from "./data";
@@ -29,11 +30,12 @@ export const BUYERS = {
 } as const;
 export { DAY, HOUR };
 
-export function collectWorld() {
+// withSubscriptions: also register Step 9's flow, for the real hand-off.
+export function collectWorld(opts: { withSubscriptions?: boolean } = {}) {
   const a = seededAdapters();
   const repo = createRepository(a.db);
   const ai = (ctx: EngineContext) => createAi({ repo: ctx.repo, mode: "replay", fixturesDir: DEFAULT_FIXTURES_DIR }).ctx;
-  const engine = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry([createCollectSpecialist({ reader: defaultReader(ai), writer: (ctx, input, caseId) => runJob(ai(ctx), writeSpec, input, { caseId }) })]) });
+  const engine = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry([...(opts.withSubscriptions ? [createSubscriptionsSpecialist({ ai: (ctx: EngineContext) => createAi({ repo: ctx.repo, mode: "replay", fixturesDir: DEFAULT_FIXTURES_DIR }) })] : []), createCollectSpecialist({ reader: defaultReader(ai), writer: (ctx, input, caseId) => runJob(ai(ctx), writeSpec, input, { caseId }) })]) });
 
   const buyer = (id: string) => repo.buyers.get(id)!;
   const caseOf = (buyerId: string) => openCaseForBuyer(a.db, PR, buyerId) ?? lastCaseOf(buyerId);

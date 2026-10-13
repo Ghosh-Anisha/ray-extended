@@ -16,6 +16,7 @@ import { caseFacts } from "@/guards/facts";
 import { NO_CONSENT_BUYER } from "@/db/seed/collect";
 import { caseView, playbookView } from "@/surfaces/views";
 import { morningList, BANKING_PLUS_OFFER } from "./morning";
+import { collectMorningRun } from "./run";
 import { BUYERS, collectWorld, DAY, HOUR, PR, type CollectWorld } from "./test-helpers";
 
 // These tests run days of daily checks on the fake clock; on a busy
@@ -668,6 +669,50 @@ describe("handoff from Subscriptions", () => {
     expect(r2.outcome).toBe("unmatched");
     expect(w.repo.invoices.get("inv_sub_inv_ST_acme_3")).toBeTruthy();
     expect(morningList(w.a, "m_stackly")).toMatchObject({ bankingPlus: false, offer: BANKING_PLUS_OFFER });
+  });
+});
+
+describe("the real hand-off from Subscriptions (Step 9)", () => {
+  it("an unpaid B2B renewal Subscriptions hands over opens a Collect case on the next morning run, once", async () => {
+    w.close();
+    w = collectWorld({ withSubscriptions: true });
+    w.repo.merchants.update("m_stackly", { banking_plus: true });
+    await w.a.webhooks.emit({ merchantId: "m_stackly", event: "subscription.halted", subscriptionId: "sub_ST_acme" });
+    await w.advance(7 * DAY + HOUR);
+    const sub = w.repo.cases.list(eq(s.cases.moment, "subscription"))[0];
+    expect(sub).toMatchObject({ state: "closed", outcome: "handed_to_collect" });
+    // Step 9 only records the note; nothing in Collect yet.
+    expect(w.repo.cases.list(eq(s.cases.moment, "collect"))).toHaveLength(0);
+
+    await collectMorningRun(w.engine, w.a, "m_stackly");
+    const collect = w.repo.cases.list(eq(s.cases.moment, "collect"));
+    expect(collect).toHaveLength(1);
+    const invoice = w.repo.invoices.get("inv_sub_inv_ST_acme_3")!;
+    expect(invoice).toMatchObject({ merchant_id: "m_stackly", amount: 2_400_000, status: "open" });
+    expect(w.notes(collect[0].id, "collect_invoice").map((n) => n.evidence_ref)).toContain(invoice.id);
+    expect(w.repo.buyers.get(invoice.buyer_id)).toMatchObject({ name: "Acme Logistics", email: w.repo.customers.get("cus_acme")!.email });
+    // The subscription case stays closed, and the new buyer has no consent rows: nothing is sent by Collect.
+    expect(w.repo.cases.get(sub.id)!.state).toBe("closed");
+    expect(w.a.db.select().from(s.messages).all().filter((m) => m.direction === "out" && m.case_id === collect[0].id)).toEqual([]);
+    expect(w.ask(collect[0].id)).toMatch(/I can't message Acme Logistics/);
+
+    // A second run is a duplicate: still one case, one invoice.
+    await collectMorningRun(w.engine, w.a, "m_stackly");
+    expect(w.repo.cases.list(eq(s.cases.moment, "collect"))).toHaveLength(1);
+    expect(w.repo.invoices.list(eq(s.invoices.merchant_id, "m_stackly"))).toHaveLength(1);
+  });
+
+  it("without Banking+, the handed-over invoice shows on the read-only list and no case opens", async () => {
+    w.close();
+    w = collectWorld({ withSubscriptions: true });
+    await w.a.webhooks.emit({ merchantId: "m_stackly", event: "subscription.halted", subscriptionId: "sub_ST_acme" });
+    await w.advance(7 * DAY + HOUR);
+    expect(await collectMorningRun(w.engine, w.a, "m_stackly")).toEqual([]);
+    expect(w.repo.cases.list(eq(s.cases.moment, "collect"))).toHaveLength(0);
+    // Its due date is the renewal's billing date, so once that passes it's overdue.
+    const list = morningList(w.a, "m_stackly");
+    expect(list.offer).toEqual(BANKING_PLUS_OFFER);
+    expect(w.repo.invoices.get("inv_sub_inv_ST_acme_3")).toBeTruthy();
   });
 });
 
