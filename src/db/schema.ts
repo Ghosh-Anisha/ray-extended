@@ -93,6 +93,12 @@ export const merchants = sqliteTable("merchants", {
   calling_hours_start: integer("calling_hours_start").notNull().default(600),
   calling_hours_end: integer("calling_hours_end").notNull().default(1140),
   urgent_call_opt_in: bool("urgent_call_opt_in").notNull().default(false),
+  // Subscriptions playbook (migration 0900): a pause lasts this many days
+  // before RAY resumes it (null: 30), and the discount save offer: an offer
+  // made in the Razorpay Dashboard and its percent off (null: none).
+  sub_pause_days: integer("sub_pause_days"),
+  sub_discount_offer_id: text("sub_discount_offer_id"),
+  sub_discount_percent: integer("sub_discount_percent"),
 });
 
 // One row, id "global" (migration 0007). The global kill switch: when on,
@@ -402,6 +408,8 @@ export const subscriptions = sqliteTable("subscriptions", {
   lifetime_value: integer("lifetime_value").notNull(),
   resume_at: integer("resume_at"),
   started_at: integer("started_at").notNull(),
+  // The offer linked to it (migration 0900, apply_offer).
+  offer_id: text("offer_id"),
 });
 
 export const mandates = sqliteTable("mandates", {
@@ -412,6 +420,9 @@ export const mandates = sqliteTable("mandates", {
   status: text("status").notNull(),
   max_amount: integer("max_amount").notNull(),
   expires_at: integer("expires_at"),
+  // When the subscriber approved the mandate, and its reference (migration 0900).
+  authorised_at: integer("authorised_at"),
+  auth_ref: text("auth_ref"),
 });
 
 export const subInvoices = sqliteTable("sub_invoices", {
@@ -424,6 +435,8 @@ export const subInvoices = sqliteTable("sub_invoices", {
   error_reason: text("error_reason"),
   billing_start: integer("billing_start").notNull(),
   billing_end: integer("billing_end").notNull(),
+  // When Razorpay sent the pre-debit notice for this cycle (migration 0900).
+  notified_at: integer("notified_at"),
 });
 
 // Chargebacks

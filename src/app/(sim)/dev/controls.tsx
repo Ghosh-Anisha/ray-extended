@@ -245,6 +245,22 @@ export function DevControls({ data }: { data: DevData }) {
         ))}
       </Simulated>
 
+      <Simulated title="Subscription sign-ups">
+        {["m_fitloop", "m_sharma_tutorials", "m_stackly"].map((id) => (
+          <div key={id} style={row}>
+            <button
+              type="button"
+              onClick={async () => {
+                setStatus(await post("/api/dev/subscription-sweep", { merchantId: id }));
+                router.refresh();
+              }}
+            >
+              Check {id.replace(/^m_/, "").replace(/_/g, " ")} for unfinished sign-ups
+            </button>
+          </div>
+        ))}
+      </Simulated>
+
       <section style={{ border: "1px solid #ccc", borderRadius: 8, padding: "12px 16px", margin: "16px 0", maxWidth: 720 }}>
         <h2 style={{ marginTop: 0, fontSize: 18 }}>Latest cases</h2>
         {data.cases.length === 0 ? (

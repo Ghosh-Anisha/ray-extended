@@ -104,6 +104,8 @@ export type Subscription = {
   customer_id: string | null;
   pending_invoice_id: string | null;
   retries_left: number | null;
+  // The offer linked to it (Step 9, apply_offer), when the source says.
+  offer_id?: string | null;
 };
 
 export type Invoice = {
@@ -183,6 +185,9 @@ export interface RazorpayAdapter {
   pauseSubscription(subscriptionId: string): Promise<Subscription>;
   resumeSubscription(subscriptionId: string): Promise<Subscription>;
   cancelSubscription(subscriptionId: string): Promise<Subscription>;
+  // Step 9: links an offer made in the Dashboard to an active subscription
+  // (Update a Subscription with offer_id). It applies from the next cycle.
+  applyOffer(subscriptionId: string, offerId: string): Promise<Subscription>;
   fetchPendingInvoice(subscriptionId: string): Promise<Invoice | null>;
 }
 

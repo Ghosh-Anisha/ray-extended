@@ -19,6 +19,7 @@ import { ACT_TOOL_SPECS, type ActToolSpec, type GuardName } from "@/tools/act";
 import { isActTool, type ActToolName } from "@/tools/names";
 import { CHECKS, guardContext, guardsFor, liveRefundActions, type Failure } from "./checks";
 
+export { runsAlone } from "./alone";
 export { BANK_COMPLAINT, caseKnows, MATCH_WINDOW_MS, type Failure } from "./checks";
 export { caseFacts } from "./facts";
 export { formatDate, formatMoney, formatTime } from "./format";

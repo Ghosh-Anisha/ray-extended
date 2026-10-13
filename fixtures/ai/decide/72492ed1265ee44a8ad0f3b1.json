@@ -1,0 +1,46 @@
+{
+  "job": "decide",
+  "key": "72492ed1265ee44a8ad0f3b1",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "subscription",
+    "case": {
+      "situation": "B",
+      "cause": "retries_ran_out",
+      "amount": "₹499",
+      "plan": "FitLoop Monthly",
+      "subscription_status": "halted",
+      "confidence": "sure"
+    },
+    "findings": [
+      {
+        "text": "Call to Karan Mehta: Call to Karan · 37 s · Answered.",
+        "evidenceRef": "cev_ref1"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_sub_call_m_fitloop",
+        "moment": "subscription",
+        "text": "Call subscribers worth more than ₹500 with the save offer",
+        "status": "approved"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "send_update_link",
+      "pause_subscription",
+      "cancel_subscription",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "send_update_link",
+    "reason": "Karan said the salary comes in mid-month and will pay then, so sending the invoice link again is the next step.",
+    "rule_id": null,
+    "confidence": "likely"
+  }
+}

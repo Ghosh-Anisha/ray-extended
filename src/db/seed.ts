@@ -8,6 +8,7 @@ import { openMigratedDb, type Db } from "./client";
 import { proposeSetupRules } from "@/engine/setup-rules";
 import { createRepository } from "./repository";
 import { seedInternational } from "./seed/international";
+import { seedSubscriptions } from "./seed/subscriptions";
 import type * as s from "./schema";
 
 export const SEED_NOW = Date.parse("2026-10-12T10:00:00+05:30");
@@ -406,6 +407,7 @@ export function seed(db: Db, now: number = SEED_NOW) {
     ]);
 
     seedInternational(db, now);
+    seedSubscriptions(db); // Step 9: mandate approvals, pre-debit notices, subscription playbook values
   });
 }
 
