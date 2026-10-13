@@ -82,9 +82,11 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
   if (ap.by === "rule") {
     const rule = g.repo.playbookRules.get(ap.ruleId);
     const live = rule && rule.status === "approved" && rule.merchant_id === g.kase.merchant_id && rule.moment === g.kase.moment;
+    // The rule's own tool and kind; a pause rule also covers that pause's
+    // scheduled resume (Step 9).
     const covers = (r: NonNullable<typeof rule>) =>
-      (r.rule_json.tool === undefined || r.rule_json.tool === g.tool) && (r.rule_json.kind === undefined || r.rule_json.kind === g.args.kind);
-    // A follow-up of an action this rule approved is covered by the rule too.
+      (r.rule_json.tool === undefined || r.rule_json.tool === g.tool || resumesOwnPause(g, r.id)) && (r.rule_json.kind === undefined || r.rule_json.kind === g.args.kind);
+    // A follow-up of an action this rule approved is covered by the rule too (Step 11).
     const ok = live && (covers(rule) || (ap.followUpOf !== undefined && ruleFollowUp(g, ap.ruleId, ap.followUpOf)));
     if (!ok) return [fail("approval", "rule_not_approved", "That rule isn't approved for this, so this needs your tap.", { rule_id: ap.ruleId })];
     // A playbook threshold ("call above ₹X", "up to ₹X") is part of the rule.
@@ -107,6 +109,17 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
     return [fail("approval", "different_action", "You approved a different action, so this needs your tap.", { proposal_id: ap.tap.proposalId })];
   }
   return [];
+}
+
+// Step 9: a rule that approved a pause also covers that pause's scheduled
+// resume, the same bundle a tap approves with its follow-ups: only
+// resume_subscription, only on this case, only for a subscription this rule
+// paused here.
+function resumesOwnPause(g: GuardContext, ruleId: string) {
+  if (g.tool !== "resume_subscription") return false;
+  return g.repo.actions
+    .list(and(eq(s.actions.case_id, g.kase.id), eq(s.actions.tool, "pause_subscription"), eq(s.actions.status, "done")))
+    .some((x) => x.approved_by === ruleId && x.args.subscription_id === g.args.subscription_id);
 }
 
 const sameArgs = (g: GuardContext, x: { tool: string; args: Record<string, unknown> }) =>

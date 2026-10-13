@@ -17,7 +17,9 @@ export const engineEvent = z
     // Taps and timers always name their case.
     caseId: z.string().optional(),
     keys: z
-      .object({ paymentId: z.string().optional(), email: z.string().optional(), phone: z.string().optional() })
+      // subscriptionId (Step 9): subscription and token events carry it, so
+      // a later event on the same subscription joins its case.
+      .object({ paymentId: z.string().optional(), email: z.string().optional(), phone: z.string().optional(), subscriptionId: z.string().optional() })
       .default({}),
     // Set when the customer asks something new: open a new case, never join.
     newQuery: z.boolean().optional(),
@@ -60,6 +62,7 @@ export const normalizePhone = (v: string | null | undefined) => {
 
 export function fromWebhook(d: Delivery): EngineEvent {
   const payment = d.event.payload.payment?.entity as { contact?: string | null; email?: string | null } | undefined;
+  const subscriptionId = (d.event.payload.subscription?.entity.id ?? d.event.payload.token?.entity.subscription_id) as string | undefined;
   return {
     kind: "webhook",
     merchantId: d.deliveryRow.merchant_id,
@@ -69,6 +72,7 @@ export function fromWebhook(d: Delivery): EngineEvent {
       paymentId: d.deliveryRow.payment_id ?? undefined,
       email: normalizeEmail(payment?.email),
       phone: normalizePhone(payment?.contact),
+      ...(subscriptionId ? { subscriptionId } : {}),
     },
     payload: {
       source: "razorpay",

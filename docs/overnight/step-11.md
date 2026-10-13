@@ -18,10 +18,9 @@ existing test changes, except one expected seed count (see the last item).
 | `src/guards/checks.ts` | `consent`: if the recipient is a buyer, every channel needs `opted_in`. `callRules` and `place_call`: the callee can be a buyer (name is the contact name; "Asked not to call" records a buyer opt-out). `firstMessage`: on a Collect case, a message carrying a Razorpay link must state that link's own amount (a reminder link covers some invoices, not the whole case). | Buyer consent on every channel; calls to buyers in the Call stage; rule 7 as scoped for reminders. |
 | `src/tools/act.ts` | `place_call` looks up a buyer when the number isn't a customer's. | Same. |
 | `src/guards/facts.ts` | `caseFacts` also takes `note` events with `payload.kind === "case_facts"` (written by code only). | Rule 6: "18 days overdue", "2 invoices", "45 days", "43B(h)" must be case data. Code computes them and writes them on the case before a message uses them. |
-| `src/engine/specialist.ts` | Optional `route?(ctx, event)` hook: return the id of an open case of this moment the event belongs to. `InvestigateResult` gets optional `outcome`. | A buyer reply or a bank credit can come weeks after the last activity, past the 7-day grouping window. |
-| `src/engine/engine.ts` | When grouping finds no case, ask each specialist's `route` before running detectors. | Same. |
+| `src/engine/specialist.ts` | `InvestigateResult` gets optional `outcome`. (My `route` hook was dropped in the merge with main: main's identical `claim` hook is used instead.) | A buyer reply or a bank credit can come weeks after the last activity, past the 7-day grouping window. |
 | `src/engine/state-machine.ts` | `SETTLED_ONLY`: `likely`/`waiting_customer` → `closed` is allowed only with outcome `collected`. | The money landing closes a case that never needed a tap. Without it the only way to closed is acting (a tap or rule), but Sure credits post alone. |
-| `src/engine/orchestrator.ts` | When `investigate` returns `to: "closed"`, it sets `closed_at`, `outcome` and `counts_as_saved` the same way the verify branch does. | Same; no existing flow returns closed from investigate. |
+| `src/engine/orchestrator.ts` | When `investigate` returns `to: "closed"` **with an `outcome`**, it sets `closed_at`, `outcome` and `counts_as_saved` the same way the verify branch does. Without an outcome, a flow closes exactly as before (Subscriptions sets its own outcome). | The money landing closes a case. |
 | `src/engine/index.ts` | One line registering the Collect specialist. | As asked. |
 | `src/db/seed.ts` | One line calling `seedCollect`. | As asked. |
 | `src/db/seed.test.ts` | `messaging_consents` expected count 13 → 23, and `playbook_rules` 8 → 9, each with a comment. | The 10 buyer consent rows, and PackRight's proposed call threshold rule (off until approved). The counts are still exact (not weakened). |
@@ -117,10 +116,30 @@ Each: what, why, and the alternative not taken.
 - A non-Banking+ merchant sees the read-only view only: `collect.test.ts` and `morning-list.test.tsx`.
 - From the brief: nothing reaches Kohli (no consent rows) on any channel, also checked at the guard and adapter; Sidhu's WhatsApp opt-out; gentle runs alone; firm, Call and MSME need a tap; key accounts get a tap per call; one tap covers a non-key Call stage; "don't call" records the opt-out; call promise goes into the ledger; buyer voice note read like text; every reply type; remittance advice (agrees → Sure; instructions inside → nothing marked paid); collect.handoff fired directly; Samadhaan only on request; every outgoing message grounded, no banned words, no em dashes, links only Razorpay links.
 
-### Final run
+### Notes for review
 
-On `step-11-collect`, rebased on `origin/main`, after the review changes:
+- **Migration journal**: after merging main (Steps 8 to 10), `1100_collect` is idx 13 and `1101_consent_address` idx 14, with `when` values after `1000_chargebacks`. Main's entries are unchanged.
+- **Seed counts**: `messaging_consents` 23 and `playbook_rules` 11 in `src/db/seed.test.ts` (exact, not loosened).
+- **Worktree**: built in `../ray-extended-step11`, because the main checkout had uncommitted Step 10 work. An early commit picked up the worktree's `node_modules` symlink (`.gitignore` has `node_modules/`, which doesn't match a symlink); I rewrote the branch's commits to drop it and force-pushed with lease, before any review. No commit on the branch contains it.
+- **Not built**: a real Samadhaan submission (it's a draft for the merchant to file), and real attachments (the document and corrected-invoice replies say "attached"; Simulated).
+- **Test timeout**: `collect.test.ts` sets a 60 s per-test timeout. Its tests run days of daily checks on the fake clock, and with several sessions on this machine some took 6 to 30 s instead of under 1 s. No assertion was loosened.
+- **Review changes**: the test "Sure but above the approval limit waits for a tap" was replaced, because review decision 3 changed that behaviour. It was a test written in this step.
 
-- `npm test`: 30 files passed, 1 skipped; 427 tests passed, 27 skipped (the same 27 live-key tests skipped on main).
+## Merge with main (Steps 8, 9 and 10)
+
+Merged `origin/main` into the branch (no rebase). Where main had built the same shared piece, Collect moved onto main's version instead of keeping two:
+- `claim` (main) replaces my `route` hook; Collect implements `claim`.
+- Follow-ups on the card: main's `then` lines ("Also on this tap: …") and follow-up `label`s. Collect labels its follow-ups, and its `covers` lines are added to `then` and `alsoDoes`. My separate "The same tap also covers:" list was removed so nothing shows twice.
+- The merchant's question: main's `merchant_question` note. Collect writes that kind instead of `collect_ask`.
+- The approval guard keeps both: main's "a pause rule covers its own resume" and Collect's rule follow-ups (`followUpOf`) and thresholds (`min`, `max`).
+- The orchestrator's close-from-investigate patch now applies only when the flow passes an `outcome`, so Subscriptions keeps the outcome it sets itself.
+
+**Open item**: Step 9 records its handoff as a `collect.handoff` note on the subscription case (`invoice`, `buyer` objects), while Collect handles a `collect.handoff` engine event in the shape from decision 9. Nothing feeds Step 9's notes into Collect yet.
+
+## Final run
+
+After merging `origin/main` (b2ca3d7), with `npm install` and `npm run db:reset && npm run db:seed`:
+
+- `npm test`: 36 files passed, 1 skipped; 574 tests passed, 27 skipped.
 - `npm run lint`: clean.
 - `npm run typecheck`: clean.

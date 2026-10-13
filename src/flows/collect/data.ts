@@ -19,7 +19,7 @@ export const N = {
   stage: "collect_stage_done", // { stage, invoice_ids, how }
   pending: "collect_pending", // { item_id, ask, proposal|null, meta }
   resolved: "collect_resolved", // { item_id, how }
-  ask: "collect_ask", // { text }: the one question the case page shows
+  ask: "merchant_question", // { text }: the one question the case page shows (the shared note kind)
   flag: "collect_flag", // { invoice_id, reason }
   pause: "collect_pause", // { invoice_ids, until, why }
   tds: "collect_tds_claimed", // { invoice_id, amount, credit_id }

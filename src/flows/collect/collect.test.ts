@@ -714,10 +714,11 @@ describe("follow-ups: covered by the same approval and listed on the card", () =
     const kase = w.caseOf(BUYERS.mehra)!;
     const p = caseView(w.a, kase.id).yourCall.primary!;
     expect(p.alsoDoes).toEqual([
-      "Then send the firm reminder by WhatsApp to +919800000304",
-      "Then send the firm reminder by WhatsApp to +919800000304",
-      "Then send the firm reminder by WhatsApp to +919800000304",
+      "WhatsApp the firm reminder for PR/26-27/2404 to +919800000304",
+      "WhatsApp the firm reminder for PR/26-27/2409 to +919800000304",
+      "WhatsApp the firm reminder for PR/26-27/2414 to +919800000304",
     ]);
+    expect(p.then[0]).toBe("Also on this tap: WhatsApp the firm reminder for PR/26-27/2404 to +919800000304");
   });
 
   it("a call lists its details email and its retries; the email goes after the call under the same tap", async () => {
@@ -727,7 +728,8 @@ describe("follow-ups: covered by the same approval and listed on the card", () =
     await w.advance(3 * DAY + HOUR);
     const p = caseView(w.a, kase.id).yourCall.primary!;
     expect(p.label).toBe("Call Anil");
-    expect(p.alsoDoes).toEqual(["Then send the status by email to accounts@mehrasnacks.example.com", "Up to 2 more tries on the next days if there's no answer"]);
+    expect(p.alsoDoes).toEqual(["Email Anil the details after the call", "Up to 2 more tries on the next days if there's no answer"]);
+    expect(p.then).toEqual(["Also on this tap: Email Anil the details after the call", "Also on this tap: Up to 2 more tries on the next days if there's no answer"]);
     w.a.voice.setCallSim(w.buyer(BUYERS.mehra).phone!, { outcome: "answered", reply: "ok", promise: "pay on 20 Oct" });
     await w.tapLabel(kase.id, "Call Anil");
     const details = w.repo.actions.list(eq(s.actions.tool, "send_message")).find((x) => /Here are the details we called about/.test(String(x.args.body)))!;

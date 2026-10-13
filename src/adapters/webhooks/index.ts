@@ -9,7 +9,7 @@
 import { z } from "zod";
 import type { Db } from "@/db/client";
 import { createRepository } from "@/db/repository";
-import type { webhookDeliveries } from "@/db/schema";
+import type { subscriptions, webhookDeliveries } from "@/db/schema";
 import type { Clock } from "../clock";
 import { newId } from "../ids";
 import type { StoreConnector, WebhookReceipt } from "../store";
@@ -23,12 +23,20 @@ export const WEBHOOK_EVENTS = [
   "refund.failed",
   "payment.dispute.created",
   "payment.dispute.action_required",
+  // The outcome of a dispute (Step 10). They report the dispute as it is.
+  "payment.dispute.won",
+  "payment.dispute.lost",
+  "payment.dispute.closed",
   "payment.downtime.started",
   "payment.downtime.updated",
   "payment.downtime.resolved",
   "subscription.pending",
   "subscription.halted",
   "subscription.cancelled",
+  // Step 9: the sign-up finished, and a cycle was paid (by the pending
+  // invoice's link or by the bank's retry).
+  "subscription.activated",
+  "subscription.charged",
   "token.cancelled",
   "payment_link.expired",
 ] as const;
@@ -44,12 +52,17 @@ export const EVENT_REF: Record<WebhookEventName, keyof EmitRefs> = {
   "refund.failed": "refundId",
   "payment.dispute.created": "disputeId",
   "payment.dispute.action_required": "disputeId",
+  "payment.dispute.won": "disputeId",
+  "payment.dispute.lost": "disputeId",
+  "payment.dispute.closed": "disputeId",
   "payment.downtime.started": "downtime",
   "payment.downtime.updated": "downtime",
   "payment.downtime.resolved": "downtime",
   "subscription.pending": "subscriptionId",
   "subscription.halted": "subscriptionId",
   "subscription.cancelled": "subscriptionId",
+  "subscription.activated": "subscriptionId",
+  "subscription.charged": "subscriptionId",
   "token.cancelled": "tokenId",
   "payment_link.expired": "linkId",
 };
@@ -109,6 +122,54 @@ export function createWebhookSim(db: Db, clock: Clock, store: StoreConnector): W
     return v;
   };
 
+  // Step 9. The next cycle's invoice, issued after the latest one.
+  function issueNextInvoice(sub: typeof subscriptions.$inferSelect) {
+    const cycles = repo.subInvoices.list().filter((i) => i.subscription_id === sub.id);
+    const last = cycles.sort((x, y) => x.billing_start - y.billing_start).at(-1);
+    const start = last ? last.billing_end : clock.now();
+    const id = `${sub.id.replace("sub_", "inv_")}_${cycles.length + 1}`;
+    repo.subInvoices.insert({
+      id, subscription_id: sub.id, amount: sub.amount, status: "issued", attempts: 1, error_reason: null,
+      billing_start: start, billing_end: start + (last ? last.billing_end - last.billing_start : 30 * 86_400_000), notified_at: start - 86_400_000,
+    });
+    repo.subscriptions.update(sub.id, { pending_invoice_id: id });
+    return id;
+  }
+
+  // Step 9. A cycle is paid: a captured payment from the subscriber for the
+  // pending invoice, which is marked paid; the subscription is active again.
+  // With nothing pending, the bank charged a cycle that was already paid:
+  // a second payment on the latest paid invoice (the duplicate). activated
+  // also marks the mandate authorised.
+  function chargeSubscription(sub: typeof subscriptions.$inferSelect, activated: boolean) {
+    const customer = repo.customers.get(sub.customer_id);
+    const now = clock.now();
+    const pendingId = sub.pending_invoice_id;
+    const invoice = pendingId
+      ? repo.subInvoices.get(pendingId)
+      : repo.subInvoices
+          .list()
+          .filter((i) => i.subscription_id === sub.id && i.status === "paid")
+          .sort((x, y) => x.billing_start - y.billing_start)
+          .at(-1);
+    if (activated) {
+      for (const md of repo.mandates.list().filter((x) => x.subscription_id === sub.id && x.status !== "active")) {
+        repo.mandates.update(md.id, { status: "active", authorised_at: now });
+      }
+    }
+    let paid: { paymentId: string; invoiceId: string } | null = null;
+    if (invoice && (pendingId || !activated)) {
+      const pay = repo.rzpPayments.insert({
+        id: newId("pay"), merchant_id: sub.merchant_id, status: "captured", amount: invoice.amount, method: "upi",
+        contact: customer?.phone ?? null, email: customer?.email ?? null, receipt: invoice.id, created_at: now, captured_at: now,
+      });
+      if (pendingId) repo.subInvoices.update(invoice.id, { status: "paid", payment_id: pay.id, attempts: invoice.attempts + 1 });
+      paid = { paymentId: pay.id, invoiceId: invoice.id };
+    }
+    repo.subscriptions.update(sub.id, { status: "active", pending_invoice_id: null, ...(pendingId ? { retries_left: 3 } : {}) });
+    return paid;
+  }
+
   function build(input: z.infer<typeof emitInput>): { payload: RazorpayEvent["payload"]; paymentId: string | null; orderId: string | null } {
     const { merchantId: m, event } = input;
     const now = clock.now();
@@ -165,8 +226,19 @@ export function createWebhookSim(db: Db, clock: Clock, store: StoreConnector): W
       }
       case "subscriptionId": {
         const id = need(input.subscriptionId, event, "subscriptionId");
-        owned(repo.subscriptions.get(id), "Subscription", id, m);
+        const before = owned(repo.subscriptions.get(id), "Subscription", id, m);
+        if (event === "subscription.activated" || event === "subscription.charged") {
+          const paid = chargeSubscription(before, event === "subscription.activated");
+          out.subscription = { entity: { ...repo.subscriptions.get(id)!, entity: "subscription" } };
+          if (paid) {
+            addPayment(paid.paymentId);
+            out.invoice = { entity: { ...repo.subInvoices.get(paid.invoiceId)!, entity: "invoice" } };
+          }
+          break;
+        }
         const status = event.split(".")[1] as "pending" | "halted" | "cancelled";
+        // A new cycle fell due with nothing pending: Razorpay issues its invoice.
+        if (status === "pending" && !before.pending_invoice_id) issueNextInvoice(before);
         const sub = repo.subscriptions.update(id, { status, ...(status === "halted" ? { retries_left: 0 } : {}) })!;
         out.subscription = { entity: { ...sub, entity: "subscription" } };
         break;

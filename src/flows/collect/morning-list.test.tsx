@@ -94,8 +94,7 @@ describe("the morning list", () => {
     await w.morning();
     const v = caseView(w.a, w.caseOf(BUYERS.mehra)!.id);
     const text = textOf(render("phone", <ApprovalCard card={v.card!} merchantId={PR} />));
-    expect(text).toContain("The same tap also covers:");
-    expect(text).toContain("Then send the firm reminder by WhatsApp to +919800000304");
-    expect(textOf(render("desktop", <CasePage v={v} />))).toContain("The same tap also covers:");
+    expect(text).toContain("Also on this tap: WhatsApp the firm reminder for PR/26-27/2404 to +919800000304");
+    expect(textOf(render("desktop", <CasePage v={v} />))).toContain("Also on this tap: WhatsApp the firm reminder for PR/26-27/2414 to +919800000304");
   });
 });

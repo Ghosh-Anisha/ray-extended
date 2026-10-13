@@ -7,7 +7,7 @@ import { Button, Heading, Text } from "@razorpay/blade/components";
 import Link from "next/link";
 import { useState } from "react";
 import type { CaseView, Finding, Proposal } from "@/surfaces/views";
-import { ALSO_COVERS, DOING_IT, EMPTY, HANDLE_MYSELF, SOMETHING_ELSE } from "@/surfaces/words";
+import { DOING_IT, EMPTY, HANDLE_MYSELF, SOMETHING_ELSE } from "@/surfaces/words";
 import { ApprovalLabel, Chip, HoldBanner, SimulatedTag, useAction, type PostResult } from "../bits";
 import { useView } from "../view";
 import { CallCard, PreCallNotice, VoiceNoteBubble } from "../voice";
@@ -236,16 +236,11 @@ function TapButton({ p, variant, caseId, busy, onTap }: { p: Proposal; variant: 
         {busy === p.id ? DOING_IT : p.label}
       </Button>
       <ApprovalLabel covered={p.covered} />
-      {p.alsoDoes.length > 0 && (
-        <div className="muted">
-          {ALSO_COVERS}
-          <ul style={{ margin: "2px 0 0", paddingLeft: 18 }}>
-            {p.alsoDoes.map((x, i) => (
-              <li key={i}>{x}</li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {(p.then ?? []).map((x) => (
+        <span key={x} className="muted" style={{ fontSize: 12 }}>
+          {x}
+        </span>
+      ))}
     </div>
   );
 }

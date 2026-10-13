@@ -47,7 +47,7 @@ export function collectWorld() {
   const findings = (caseId: string) => events(caseId).filter((e) => e.type === "finding").map((e) => String(e.payload.text));
   const proposals = (caseId: string) => openProposals({ db: a.db, repo, clock: a.clock }, caseId);
   const state = (caseId: string) => repo.cases.get(caseId)!;
-  const ask = (caseId: string) => String(notes(caseId, "collect_ask").at(-1)?.payload.text ?? "");
+  const ask = (caseId: string) => String(notes(caseId, "merchant_question").at(-1)?.payload.text ?? "");
 
   // Everything sent to a buyer's addresses, on any channel.
   const toBuyer = (buyerId: string) => {

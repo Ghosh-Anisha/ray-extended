@@ -1,0 +1,22 @@
+{
+  "job": "understand",
+  "key": "742c60a59265deb28248817d",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v2",
+  "model": null,
+  "input": {
+    "text": "It came yesterday but the hamper was damaged, half the cookies were broken."
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "refund_or_cancel",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "dispute_reply": "complaint",
+    "confidence": "sure"
+  }
+}

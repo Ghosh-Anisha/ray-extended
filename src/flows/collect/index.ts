@@ -320,13 +320,14 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     const now = ctx.clock.now();
     const lines = invs.map((i) => line(ctx, i));
     const built = M.firm(b, m.name, lines, now);
-    const actions: { tool: string; args: Record<string, unknown> }[] = [];
+    const actions: { tool: string; args: Record<string, unknown>; label?: string }[] = [];
     if (b.email && consented(ctx, b, "email")) actions.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "firm_reminder", body: built.body } });
     if (b.phone && m.whatsapp_on && consented(ctx, b, "whatsapp")) {
       for (const l of lines) {
         actions.push({
           tool: "send_message",
           args: { channel: "whatsapp", to: b.phone, sender_mode: "merchant_inbox", kind: "firm_reminder", template_id: "invoice_reminder", params: { name: firstNameOf(b.contact_name), invoice: l.number, amount: M.exact(l.owed), merchant: m.name, date: formatDate(l.due_date) } },
+          label: `WhatsApp the firm reminder for ${l.number} to ${b.phone}`,
         });
       }
     }
@@ -375,7 +376,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
   function callFollowUps(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[]) {
     if (!b.email || !consented(ctx, b, "email")) return { followUps: [], facts: {} };
     const built = M.callDetails(b, merchantOf(ctx, kase).name, invs.map((i) => line(ctx, i)), ctx.clock.now());
-    return { followUps: [{ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "status", body: built.body } }], facts: built.facts };
+    return { followUps: [{ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "status", body: built.body }, label: `Email ${firstNameOf(b.contact_name)} the details after the call` }], facts: built.facts };
   }
 
   const RETRIES_LINE = `Up to ${CALL_ATTEMPTS - 1} more tries on the next days if there's no answer`;
@@ -650,20 +651,20 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     const options = match.options.slice(0, 3);
     for (const [i, alloc] of options.entries()) {
       const itemId = `post_${credit.id}_${i + 1}`;
-      const followUps: { tool: string; args: Record<string, unknown> }[] = [];
+      const followUps: { tool: string; args: Record<string, unknown>; label?: string }[] = [];
       let facts: Record<string, string> = {};
       if (i === 0 && match.kind === "tds" && b.email && consented(ctx, b, "email")) {
         const tds = match.tds.map((t) => ({ number: byId.get(t.invoice_id)!.number, amount: t.amount }));
         const built = M.askTdsCertificate(b, m.name, credit.amount, tds, b.usual_tds_rate, ctx.clock.now());
         facts = built.facts;
-        followUps.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "question", body: built.body } });
+        followUps.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "question", body: built.body }, label: `Ask ${firstNameOf(b.contact_name)} for the TDS certificate by email` });
       }
       if (i === 0 && match.kind === "part" && b.email && consented(ctx, b, "email")) {
         const rest = invoicesOf(ctx, kase.id).reduce((n, x) => n + owedOn(ctx.db, x), 0) - credit.amount;
         const built = M.askRest(b, m.name, credit.amount, rest);
         if (rest > 0) {
           facts = built.facts;
-          followUps.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "question", body: built.body } });
+          followUps.push({ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "question", body: built.body }, label: `Ask ${firstNameOf(b.contact_name)} by email when the rest will be paid` });
         }
       }
       const tdsLine = match.kind === "tds" && i === 0 ? ` and ask ${firstNameOf(b.contact_name)} for the TDS certificate` : "";
@@ -1020,7 +1021,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
       return { moment: "collect", confidence: "sure", amount: owed, alert: M.owes(b, owed, oldest) } satisfies Detection;
     },
 
-    route(ctx, e) {
+    claim(ctx, e) {
       const k = kindOf(e, CHECK_TIMER);
       if (!k || !["morning", "handoff", "credit", "buyer_message"].includes(k)) return null;
       if (!fullLoop(ctx, e.merchantId)) return null;

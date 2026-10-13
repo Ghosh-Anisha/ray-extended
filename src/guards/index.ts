@@ -19,6 +19,7 @@ import { ACT_TOOL_SPECS, type ActToolSpec, type GuardName } from "@/tools/act";
 import { isActTool, type ActToolName } from "@/tools/names";
 import { CHECKS, guardContext, guardsFor, liveRefundActions, type Failure } from "./checks";
 
+export { runsAlone } from "./alone";
 export { BANK_COMPLAINT, caseKnows, MATCH_WINDOW_MS, type Failure } from "./checks";
 export { caseFacts } from "./facts";
 export { formatDate, formatMoney, formatTime } from "./format";
@@ -40,6 +41,10 @@ export type GuardedCallContext = {
   caseId: string;
   approval?: Approval;
   idempotencyKey?: string;
+  // Optional: hold the action until this time (the Stop window on an
+  // automatic dispute lane). It is held exactly like the refund hold: Stop
+  // (Undo) cancels it, and every guard runs again when it is released.
+  holdUntil?: number;
 };
 
 export type GuardedResult =
@@ -169,7 +174,9 @@ export async function guardedCall(tool: string, rawArgs: unknown, ctx: GuardedCa
     if (!failures.length && tool === "refund" && liveRefundActions(repo, args.payment_id as string, key).length) {
       failures.push({ guard: "one_refund", code: "refund_pending", reason: "A refund for this payment is already on hold or done." });
     }
-    const hold = !failures.length && spec.holdMs ? a.clock.now() + spec.holdMs : null;
+    const now = a.clock.now();
+    const asked = ctx.holdUntil !== undefined && ctx.holdUntil > now ? ctx.holdUntil : null;
+    const hold = failures.length ? null : (asked ?? (spec.holdMs ? now + spec.holdMs : null));
     const fields = {
       case_id: kase.id,
       tool,

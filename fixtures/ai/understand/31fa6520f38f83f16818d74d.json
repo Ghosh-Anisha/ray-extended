@@ -1,0 +1,22 @@
+{
+  "job": "understand",
+  "key": "31fa6520f38f83f16818d74d",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v2",
+  "model": null,
+  "input": {
+    "text": "Who is this? I'm busy, message me next week."
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "other",
+    "language": "en",
+    "mood": "calm",
+    "legal_or_chargeback_words": [],
+    "dispute_reply": "other",
+    "confidence": "sure"
+  }
+}

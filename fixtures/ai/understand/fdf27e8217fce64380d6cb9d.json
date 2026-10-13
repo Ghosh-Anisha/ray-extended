@@ -1,0 +1,23 @@
+{
+  "job": "understand",
+  "key": "fdf27e8217fce64380d6cb9d",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "I didn't authorise this renewal of 499. I'll raise a chargeback with my bank."
+  },
+  "output": {
+    "amount": 499,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "subscription",
+    "language": "en",
+    "mood": "angry",
+    "legal_or_chargeback_words": [
+      "chargeback"
+    ],
+    "confidence": "sure"
+  }
+}
