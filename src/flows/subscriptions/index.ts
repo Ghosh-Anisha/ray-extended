@@ -40,7 +40,7 @@ import { idAliases } from "../shared/stable-ids";
 import { adaptersOf, messageArgs, recipientFor, settingsOf, subscriberBy, type Customer, type Recipient } from "./channel";
 import { emitCollectHandoff } from "./handoff";
 import * as L from "./lines";
-import { answerOf, messageKind, OFFER_FOR, reasonOf, refundAllowed, RULE_TOOL, ruleText, rulesFor, type Offer, type Reason } from "./offers";
+import { answerOf, changeTarget, messageKind, OFFER_FOR, reasonOf, refundAllowed, RULE_TOOL, ruleText, rulesFor, type Offer, type Reason } from "./offers";
 import { SETUP_EVENT } from "./sweep";
 
 export { setupSweep, SETUP_EVENT, SETUP_WAIT_MS } from "./sweep";
@@ -99,7 +99,7 @@ export const N = {
   promise: "sub_promise_sent",
 } as const;
 
-type Option = "offer_pause" | "offer_other_method" | "cancel" | "call" | "reply_proof" | "refund" | "resend_link" | "pause_now" | "resume";
+type Option = "offer_discount" | "offer_pause" | "offer_other_method" | "cancel" | "call" | "reply_proof" | "refund" | "resend_link" | "pause_now" | "resume";
 type Sub = typeof s.subscriptions.$inferSelect;
 
 export type SubscriptionsOptions = { ai?: (ctx: EngineContext) => Ai };
@@ -211,14 +211,19 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
     return { ok: true, reason: `RAY sent ${c.first} the link to pay ${formatMoney(invoice.amount)} by ${r.channel === "email" ? "email" : "WhatsApp"}.` };
   }
 
-  // Calls only go to subscribers worth more than the merchant's limit who
-  // opted in to calls; the call_rules guard checks again at call time.
-  function callable(ctx: EngineContext, kase: Case) {
+  // Calls (design language section 5, decision 3): only to subscribers who
+  // opted in to calls, never B2B. The playbook's "call subscribers worth
+  // more than ₹X" rule is the merchant's approval: above it, RAY calls under
+  // that rule id. Without the rule, RAY offers the call for a tap. The
+  // call_rules guard checks opt-in, calling hours and the script at call time.
+  function callPlan(ctx: EngineContext, kase: Case) {
     const c = context(ctx, kase);
-    const limit = c.merchant.sub_call_value_limit;
-    if (limit === null || c.sub.b2b || !c.customer.phone) return false;
-    if (c.sub.lifetime_value <= limit) return false;
-    return c.a.messaging.consent(c.customer.id, "call") === "opted_in";
+    const optedIn = !c.sub.b2b && !!c.customer.phone && c.a.messaging.consent(c.customer.id, "call") === "opted_in";
+    const rule = ctx.repo.playbookRules
+      .list(and(eq(s.playbookRules.merchant_id, kase.merchant_id), eq(s.playbookRules.moment, "subscription"), eq(s.playbookRules.status, "approved")))
+      .find((r) => r.rule_json.tool === "place_call" && r.rule_json.kind === "subscription_save" && typeof r.rule_json.min_value === "number");
+    const above = rule ? c.sub.lifetime_value > (rule.rule_json.min_value as number) : false;
+    return { optedIn, rule: rule ?? null, above };
   }
 
   // The first time inside the merchant's calling hours at or after `at`.
@@ -255,6 +260,19 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
     // A merchant who set the pause to one 30-day cycle (Sharma Tutorials)
     // means "skip a month"; the default pause is worded as a month's break.
     const skip = c.merchant.sub_pause_days === 30;
+    if (offer === "discount") {
+      const percent = `${c.merchant.sub_discount_percent}%`;
+      return {
+        id: newId("prop"),
+        option: "offer_discount",
+        label: `Offer ${c.first} ${percent} off next month`,
+        tool: "send_message",
+        args: messageArgs(ctx, kase, r, "question", L.discountOfferLine(c.bits, percent, c.settings.signOff)),
+        covered: false,
+        // If they say yes, RAY links your Dashboard offer with the same approval.
+        followUps: [{ tool: "apply_offer", args: { subscription_id: c.sub.id, offer_id: c.merchant.sub_discount_offer_id! } }],
+      };
+    }
     if (offer === "pause") {
       const args = { subscription_id: c.sub.id };
       return {
@@ -394,7 +412,8 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
     const reason = (lastNote(ctx, kase.id, N.reason)?.payload.reason as Reason | undefined) ?? "other";
     const offered = notes(ctx, kase.id, N.offer).length > 0;
     // A pause needs an active subscription; a plan change is never offered.
-    const feasible = (o: Offer) => o !== "pause" || c.sub.status === "active";
+    const feasible = (o: Offer) =>
+      o === "other_method" || (c.sub.status === "active" && (o === "pause" || (!!c.merchant.sub_discount_offer_id && !!c.merchant.sub_discount_percent)));
     const fits = offered ? [] : OFFER_FOR[reason].filter(feasible);
     // One save offer only, from the playbook.
     const rule = rulesFor(ctx.db, kase.merchant_id, reason).find((r) => r.rule_json.offer === "cancel" || fits.includes(r.rule_json.offer as Offer));
@@ -405,7 +424,7 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
     }
     // No rule: 2 or 3 options for the merchant, the offer that fits the
     // reason first, then cancel.
-    const offers = offered ? [] : [...new Set<Offer>([...fits, ...(["pause", "other_method"] as Offer[]).filter(feasible)])].slice(0, 2);
+    const offers = offered ? [] : [...new Set<Offer>([...fits, ...(["discount", "pause", "other_method"] as Offer[]).filter(feasible)])].slice(0, 2);
     const options = [...offers.map((o) => offerProposal(ctx, kase, o)), cancelProposal(ctx, kase)];
     if (!lastNote(ctx, kase.id, N.promise)) await sendPromise(ctx, kase);
     const ask = offered ? `${c.first} said no to the offer. Cancel the plan?` : "No rule covers this yet. Which should I offer?";
@@ -477,14 +496,15 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
       const summary = lastNote(ctx, kase.id, "call_summary")!;
       return decideAfterCall(ctx, kase, summary.payload, summary.id);
     }
-    if (option === "offer_pause" || option === "offer_other_method") {
+    if (option === "offer_discount" || option === "offer_pause" || option === "offer_other_method") {
       const r = await send(ctx, kase, proposal.args as ReturnType<typeof messageArgs>, approval);
       if (!went(r)) return { to: "waiting_merchant", reason: r.status === "blocked" ? `A check stopped the offer: ${r.failures[0].reason}` : "The offer didn't go." };
-      const offer: Offer = option === "offer_pause" ? "pause" : "other_method";
+      const offer: Offer = option === "offer_discount" ? "discount" : option === "offer_pause" ? "pause" : "other_method";
       note(ctx, kase, { kind: N.offer, offer, proposal_id: proposal.id, approval }, r.action.id);
       // The merchant's pick becomes a proposed rule; it applies only after Approve rule.
       if (approval.by === "tap") proposeRule(ctx, kase, offer);
-      return { to: "verifying", reason: `RAY offered ${c.first} ${offer === "pause" ? "a month's pause" : "another way to pay"}.`, timers: [{ kind: TIMERS.offerReply, inMs: NO_REPLY_MS }] };
+      const what = offer === "discount" ? `${c.merchant.sub_discount_percent}% off` : offer === "pause" ? "a month's pause" : "another way to pay";
+      return { to: "verifying", reason: `RAY offered ${c.first} ${what}.`, timers: [{ kind: TIMERS.offerReply, inMs: NO_REPLY_MS }] };
     }
     if (option === "cancel") {
       const r = await guardedCall("cancel_subscription", proposal.args, { adapters: a, caseId: kase.id, approval });
@@ -526,12 +546,46 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
       merchant_id: kase.merchant_id,
       moment: "subscription",
       rule_json: { tool: RULE_TOOL[offer], offer, reasons: [reason], ...(offer === "other_method" ? { kind: "question" } : {}) },
-      text: ruleText(offer, reason),
+      text: ruleText(offer, reason, ctx.repo.merchants.get(kase.merchant_id)!.sub_discount_percent),
       source: "merchant",
       status: "proposed",
       approved_at: null,
     });
     note(ctx, kase, { kind: N.rule, rule_id: rule.id, text: rule.text }, rule.id);
+  }
+
+  // The discount: your Dashboard offer linked to the subscription with the
+  // approval that sent the offer (tap or rule); it applies from the next cycle.
+  async function applyDiscount(ctx: EngineContext, kase: Case, approval: Approval): Promise<ApprovalResult> {
+    const c = context(ctx, kase);
+    const offerId = c.merchant.sub_discount_offer_id;
+    if (!offerId || !c.merchant.sub_discount_percent) return { to: "waiting_merchant", reason: "There's no offer set up in your playbook to apply." };
+    const r = await guardedCall("apply_offer", { subscription_id: c.sub.id, offer_id: offerId }, { adapters: c.a, caseId: kase.id, approval });
+    if (!went(r)) return { to: "waiting_merchant", reason: r.status === "blocked" ? `A check stopped the offer: ${r.failures[0].reason}` : `The offer didn't go through: ${r.status === "failed" ? r.error : ""}` };
+    const percent = `${c.merchant.sub_discount_percent}%`;
+    const rcpt = recipient(ctx, kase, c.customer, c.sub);
+    if (rcpt) await send(ctx, kase, messageArgs(ctx, kase, rcpt, "status", L.discountAppliedLine(c.bits, percent, c.settings.signOff)));
+    note(ctx, kase, { kind: N.resolution, outcome: "discount_applied", saved: true }, r.action.id);
+    return { to: "verifying", reason: `${percent} off applied to ${c.customer.name}'s next ${c.sub.plan} payment ✓` };
+  }
+
+  // A new card led by the action the merchant asked for, then the rest.
+  async function changedCard(ctx: EngineContext, kase: Case, wanted: Option, offered: ProposedAction[], options: (Option | null)[]): Promise<ProposedAction[] | null> {
+    const c = context(ctx, kase);
+    let lead: (ProposedAction & { option: Option }) | null = null;
+    if (wanted === "refund") {
+      const pay = kase.payment_id ? ctx.repo.rzpPayments.get(kase.payment_id) : undefined;
+      if (pay) lead = refundProposal(ctx, kase, pay.id, pay.amount);
+    } else if (wanted === "cancel") lead = cancelProposal(ctx, kase);
+    else if (c.sub.status === "active" || wanted === "offer_other_method") {
+      const offer = wanted.replace("offer_", "") as Offer;
+      if (offer !== "discount" || (c.merchant.sub_discount_offer_id && c.merchant.sub_discount_percent)) lead = offerProposal(ctx, kase, offer);
+    }
+    if (!lead) return null;
+    const rest = offered
+      .map((p, i) => ({ ...p, id: newId("prop"), option: options[i] ?? ("cancel" as Option) }))
+      .filter((p) => p.option !== wanted);
+    return remember(ctx, kase, [lead, ...rest].slice(0, 3));
   }
 
   // Pause has no end date in Razorpay's API, so RAY schedules the resume.
@@ -743,7 +797,7 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
         const timers: TimerRequest[] = [];
         if (kase.cause === CAUSES.b2b) timers.push({ kind: TIMERS.handoff, inMs: HANDOFF_MS });
         else timers.push({ kind: TIMERS.noResponse, inMs: NO_RESPONSE_MS });
-        if (kase.cause === CAUSES.halted && callable(ctx, kase)) {
+        if (kase.cause === CAUSES.halted && callPlan(ctx, kase).optedIn) {
           const now = ctx.clock.now();
           timers.push({ kind: TIMERS.callCheck, inMs: inCallingHours(ctx, kase, now + CALL_AFTER_MS) - now });
         }
@@ -806,6 +860,13 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
           const answer = answerOf(text);
           const approval = offer.payload.approval as Approval;
           if (answer === "yes" && offer.payload.offer === "pause") return pauseAndSchedule(ctx, kase, approval, c.sub.id);
+          // Inside verify, a recorded resolution closes now (the orchestrator
+          // doesn't run verify again on the same state).
+          const settled = (r: ApprovalResult) => {
+            const done = r.to === "verifying" ? lastNote(ctx, kase.id, N.resolution) : undefined;
+            return done ? { to: "closed" as const, reason: r.reason, outcome: String(done.payload.outcome) } : r;
+          };
+          if (answer === "yes" && offer.payload.offer === "discount") return settled(await applyDiscount(ctx, kase, approval));
           if (answer === "yes" && offer.payload.offer === "other_method") {
             if (c.sub.pending_invoice_id) {
               const r = await shareInvoiceLink(ctx, kase);
@@ -817,7 +878,7 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
             // Cancels cleanly: under a cancel rule, or with the merchant's tap.
             const rule = rulesFor(ctx.db, kase.merchant_id, (lastNote(ctx, kase.id, N.reason)?.payload.reason as Reason) ?? "other").find((r) => r.rule_json.offer === "cancel");
             const p = cancelProposal(ctx, kase);
-            if (rule) return runOption(ctx, kase, { ...p, id: p.id }, "cancel", { by: "rule", ruleId: rule.id, evidenceRef: e.sourceId });
+            if (rule) return settled(await runOption(ctx, kase, p, "cancel", { by: "rule", ruleId: rule.id, evidenceRef: e.sourceId }));
             return { to: "waiting_merchant", reason: `${c.first} said no to the offer. Cancel the plan?`, proposals: remember(ctx, kase, [p]) };
           }
         }
@@ -850,14 +911,24 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
         }
         if (kind === TIMERS.callCheck) {
           const fresh = ctx.repo.subscriptions.get(c.sub.id)!;
-          if (fresh.status === "active" || notes(ctx, kase.id, N.options).some((n) => (n.payload.options as { option: string }[]).some((o) => o.option === "call"))) {
+          if (fresh.status === "active" || ctx.repo.actions.list(and(eq(s.actions.case_id, kase.id), eq(s.actions.tool, "place_call"))).length) {
             return { to: "verifying", reason: "Nothing new." };
           }
-          if (!callable(ctx, kase)) return { to: "verifying", reason: "No call: not above your value limit or no call opt-in." };
+          const plan = callPlan(ctx, kase);
+          if (!plan.optedIn) return { to: "verifying", reason: `No call: ${c.first} hasn't opted in to calls.` };
+          const p = callProposal(ctx, kase);
+          if (plan.rule && plan.above) {
+            // Under the merchant's call rule: one call, no tap.
+            const r = await guardedCall("place_call", p.args, { adapters: c.a, caseId: kase.id, approval: { by: "rule", ruleId: plan.rule.id, evidenceRef: e.sourceId } });
+            if (r.status !== "done") return { to: "waiting_merchant", reason: r.status === "blocked" ? `A check stopped the call: ${r.failures[0].reason}` : "The call didn't go through." };
+            const summary = lastNote(ctx, kase.id, "call_summary")!;
+            return decideAfterCall(ctx, kase, summary.payload, summary.id);
+          }
+          if (plan.rule) return { to: "verifying", reason: `No call: ${c.first} is below your call limit.` };
           return {
             to: "waiting_merchant",
             reason: `${c.customer.name} (${formatMoney(fresh.lifetime_value)} so far) hasn't paid the ${c.bits.amount} yet. Want me to call ${c.first} with your save offer?`,
-            proposals: remember(ctx, kase, [callProposal(ctx, kase)]),
+            proposals: remember(ctx, kase, [p]),
           };
         }
         if (kind === TIMERS.offerReply) {
@@ -878,18 +949,16 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
         if (kind === TIMERS.resume) {
           const paused = lastNote(ctx, kase.id, N.paused);
           const approval = paused?.payload.approval as Approval | undefined;
-          // A tap approved the pause and its scheduled resume together.
-          if (approval?.by === "tap") {
-            const r = await guardedCall("resume_subscription", { subscription_id: c.sub.id }, { adapters: c.a, caseId: kase.id, approval });
-            if (went(r)) {
-              note(ctx, kase, { kind: N.resolution, outcome: "resumed", saved: true }, r.action.id);
-              return { to: "closed", reason: `${c.customer.name}'s ${c.sub.plan} is active again ✓`, outcome: "resumed" };
-            }
+          // The tap or rule that approved the pause covers its scheduled resume.
+          const r = approval ? await guardedCall("resume_subscription", { subscription_id: c.sub.id }, { adapters: c.a, caseId: kase.id, approval }) : null;
+          if (r && went(r)) {
+            note(ctx, kase, { kind: N.resolution, outcome: "resumed", saved: true }, r.action.id);
+            return { to: "closed", reason: `${c.customer.name}'s ${c.sub.plan} is active again ✓`, outcome: "resumed" };
           }
-          // Under a rule (it covers the pause only) RAY asks on the day.
+          // Only if that fails (a check stopped it) does the merchant get a card.
           return {
             to: "waiting_merchant",
-            reason: `${c.first}'s pause ends today. Resume ${c.sub.plan}?`,
+            reason: `${c.first}'s pause ended but the resume didn't go through${r?.status === "blocked" ? `: ${r.failures[0].reason}` : ""}. Resume ${c.sub.plan}?`,
             proposals: remember(ctx, kase, [{ id: newId("prop"), option: "resume", label: `Resume ${c.first}'s plan`, tool: "resume_subscription", args: { subscription_id: c.sub.id }, covered: false }]),
           };
         }
@@ -911,6 +980,45 @@ export function createSubscriptionsSpecialist(opts: SubscriptionsOptions = {}): 
         sent_at: ctx.clock.now(),
       });
       return { reason: sent ? "Holding message sent and you were nudged." : "You were nudged." };
+    },
+
+    // Change (decision 5). The merchant's text is data, never an instruction.
+    // Wording only: the write job redrafts each message on the card and the
+    // same card comes back. A different action: the old card's approval is
+    // void, and a new card with that action needs a fresh tap.
+    async onChange(ctx, kase, text) {
+      const offered = openProposals(ctx, kase.id);
+      if (!offered.length) return { reason: "Nothing to redraft." };
+      const options = offered.map((p) => optionOf(ctx, kase, p.id));
+      const target = changeTarget(text);
+      const wanted: Option | null =
+        target === "refund" ? "refund" : target === "cancel" ? "cancel" : target ? (`offer_${target}` as Option) : null;
+      if (wanted && options[0] !== wanted) {
+        const fresh = await changedCard(ctx, kase, wanted, offered, options);
+        if (fresh) {
+          note(ctx, kase, { kind: "sub_change_voided", voided: offered.map((p) => p.id), now_first: wanted }, kase.id);
+          return { reason: `New action, so the old card is void and this one needs your tap: ${fresh[0].label}.`, proposals: fresh };
+        }
+        return { reason: "RAY can't do that here, so the card stays as it was. Tap I'll handle this myself to take it over." };
+      }
+      const c = context(ctx, kase);
+      const redraft = async (args: Record<string, unknown>) => {
+        if (typeof args.body !== "string") return args;
+        const ids = idAliases();
+        const facts = ids.hide({ ...caseFacts(ctx.db, kase.id), sign_off: c.settings.signOff, current_draft: args.body, merchant_change: text });
+        const r = await aiOf(ctx).write(
+          { audience: "customer", kind: `${String(args.kind)}_redraft`, first_customer_message: false, facts, tone: c.settings.tone, language: c.customer.language },
+          { caseId: kase.id },
+        );
+        return { ...args, body: r.source !== "fallback" && r.output.draft ? ids.show(r.output.draft) : args.body };
+      };
+      const proposals: (ProposedAction & { option: Option })[] = [];
+      for (const [i, p] of offered.entries()) {
+        const followUps = p.followUps ? await Promise.all(p.followUps.map(async (f) => (f.tool === "send_message" ? { ...f, args: await redraft(f.args) } : f))) : undefined;
+        const args = p.tool === "send_message" ? await redraft(p.args) : p.args;
+        proposals.push({ ...p, id: newId("prop"), option: options[i] ?? "cancel", args, ...(followUps ? { followUps } : {}) });
+      }
+      return { reason: "RAY redrafted the message with your note.", proposals: remember(ctx, kase, proposals) };
     },
 
     async countsAsSaved(ctx, kase) {

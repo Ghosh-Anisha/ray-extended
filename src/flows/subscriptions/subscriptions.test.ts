@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bannedWordsIn, hasEmDash } from "@/ai/grounding";
 import * as s from "@/db/schema";
 import { guardedCall } from "@/guards";
-import { setRuleStatus } from "@/surfaces/actions";
+import { requestChange, setRuleStatus, tap } from "@/surfaces/actions";
 import { caseView } from "@/surfaces/views";
 import { COLLECT_HANDOFF, listCollectHandoffs, setupSweep } from ".";
 import { ACME, DAY, FITLOOP, HOUR, KARAN, MIN, NEHA, SHARMA, STACKLY, subWorld, type SubWorld } from "./test-helpers";
@@ -107,24 +107,20 @@ describe("B: debit failed and retries ran out (Karan, ₹499)", () => {
     expect(w.repo.subscriptions.get(KARAN.sub)!.status).toBe("active");
   });
 
-  it("calls Karan a day later (above FitLoop's ₹500 value limit, opted in, within calling hours) and the post-call summary feeds decide", async () => {
+  it("calls Karan a day later under FitLoop's call rule (above ₹500, opted in, within calling hours) and the post-call summary feeds decide", async () => {
+    w.a.voice.setCallSim(KARAN.phone, { outcome: "answered", reply: "My salary comes on the 15th, I'll pay it then.", promise: "Pay on 15 Oct" });
     await w.emit(FITLOOP, "subscription.halted", KARAN.sub);
     const kase = w.only(FITLOOP);
     await w.engine.advanceBy(24 * HOUR);
-    expect(w.state(kase.id).state).toBe("waiting_merchant");
-    const call = w.proposals(kase.id);
-    expect(call.map((p) => p.label)).toEqual(["Call Karan"]);
-    expect(call[0].args).toMatchObject({ kind: "subscription_save", to: KARAN.phone });
-    expect(String(call[0].args.opening)).toBe("Hi Karan, this is FitLoop about your ₹499 FitLoop Monthly payment.");
-
-    w.a.voice.setCallSim(KARAN.phone, { outcome: "answered", reply: "My salary comes on the 15th, I'll pay it then.", promise: "Pay on 15 Oct" });
-    await w.tapLabel(kase.id, "Call Karan");
+    // The playbook's call rule is the approval: no tap.
+    const [call] = w.actions(kase.id, "place_call");
+    expect(call).toMatchObject({ status: "done", approved_by: "rule_sub_call_m_fitloop" });
+    expect(call.args).toMatchObject({ kind: "subscription_save", to: KARAN.phone, opening: "Hi Karan, this is FitLoop about your ₹499 FitLoop Monthly payment." });
     const summary = w.notes(kase.id, "call_summary");
     expect(summary).toHaveLength(1);
     expect(summary[0].payload).toMatchObject({ call_kind: "subscription_save", outcome: "answered", simulated: true });
     // decide read the summary.
-    const decided = w.repo.aiCalls.list().filter((c) => c.job === "decide" && c.case_id === kase.id);
-    expect(decided).toHaveLength(1);
+    expect(w.repo.aiCalls.list().filter((c) => c.job === "decide" && c.case_id === kase.id)).toHaveLength(1);
     expect(w.notes(kase.id, "sub_call_decided")[0].payload).toMatchObject({ proposal: "send_update_link", source: "replay" });
     expect(w.state(kase.id).state).toBe("waiting_merchant");
     expect(w.proposals(kase.id).map((p) => p.label)).toEqual(["Send Karan the link again", "Cancel Karan's plan"]);
@@ -135,6 +131,19 @@ describe("B: debit failed and retries ran out (Karan, ₹499)", () => {
     await w.emit(FITLOOP, "subscription.charged", KARAN.sub);
     expect(w.state(kase.id)).toMatchObject({ state: "closed", outcome: "active_again", counts_as_saved: true });
     noFallbacks();
+  });
+
+  it("without the call rule, RAY offers the call for a tap", async () => {
+    setRuleStatus(w.a, { merchantId: FITLOOP, ruleId: "rule_sub_call_m_fitloop", status: "off" });
+    await w.emit(FITLOOP, "subscription.halted", KARAN.sub);
+    const kase = w.only(FITLOOP);
+    await w.engine.advanceBy(24 * HOUR);
+    expect(w.actions(kase.id, "place_call")).toEqual([]);
+    expect(w.state(kase.id).state).toBe("waiting_merchant");
+    expect(w.proposals(kase.id).map((p) => p.label)).toEqual(["Call Karan"]);
+    w.a.voice.setCallSim(KARAN.phone, { outcome: "answered", reply: "My salary comes on the 15th, I'll pay it then.", promise: "Pay on 15 Oct" });
+    await w.tapLabel(kase.id, "Call Karan");
+    expect(w.actions(kase.id, "place_call")[0]).toMatchObject({ status: "done", approved_by: "tap" });
   });
 
   it("never calls a subscriber who hasn't opted in to calls", async () => {
@@ -225,19 +234,20 @@ describe("D: cancel my plan (Karan, FitLoop)", () => {
     const kase = w.only(FITLOOP);
     expect(w.state(kase.id)).toMatchObject({ situation: "D", state: "waiting_merchant" });
     const options = w.proposals(kase.id);
-    expect(options.map((p) => p.label)).toEqual(["Offer Karan a month's pause", "Offer Karan another way to pay", "Cancel Karan's plan"]);
+    expect(options.map((p) => p.label)).toEqual(["Offer Karan 20% off next month", "Offer Karan a month's pause", "Cancel Karan's plan"]);
     // No plan change is ever offered.
     expect(options.some((p) => /plan change|upgrade|downgrade/i.test(p.label))).toBe(false);
     // The promise line went on WhatsApp (Karan wrote there, opted in).
     const [promise] = w.sent(kase.id);
     expect(promise).toMatchObject({ channel: "whatsapp", to: KARAN.phone });
     expect(promise.body).toMatch(/You'll hear from us by 12:00 PM/);
-    expect(w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription"))).toEqual([]);
+    // Only the seeded call rules so far; no save-offer rule.
+    expect(w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription")).map((r) => r.rule_json.tool)).toEqual(["place_call", "place_call"]);
 
     await w.tapLabel(kase.id, "Offer Karan a month's pause");
     const offer = w.sent(kase.id)[1];
     expect(offer.body).toMatch(/pause your FitLoop Monthly for a month/);
-    const rules = w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription"));
+    const rules = w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription")).filter((r) => r.rule_json.tool !== "place_call");
     expect(rules).toHaveLength(1);
     expect(rules[0]).toMatchObject({ status: "proposed", source: "merchant", rule_json: { tool: "pause_subscription", offer: "pause", reasons: ["price"] } });
     expect(rules[0].text).toBe("When a subscriber wants to cancel because it costs too much, offer to pause the plan for a month, then resume it.");
@@ -257,7 +267,7 @@ describe("D: cancel my plan (Karan, FitLoop)", () => {
     noFallbacks();
   });
 
-  it("with the rule approved, the one save offer runs alone; RAY asks on the day the pause ends", async () => {
+  it("with the rule approved, the one save offer runs alone and the same rule covers the scheduled resume", async () => {
     await karanActive();
     const rule = w.approveRule(FITLOOP, { tool: "pause_subscription", offer: "pause", reasons: ["price"] }, "When a subscriber wants to cancel because it costs too much, offer to pause the plan for a month, then resume it.");
     await w.says(FITLOOP, KARAN.phone, "Please cancel my FitLoop plan, it's too expensive for me right now.");
@@ -266,11 +276,66 @@ describe("D: cancel my plan (Karan, FitLoop)", () => {
     expect(w.sent(kase.id).map((m) => w.actions(kase.id, "send_message").find((x) => x.result?.message_id === m.id)?.args.kind)).toEqual(["question"]);
     await w.says(FITLOOP, KARAN.phone, "ok pause it");
     expect(w.actions(kase.id, "pause_subscription")[0]).toMatchObject({ status: "done", approved_by: rule.id });
+    // The card listed the resume as a follow-up of the pause.
+    const offered = w.events(kase.id).filter((e) => e.payload.kind === "actions_proposed").at(-1)!.payload.actions as { followUps?: { tool: string }[] }[];
+    expect(offered[0].followUps!.map((f) => f.tool)).toEqual(["pause_subscription", "resume_subscription"]);
     await w.engine.advanceBy(30 * DAY);
-    expect(w.state(kase.id).state).toBe("waiting_merchant");
-    expect(w.proposals(kase.id).map((p) => p.label)).toEqual(["Resume Karan's plan"]);
-    await w.tapLabel(kase.id, "Resume Karan's plan");
+    // No second ask on resume day.
+    expect(w.actions(kase.id, "resume_subscription")[0]).toMatchObject({ status: "done", approved_by: rule.id });
     expect(w.state(kase.id)).toMatchObject({ state: "closed", outcome: "resumed", counts_as_saved: true });
+    expect(w.repo.subscriptions.get(KARAN.sub)!.status).toBe("active");
+  });
+
+  it("the discount: Karan says yes and FitLoop's Dashboard offer is linked to the subscription, with the merchant's tap", async () => {
+    await karanActive();
+    await w.says(FITLOOP, KARAN.phone, "Please cancel my FitLoop plan, it's too expensive for me right now.");
+    const kase = w.only(FITLOOP);
+    const card = w.proposals(kase.id)[0];
+    expect(card.followUps).toEqual([{ tool: "apply_offer", args: { subscription_id: KARAN.sub, offer_id: "offer_FL_20off" } }]);
+    await w.tapLabel(kase.id, "Offer Karan 20% off next month");
+    expect(w.sent(kase.id)[1].body).toMatch(/take 20% off your next FitLoop Monthly payment/);
+    expect(w.actions(kase.id, "apply_offer")).toEqual([]); // nothing applied before the yes
+    const rule = w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription")).find((r) => r.status === "proposed")!;
+    expect(rule).toMatchObject({ rule_json: { tool: "apply_offer", offer: "discount", reasons: ["price"] } });
+    expect(rule.text).toBe("When a subscriber wants to cancel because it costs too much, offer 20% off the next payment.");
+
+    await w.says(FITLOOP, KARAN.phone, "Yes, ok with the discount");
+    expect(w.actions(kase.id, "apply_offer")[0]).toMatchObject({ status: "done", approved_by: "tap" });
+    expect(w.repo.subscriptions.get(KARAN.sub)).toMatchObject({ status: "active", offer_id: "offer_FL_20off" });
+    expect(w.sent(kase.id).at(-1)!.body).toMatch(/20% comes off your next FitLoop Monthly payment/);
+    expect(w.state(kase.id)).toMatchObject({ state: "closed", outcome: "discount_applied", counts_as_saved: true });
+    noFallbacks();
+  });
+
+  it("an offer only links to an active subscription, and only the merchant's own offer", async () => {
+    const rzp = w.a.razorpay(FITLOOP);
+    await expect(rzp.applyOffer(KARAN.sub, "offer_FL_20off")).rejects.toMatchObject({ code: "INVALID_STATE" }); // Karan is pending
+    await karanActive();
+    await expect(rzp.applyOffer(KARAN.sub, "offer_someone_else")).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect((await rzp.applyOffer(KARAN.sub, "offer_FL_20off")).offer_id).toBe("offer_FL_20off");
+  });
+
+  it("a pause rule covers only its own scheduled resume, nothing else", async () => {
+    await karanActive();
+    const rule = w.approveRule(FITLOOP, { tool: "pause_subscription", offer: "pause", reasons: ["price"] }, "Pause rule");
+    await w.says(FITLOOP, KARAN.phone, "Please cancel my FitLoop plan, it's too expensive for me right now.");
+    const kase = w.only(FITLOOP);
+    const ap = { by: "rule" as const, ruleId: rule.id, evidenceRef: kase.id };
+    // Before it paused anything, the rule can't resume or cancel.
+    expect((await guardedCall("resume_subscription", { subscription_id: KARAN.sub }, { adapters: w.a, caseId: kase.id, approval: ap })).status).toBe("blocked");
+    expect((await guardedCall("cancel_subscription", { subscription_id: KARAN.sub }, { adapters: w.a, caseId: kase.id, approval: ap })).status).toBe("blocked");
+    expect((await guardedCall("apply_offer", { subscription_id: KARAN.sub, offer_id: "offer_FL_20off" }, { adapters: w.a, caseId: kase.id, approval: ap })).status).toBe("blocked");
+  });
+
+  it("with a cancel rule too, a no to the offer cancels cleanly without a tap", async () => {
+    await karanActive();
+    w.approveRule(FITLOOP, { tool: "pause_subscription", offer: "pause", reasons: ["price"] }, "Pause rule");
+    const cancelRule = w.approveRule(FITLOOP, { tool: "cancel_subscription", offer: "cancel", reasons: ["price"] }, "Cancel rule");
+    await w.says(FITLOOP, KARAN.phone, "Please cancel my FitLoop plan, it's too expensive for me right now.");
+    const kase = w.only(FITLOOP);
+    await w.says(FITLOOP, KARAN.phone, "No thanks, just cancel");
+    expect(w.actions(kase.id, "cancel_subscription")[0]).toMatchObject({ status: "done", approved_by: cancelRule.id });
+    expect(w.state(kase.id)).toMatchObject({ state: "closed", outcome: "cancelled", counts_as_saved: false });
   });
 
   it("one save offer only: a no cancels cleanly after the merchant's tap", async () => {
@@ -388,7 +453,7 @@ describe("channels and consent", () => {
     await w.says(FITLOOP, KARAN.phone, "Please cancel my FitLoop plan, it's too expensive for me right now.");
     const kase = w.only(FITLOOP);
     await w.tapLabel(kase.id, "Offer Karan a month's pause");
-    const rule = w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription"))[0];
+    const rule = w.repo.playbookRules.list(eq(s.playbookRules.moment, "subscription")).find((r) => r.status === "proposed")!;
     setRuleStatus(w.a, { merchantId: FITLOOP, ruleId: rule.id, status: "approved" });
     expect(w.repo.playbookRules.get(rule.id)!.status).toBe("approved");
   });
@@ -409,5 +474,41 @@ describe("Step 9 fixtures", () => {
       expect(fs.existsSync(file), `${e.name}: run npx tsx src/flows/subscriptions/fixtures.ts`).toBe(true);
       expect(JSON.parse(fs.readFileSync(file, "utf8")).label).toBe("recorded in Claude Code");
     }
+  });
+});
+
+describe("Change", () => {
+  async function eCard() {
+    await w.emit(FITLOOP, "subscription.charged", KARAN.sub);
+    await w.says(FITLOOP, KARAN.phone, "I didn't authorise this renewal of 499. I'll raise a chargeback with my bank.");
+    return w.only(FITLOOP);
+  }
+
+  it("wording only: the write job redrafts the reply and the same card comes back", async () => {
+    const kase = await eCard();
+    const before = w.proposals(kase.id);
+    await requestChange(w.engine, w.a, { caseId: kase.id, text: "Make it shorter and friendlier" });
+    const after = w.proposals(kase.id);
+    expect(after.map((p) => p.label)).toEqual(before.map((p) => p.label));
+    expect(after[0].id).not.toBe(before[0].id);
+    expect(after[0].args.body).not.toBe(before[0].args.body);
+    expect(String(after[0].args.body)).toContain("7302");
+    cleanCopy(String(after[0].args.body));
+    noFallbacks();
+  });
+
+  it("a different action voids the old card; the new one needs a tap", async () => {
+    const kase = await eCard();
+    const old = w.proposals(kase.id)[0];
+    await requestChange(w.engine, w.a, { caseId: kase.id, text: "Just refund him instead" });
+    expect(w.proposals(kase.id).map((p) => p.label)).toEqual(["Refund ₹499", "Send Karan the proof"]);
+    expect(w.notes(kase.id, "sub_change_voided")).toHaveLength(1);
+    // The old card's tap no longer works.
+    await tap(w.engine, w.a, { caseId: kase.id, choice: "approve", proposalId: old.id });
+    expect(w.notes(kase.id, "tap_ignored")).toHaveLength(1);
+    expect(w.actions(kase.id, "send_message").filter((x) => x.args.kind === "didnt_authorise_reply")).toEqual([]);
+    expect(w.actions(kase.id, "refund")).toEqual([]);
+    await w.tapLabel(kase.id, "Refund ₹499");
+    expect(w.actions(kase.id, "refund")[0]).toMatchObject({ status: "held", approved_by: "tap" });
   });
 });

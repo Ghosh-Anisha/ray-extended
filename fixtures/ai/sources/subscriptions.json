@@ -20,7 +20,100 @@
             "evidenceRef": "cev_ref1"
           }
         ],
-        "playbook": [],
+        "playbook": [
+          {
+            "id": "rule_sub_call_m_fitloop",
+            "moment": "subscription",
+            "text": "Call subscribers worth more than ₹500 with the save offer",
+            "status": "approved"
+          }
+        ],
+        "memory": [],
+        "options": [
+          "send_update_link",
+          "pause_subscription",
+          "cancel_subscription",
+          "ask",
+          "escalate"
+        ]
+      },
+      "output": {
+        "proposal": "send_update_link",
+        "reason": "Karan said the salary comes in mid-month and will pay then, so sending the invoice link again is the next step.",
+        "rule_id": null,
+        "confidence": "likely"
+      }
+    },
+    {
+      "name": "Step 9 decide: after the call to Karan #2",
+      "job": "decide",
+      "input": {
+        "moment": "subscription",
+        "case": {
+          "situation": "B",
+          "cause": "retries_ran_out",
+          "amount": "₹499",
+          "plan": "FitLoop Monthly",
+          "subscription_status": "halted",
+          "confidence": "sure"
+        },
+        "findings": [
+          {
+            "text": "Call to Karan Mehta: Call to Karan · 37 s · Answered.",
+            "evidenceRef": "cev_ref1"
+          }
+        ],
+        "playbook": [
+          {
+            "id": "rule_sub_call_m_fitloop",
+            "moment": "subscription",
+            "text": "Call subscribers worth more than ₹500 with the save offer",
+            "status": "approved"
+          }
+        ],
+        "memory": [],
+        "options": [
+          "send_update_link",
+          "pause_subscription",
+          "cancel_subscription",
+          "ask",
+          "escalate"
+        ]
+      },
+      "output": {
+        "proposal": "send_update_link",
+        "reason": "Karan said the salary comes in mid-month and will pay then, so sending the invoice link again is the next step.",
+        "rule_id": null,
+        "confidence": "likely"
+      }
+    },
+    {
+      "name": "Step 9 decide: after the call to Karan #3",
+      "job": "decide",
+      "input": {
+        "moment": "subscription",
+        "case": {
+          "situation": "B",
+          "cause": "retries_ran_out",
+          "amount": "₹499",
+          "plan": "FitLoop Monthly",
+          "subscription_status": "halted",
+          "confidence": "sure"
+        },
+        "findings": [
+          {
+            "text": "Call to Karan Mehta: Call to Karan · 44 s · Answered. Karan said: \"My salary comes on the 15th, I'll pay it then.\" Promise: Pay on 15 Oct.",
+            "evidenceRef": "cev_ref1"
+          }
+        ],
+        "playbook": [
+          {
+            "id": "rule_sub_call_m_fitloop",
+            "moment": "subscription",
+            "text": "Call subscribers worth more than ₹500 with the save offer",
+            "status": "off"
+          }
+        ],
         "memory": [],
         "options": [
           "send_update_link",
@@ -146,6 +239,24 @@
       }
     },
     {
+      "name": "Step 9 understand: Yes, ok with the discount",
+      "job": "understand",
+      "input": {
+        "text": "Yes, ok with the discount"
+      },
+      "output": {
+        "amount": null,
+        "rough_time": null,
+        "utr": null,
+        "payment_id": null,
+        "intent": "subscription",
+        "language": "en",
+        "mood": "calm",
+        "legal_or_chargeback_words": [],
+        "confidence": "sure"
+      }
+    },
+    {
       "name": "Step 9 understand: I didn't authorise this renewal of 499. I'll raise a chargeb",
       "job": "understand",
       "input": {
@@ -166,17 +277,17 @@
       }
     },
     {
-      "name": "Step 9 write: didnt_authorise_reply (en)",
+      "name": "Step 9 write: didnt_authorise_reply_redraft (en)",
       "job": "write",
       "input": {
         "audience": "customer",
-        "kind": "didnt_authorise_reply",
+        "kind": "didnt_authorise_reply_redraft",
         "first_customer_message": false,
         "facts": {
           "case": {
             "moment": "subscription",
             "situation": "E",
-            "state": "confirmed",
+            "state": "waiting_merchant",
             "confidence": "sure",
             "side": "merchant",
             "razorpay_plugin": false,
@@ -189,7 +300,8 @@
             "counts_as_saved": false
           },
           "merchant": {
-            "name": "FitLoop"
+            "name": "FitLoop",
+            "subscription_offer": "20% off"
           },
           "records": [
             {
@@ -252,7 +364,9 @@
               "subscription_id": "sub_FL_karan",
               "method": "upi_autopay",
               "status": "active",
-              "max_amount": "₹2,000"
+              "max_amount": "₹2,000",
+              "authorised_at": "10:01 AM on 11 Aug",
+              "auth_ref": "UMNFLOOP7302"
             },
             {
               "message_id": "msg_ref1",
@@ -270,23 +384,19 @@
             }
           ],
           "sign_off": "Team FitLoop",
-          "evidence": [
-            "✗ Razorpay has no record of when Karan Mehta approved the AutoPay.",
-            "✓ Razorpay sent the pre-debit notice on 9 Oct, before the ₹499 charge.",
-            "✓ ₹499 was charged on 12 Oct."
-          ],
-          "example": "Hi Karan, this is FitLoop. We understand the ₹499 FitLoop Monthly renewal on 12 Oct surprised you.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop"
+          "current_draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nOur records show the UPI AutoPay was approved on 11 Aug (mandate reference ending 7302). You can see it under AutoPay in your UPI app.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+          "merchant_change": "Make it shorter and friendlier"
         },
         "tone": "Warm",
         "language": "en"
       },
       "output": {
-        "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+        "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nOur records show the UPI AutoPay was approved on 11 Aug (mandate reference ending 7302).\nA notice that this payment was coming went to you on 9 Oct.\nJust reply here if you'd like to stop the plan or want us to look again.\nTeam FitLoop",
         "confidence": "likely"
       }
     },
     {
-      "name": "Step 9 write: didnt_authorise_reply (en) #2",
+      "name": "Step 9 write: didnt_authorise_reply (en)",
       "job": "write",
       "input": {
         "audience": "customer",
@@ -309,7 +419,8 @@
             "counts_as_saved": false
           },
           "merchant": {
-            "name": "FitLoop"
+            "name": "FitLoop",
+            "subscription_offer": "20% off"
           },
           "records": [
             {
@@ -404,6 +515,127 @@
       },
       "output": {
         "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nOur records show the UPI AutoPay was approved on 11 Aug (mandate reference ending 7302). You can see it under AutoPay in your UPI app.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+        "confidence": "likely"
+      }
+    },
+    {
+      "name": "Step 9 write: didnt_authorise_reply (en) #2",
+      "job": "write",
+      "input": {
+        "audience": "customer",
+        "kind": "didnt_authorise_reply",
+        "first_customer_message": false,
+        "facts": {
+          "case": {
+            "moment": "subscription",
+            "situation": "E",
+            "state": "confirmed",
+            "confidence": "sure",
+            "side": "merchant",
+            "razorpay_plugin": false,
+            "covered": false,
+            "amount": "₹499",
+            "payment_id": "pay_ref1",
+            "cause": "didnt_authorise",
+            "promised_by": "12:00 PM on 12 Oct",
+            "opened_at": "10:00 AM on 12 Oct",
+            "counts_as_saved": false
+          },
+          "merchant": {
+            "name": "FitLoop",
+            "subscription_offer": "20% off"
+          },
+          "records": [
+            {
+              "status": "captured",
+              "amount": "₹499",
+              "currency": "INR",
+              "method": "upi",
+              "contact": "+919800000201",
+              "email": "karan.mehta@example.com",
+              "receipt": "inv_FL_karan_3",
+              "created_at": "10:00 AM on 12 Oct",
+              "captured_at": "10:00 AM on 12 Oct"
+            },
+            {
+              "status": "active",
+              "plan": "FitLoop Monthly",
+              "amount": "₹499",
+              "retries_left": 3,
+              "b2b": false,
+              "lifetime_value": "₹998",
+              "started_at": 1786422600000
+            },
+            {
+              "name": "Karan Mehta",
+              "email": "karan.mehta@example.com",
+              "phone": "+919800000201",
+              "language": "en",
+              "country": "IN"
+            },
+            {
+              "subscription_id": "sub_FL_karan",
+              "amount": "₹499",
+              "status": "paid",
+              "attempts": 1,
+              "billing_start": "10:00 AM on 11 Aug",
+              "billing_end": "10:00 AM on 10 Sep",
+              "notified_at": "10:00 AM on 10 Aug"
+            },
+            {
+              "subscription_id": "sub_FL_karan",
+              "amount": "₹499",
+              "status": "paid",
+              "attempts": 1,
+              "billing_start": "10:00 AM on 10 Sep",
+              "billing_end": "10:00 AM on 10 Oct",
+              "notified_at": "10:00 AM on 9 Sep"
+            },
+            {
+              "subscription_id": "sub_FL_karan",
+              "amount": "₹499",
+              "status": "paid",
+              "attempts": 2,
+              "payment_id": "pay_ref1",
+              "error_reason": "Insufficient balance in bank account",
+              "billing_start": "10:00 AM on 10 Oct",
+              "billing_end": "10:00 AM on 9 Nov",
+              "notified_at": "10:00 AM on 9 Oct"
+            },
+            {
+              "subscription_id": "sub_FL_karan",
+              "method": "upi_autopay",
+              "status": "active",
+              "max_amount": "₹2,000"
+            },
+            {
+              "message_id": "msg_ref1",
+              "channel": "whatsapp",
+              "to": "+919800000201",
+              "from": "wa:fitloop",
+              "body": "Hi Karan, this is FitLoop. We've got your message about your FitLoop Monthly. You'll hear from us by 12:00 PM.\nTeam FitLoop",
+              "within_24h": true
+            }
+          ],
+          "timers": [
+            {
+              "kind": "promised_time",
+              "due": "12:00 PM on 12 Oct"
+            }
+          ],
+          "sign_off": "Team FitLoop",
+          "evidence": [
+            "✗ Razorpay has no record of when Karan Mehta approved the AutoPay.",
+            "✓ Razorpay sent the pre-debit notice on 9 Oct, before the ₹499 charge.",
+            "✓ ₹499 was charged on 12 Oct."
+          ],
+          "example": "Hi Karan, this is FitLoop. We understand the ₹499 FitLoop Monthly renewal on 12 Oct surprised you.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop"
+        },
+        "tone": "Warm",
+        "language": "en"
+      },
+      "output": {
+        "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
         "confidence": "likely"
       }
     }

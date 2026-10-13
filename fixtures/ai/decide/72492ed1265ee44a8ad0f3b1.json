@@ -1,6 +1,6 @@
 {
   "job": "decide",
-  "key": "d0825e8d0789cf0404cd3498",
+  "key": "72492ed1265ee44a8ad0f3b1",
   "label": "recorded in Claude Code",
   "prompt_version": "decide.v1",
   "model": null,
@@ -16,11 +16,18 @@
     },
     "findings": [
       {
-        "text": "Call to Karan Mehta: Call to Karan · 44 s · Answered. Karan said: \"My salary comes on the 15th, I'll pay it then.\" Promise: Pay on 15 Oct.",
+        "text": "Call to Karan Mehta: Call to Karan · 37 s · Answered.",
         "evidenceRef": "cev_ref1"
       }
     ],
-    "playbook": [],
+    "playbook": [
+      {
+        "id": "rule_sub_call_m_fitloop",
+        "moment": "subscription",
+        "text": "Call subscribers worth more than ₹500 with the save offer",
+        "status": "approved"
+      }
+    ],
     "memory": [],
     "options": [
       "send_update_link",

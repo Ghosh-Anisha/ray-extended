@@ -38,6 +38,8 @@ export const ACT_TOOLS = [
   "post_match",
   "draft_request",
   "place_call",
+  // Step 9: links the merchant's Dashboard offer to a live subscription.
+  "apply_offer",
 ] as const;
 export type ActToolName = (typeof ACT_TOOLS)[number];
 

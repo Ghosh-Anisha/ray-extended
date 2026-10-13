@@ -404,6 +404,7 @@ describe("guard: kill switch", () => {
     post_match: { credit_id: "bc_PR_1", allocations: [{ invoice_id: "inv_PR_2402", amount: 100 }] },
     draft_request: { request: "other", text: "Please raise the limit" },
     place_call: { kind: "paid_no_order_follow_up", to: PRIYA, opening: "Hi Priya, this is Leafy Bakes about your ₹1,299 payment." },
+    apply_offer: { subscription_id: "sub_FL_karan", offer_id: "offer_FL_20off" },
   };
 
   it("passes when both switches are off", async () => {

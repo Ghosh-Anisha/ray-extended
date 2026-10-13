@@ -174,7 +174,7 @@ const toDispute = (d: z.infer<typeof disputeApi>): Dispute => {
   };
 };
 
-const subscriptionApi = z.object({ id: z.string(), status: z.string(), plan_id: z.string(), customer_id: opt(z.string()) });
+const subscriptionApi = z.object({ id: z.string(), status: z.string(), plan_id: z.string(), customer_id: opt(z.string()), offer_id: opt(z.string()) });
 const toSub = (r: z.infer<typeof subscriptionApi>): Subscription => ({
   id: r.id,
   status: r.status,
@@ -183,6 +183,7 @@ const toSub = (r: z.infer<typeof subscriptionApi>): Subscription => ({
   customer_id: r.customer_id ?? null,
   pending_invoice_id: null,
   retries_left: null,
+  offer_id: r.offer_id ?? null,
 });
 
 const invoiceApi = z.object({
@@ -344,6 +345,9 @@ export function createTestClient(keys: RazorpayKeys, fetchImpl: typeof fetch = f
       return toSub(
         await call("POST", `/subscriptions/${enc(subscriptionId)}/cancel`, subscriptionApi, { cancel_at_cycle_end: 0 }),
       );
+    },
+    async applyOffer(subscriptionId, offerId) {
+      return toSub(await call("PATCH", `/subscriptions/${enc(subscriptionId)}`, subscriptionApi, { offer_id: offerId }));
     },
     async fetchPendingInvoice(subscriptionId) {
       const { items } = await call("GET", `/invoices?subscription_id=${enc(subscriptionId)}`, list(invoiceApi));

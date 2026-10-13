@@ -396,6 +396,20 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     },
   }),
 
+  // Step 9: the discount save offer. Links an offer the merchant made in the
+  // Razorpay Dashboard to an active subscription (Update a Subscription with
+  // offer_id); it applies from the next billing cycle. Money: tap or rule.
+  apply_offer: def({
+    args: z.object({ subscription_id: z.string().min(1), offer_id: z.string().startsWith("offer_") }),
+    label: "applying the offer",
+    approval: "required",
+    guards: ["amount_cap"],
+    amountInr: (ctx, x) => subscriptionAmount(ctx, x),
+    async run({ a, kase }, x) {
+      return asRecord(await a.razorpay(kase.merchant_id).applyOffer(x.subscription_id, x.offer_id));
+    },
+  }),
+
   cancel_subscription: def({
     args: subscriptionArgs,
     label: "cancelling the subscription",

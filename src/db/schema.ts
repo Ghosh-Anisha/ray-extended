@@ -93,11 +93,12 @@ export const merchants = sqliteTable("merchants", {
   calling_hours_start: integer("calling_hours_start").notNull().default(600),
   calling_hours_end: integer("calling_hours_end").notNull().default(1140),
   urgent_call_opt_in: bool("urgent_call_opt_in").notNull().default(false),
-  // Subscriptions playbook (migration 0900): RAY may call a subscriber whose
-  // value is above this (paise; null: no calls), and a pause lasts this many
-  // days before RAY resumes it (null: 30).
-  sub_call_value_limit: integer("sub_call_value_limit"),
+  // Subscriptions playbook (migration 0900): a pause lasts this many days
+  // before RAY resumes it (null: 30), and the discount save offer: an offer
+  // made in the Razorpay Dashboard and its percent off (null: none).
   sub_pause_days: integer("sub_pause_days"),
+  sub_discount_offer_id: text("sub_discount_offer_id"),
+  sub_discount_percent: integer("sub_discount_percent"),
 });
 
 // One row, id "global" (migration 0007). The global kill switch: when on,
@@ -407,6 +408,8 @@ export const subscriptions = sqliteTable("subscriptions", {
   lifetime_value: integer("lifetime_value").notNull(),
   resume_at: integer("resume_at"),
   started_at: integer("started_at").notNull(),
+  // The offer linked to it (migration 0900, apply_offer).
+  offer_id: text("offer_id"),
 });
 
 export const mandates = sqliteTable("mandates", {

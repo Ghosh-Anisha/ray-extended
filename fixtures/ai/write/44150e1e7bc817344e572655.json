@@ -1,18 +1,18 @@
 {
   "job": "write",
-  "key": "138a9d02fe913afa0952f6fc",
+  "key": "44150e1e7bc817344e572655",
   "label": "recorded in Claude Code",
   "prompt_version": "write.v1",
   "model": null,
   "input": {
     "audience": "customer",
-    "kind": "didnt_authorise_reply",
+    "kind": "didnt_authorise_reply_redraft",
     "first_customer_message": false,
     "facts": {
       "case": {
         "moment": "subscription",
         "situation": "E",
-        "state": "confirmed",
+        "state": "waiting_merchant",
         "confidence": "sure",
         "side": "merchant",
         "razorpay_plugin": false,
@@ -25,7 +25,8 @@
         "counts_as_saved": false
       },
       "merchant": {
-        "name": "FitLoop"
+        "name": "FitLoop",
+        "subscription_offer": "20% off"
       },
       "records": [
         {
@@ -88,7 +89,9 @@
           "subscription_id": "sub_FL_karan",
           "method": "upi_autopay",
           "status": "active",
-          "max_amount": "₹2,000"
+          "max_amount": "₹2,000",
+          "authorised_at": "10:01 AM on 11 Aug",
+          "auth_ref": "UMNFLOOP7302"
         },
         {
           "message_id": "msg_ref1",
@@ -106,18 +109,14 @@
         }
       ],
       "sign_off": "Team FitLoop",
-      "evidence": [
-        "✗ Razorpay has no record of when Karan Mehta approved the AutoPay.",
-        "✓ Razorpay sent the pre-debit notice on 9 Oct, before the ₹499 charge.",
-        "✓ ₹499 was charged on 12 Oct."
-      ],
-      "example": "Hi Karan, this is FitLoop. We understand the ₹499 FitLoop Monthly renewal on 12 Oct surprised you.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop"
+      "current_draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nOur records show the UPI AutoPay was approved on 11 Aug (mandate reference ending 7302). You can see it under AutoPay in your UPI app.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+      "merchant_change": "Make it shorter and friendlier"
     },
     "tone": "Warm",
     "language": "en"
   },
   "output": {
-    "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nA notice that this payment was coming went to you on 9 Oct.\nIf you'd still like to stop the plan, reply here and we'll cancel it. If you think something is wrong, tell us and we'll look again.\nTeam FitLoop",
+    "draft": "Hi Karan, this is FitLoop. Thanks for writing in about the ₹499 FitLoop Monthly renewal on 12 Oct.\nOur records show the UPI AutoPay was approved on 11 Aug (mandate reference ending 7302).\nA notice that this payment was coming went to you on 9 Oct.\nJust reply here if you'd like to stop the plan or want us to look again.\nTeam FitLoop",
     "confidence": "likely"
   }
 }

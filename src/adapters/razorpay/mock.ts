@@ -164,6 +164,7 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
     customer_id: r.customer_id,
     pending_invoice_id: r.pending_invoice_id,
     retries_left: r.retries_left,
+    offer_id: r.offer_id,
   });
   const setSubStatus = (id: string, from: string[], to: (typeof s.SUBSCRIPTION_STATUSES)[number]) => {
     const row = subRow(id);
@@ -362,6 +363,16 @@ export function createMockRazorpay(db: Db, clock: Clock, merchantId: string): Mo
 
     async cancelSubscription(subscriptionId) {
       return setSubStatus(subscriptionId, ["created", "authenticated", "active", "pending", "halted", "paused"], "cancelled");
+    },
+
+    // Like Razorpay: only an active subscription, and only an offer the
+    // merchant made (the playbook's offer id); it applies from the next cycle.
+    async applyOffer(subscriptionId, offerId) {
+      const row = subRow(subscriptionId);
+      if (row.status !== "active") throw new RazorpayError("INVALID_STATE", `Subscription ${subscriptionId} is ${row.status}; an offer needs an active subscription`);
+      const merchant = repo.merchants.get(merchantId);
+      if (!merchant?.sub_discount_offer_id || merchant.sub_discount_offer_id !== offerId) throw new RazorpayError("BAD_REQUEST", `Offer ${offerId} doesn't apply to this subscription`);
+      return toSub(repo.subscriptions.update(subscriptionId, { offer_id: offerId })!);
     },
 
     async fetchPendingInvoice(subscriptionId) {

@@ -1427,15 +1427,22 @@
           "autoincrement": false,
           "default": false
         },
-        "sub_call_value_limit": {
-          "name": "sub_call_value_limit",
+        "sub_pause_days": {
+          "name": "sub_pause_days",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
         },
-        "sub_pause_days": {
-          "name": "sub_pause_days",
+        "sub_discount_offer_id": {
+          "name": "sub_discount_offer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "sub_discount_percent": {
+          "name": "sub_discount_percent",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -3025,6 +3032,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "offer_id": {
+          "name": "offer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },

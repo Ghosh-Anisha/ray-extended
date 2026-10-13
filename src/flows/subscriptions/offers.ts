@@ -10,19 +10,19 @@ import * as s from "@/db/schema";
 export const REASONS = ["price", "break", "payment", "not_using", "other"] as const;
 export type Reason = (typeof REASONS)[number];
 
-// The save offers RAY can make. Discount is left out on purpose: Razorpay's
-// API can't put a discount on a live subscription and there is no act tool
-// for it (see docs/overnight/step-9.md). A plan change is never offered.
-export const OFFERS = ["pause", "other_method"] as const;
+// The save offers RAY can make. A discount is the merchant's own offer made
+// in the Razorpay Dashboard, linked with apply_offer. A plan change is never
+// offered (none on domestic-card subscriptions).
+export const OFFERS = ["discount", "pause", "other_method"] as const;
 export type Offer = (typeof OFFERS)[number];
 
 // The offer that fits each reason, in order. None fits "not using it".
 export const OFFER_FOR: Record<Reason, Offer[]> = {
-  price: ["pause"],
+  price: ["discount", "pause"],
   break: ["pause"],
   payment: ["other_method", "pause"],
   not_using: [],
-  other: ["pause"],
+  other: ["pause", "discount"],
 };
 
 const DIDNT_AUTHORISE = /\b(?:didn'?t|did not|never|not)\s+(?:authori[sz]e|approve|agree|sign(?:ed)? up)|\bunauthori[sz]ed\b|\bwithout (?:my )?(?:permission|consent)\b|\bchargeback\b|\bfraud\b|maine (?:to )?approve nahi/i;
@@ -51,6 +51,23 @@ export function reasonOf(text: string): Reason {
 const YES = /^\s*(?:yes|yeah|yep|ok(?:ay)?|sure|haan|ha|ji|please do|pause|go ahead)\b/i;
 const NO = /^\s*(?:no|nope|nahi|na|cancel|just cancel|don'?t)\b/i;
 
+// What the merchant's Change text asks for, when it names a different
+// action rather than different wording. The text is data: it only picks
+// among the actions this flow already offers.
+export type ChangeTarget = "refund" | "cancel" | "pause" | "discount" | "other_method";
+const CHANGE_TARGETS: [ChangeTarget, RegExp][] = [
+  ["refund", /\brefund/i],
+  ["discount", /\bdiscount|% off\b|\boffer .*off\b/i],
+  ["pause", /\bpause|\bbreak\b|\bskip/i],
+  ["other_method", /another way to pay|other (?:payment )?method|different (?:card|upi|bank)/i],
+  ["cancel", /\bcancel/i],
+];
+
+export function changeTarget(text: string): ChangeTarget | null {
+  for (const [t, re] of CHANGE_TARGETS) if (re.test(text)) return t;
+  return null;
+}
+
 export function answerOf(text: string): "yes" | "no" | "unclear" {
   if (YES.test(text)) return "yes";
   if (NO.test(text)) return "no";
@@ -76,7 +93,7 @@ export function refundAllowed(db: Db, merchantId: string): boolean {
     .some((r) => r.rule_json.tool === "refund" && r.rule_json.when === "didnt_authorise");
 }
 
-export const RULE_TOOL: Record<Offer | "cancel", string> = { pause: "pause_subscription", other_method: "send_message", cancel: "cancel_subscription" };
+export const RULE_TOOL: Record<Offer | "cancel", string> = { discount: "apply_offer", pause: "pause_subscription", other_method: "send_message", cancel: "cancel_subscription" };
 
 const REASON_TEXT: Record<Reason, string> = {
   price: "it costs too much",
@@ -87,8 +104,9 @@ const REASON_TEXT: Record<Reason, string> = {
 };
 
 // The words on the rule card for the merchant's pick.
-export function ruleText(offer: Offer | "cancel", reason: Reason): string {
+export function ruleText(offer: Offer | "cancel", reason: Reason, percent?: number | null): string {
   const when = `When a subscriber wants to cancel because ${REASON_TEXT[reason]}`;
+  if (offer === "discount") return `${when}, offer ${percent ?? "your"}${percent ? "%" : ""} off the next payment.`;
   if (offer === "pause") return `${when}, offer to pause the plan for a month, then resume it.`;
   if (offer === "other_method") return `${when}, offer another way to pay.`;
   return `${when}, cancel it without an offer.`;

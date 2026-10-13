@@ -111,6 +111,19 @@ export function pauseOfferLine(b: SubBits, skip: boolean, signOff: string) {
   ].join("\n");
 }
 
+export function discountOfferLine(b: SubBits, percent: string, signOff: string) {
+  return [
+    `Hi ${b.name}, thanks for telling us.`,
+    `Before you go: we can take ${percent} off your next ${b.plan} payment, if that helps you stay.`,
+    "Reply YES and we'll apply it, or NO and we'll cancel the plan.",
+    signOff,
+  ].join("\n");
+}
+
+export function discountAppliedLine(b: SubBits, percent: string, signOff: string) {
+  return [`Done, ${b.name}. ${percent} comes off your next ${b.plan} payment. Thanks for staying with ${b.merchant}.`, signOff].join("\n");
+}
+
 export function otherMethodOfferLine(b: SubBits, signOff: string) {
   return [
     `Hi ${b.name}, thanks for telling us.`,

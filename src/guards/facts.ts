@@ -109,7 +109,11 @@ export function caseFacts(db: Db, caseId: string): Row {
 
   return {
     case: display(kase, "INR"),
-    merchant: { name: merchant.name },
+    merchant: {
+      name: merchant.name,
+      // Step 9: the discount save offer a subscriber may be told about.
+      ...(kase.moment === "subscription" && merchant.sub_discount_percent ? { subscription_offer: `${merchant.sub_discount_percent}% off` } : {}),
+    },
     records,
     timers: timers.map((t) => ({ kind: t.kind, due: `${formatTime(t.due_at)} on ${formatDate(t.due_at)}` })),
   };

@@ -1,6 +1,6 @@
 {
   "job": "write",
-  "key": "d44fdfe3df72283769080d43",
+  "key": "64a6fca20010c0c2ec7854de",
   "label": "recorded in Claude Code",
   "prompt_version": "write.v1",
   "model": null,
@@ -25,7 +25,8 @@
         "counts_as_saved": false
       },
       "merchant": {
-        "name": "FitLoop"
+        "name": "FitLoop",
+        "subscription_offer": "20% off"
       },
       "records": [
         {
