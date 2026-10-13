@@ -186,7 +186,7 @@ All numbers on Home and My dashboard are computed from these rows, never typed i
 
 ## 6. Guided demo (story mode)
 
-Started from Home. A floating stepper card (bottom right) shows "Step 2 of 9", one sentence, **Next**, **Back**, **Exit**, and spotlights the element to click (soft blue ring). Steps that need time to pass have a button like **Skip to next morning**, which moves the clock through the engine.
+Started from Home. Uses the coach-mark pop-up component from section 10: a floating card (bottom right) shows "Step 2 of 9", one sentence, **Next**, **Back**, **Exit**, and spotlights the element to click (soft blue ring). Steps that need time to pass have a button like **Skip to next morning**, which moves the clock through the engine.
 
 1. **Home.** "This is Leafy Bakes. RAY saved ₹1,84,300 this month. ₹8,450 is waiting on you." → Review cases.
 2. **Cases.** "Biggest first: Priya paid ₹1,299 but her order never showed up." → open RD-1042.
@@ -214,3 +214,35 @@ Use `docs/design-language.md` sections 1 and 2 for words and RAY's voice. No ban
 ## 9. Checking the result
 
 At the end of every phase: start `npm run demo`, take Playwright screenshots of every screen at 1440×900 and 390×844 into `docs/screenshots/<phase>/`, look at them, fix anything that is empty, misaligned, unreadable or off-spec, then report. Keep all existing tests passing; add a Playwright smoke test that walks the guided demo from step 1 to 10.
+
+## 10. Coach-mark pop-ups (replaces plain nudge bars where a first-time user needs guiding)
+
+- First visit to each screen: a sequence of 2 to 4 pop-ups anchored to real elements (arrow, one sentence, **Next** / **Got it**, step dots), e.g. Cases: "These need your tap" → "Sorted by money at stake" → "Open the biggest one".
+- Pop-ups never repeat once dismissed (per browser), and "Show me around" in the account menu replays them.
+- The guided demo (section 6) uses the same pop-up component.
+
+## 11. RAY as guide: showing what's possible
+
+A small merchant doesn't know what Razorpay and RAY can do. RAY tells them.
+- **Home › "What RAY can do for you"**: cards for every capability, each marked **On**, **Try it**, or **Coming soon**: Fixes paid orders that didn't show up · Rescues declined cards abroad · Saves stopping subscriptions · Fights chargebacks · Chases overdue invoices · Tells you if it's you or Razorpay · Follows up your support tickets · Explains held settlements · Checks AI-chat orders · Plans your dues · Grows sales with features you already have · Builds your dashboard. **Try it** opens a short guided example on seeded data.
+- **Proactive suggestions from RAY** (Home and Ask RAY): "Your carts above ₹5,000 drop at payment. Cardless EMI is off. Turn it on?" with ₹ estimate, trade-off, **Turn on** / **Not now**, and a two-weeks-later before/after card (Grow lane 1). "You chase invoices by hand. Want RAY to do it?" (opens Collect).
+- **Ask RAY** answers "What can you do?" and "What should I set up first?" with the same capability list, ordered by the merchant's own data.
+
+## 12. Custom dashboard, complete (extends 3.6)
+
+- **Watch it for me:** each pinned widget compares with the merchant's normal for that hour and weekday; an unusual move shows a badge and a "Why?" that drills into method, bank or product, with one action that opens the right case.
+- **Ask about this widget:** a ✦ button on each widget opens Ask RAY scoped to it; answers cite the numbers used.
+- **Reports in words:** "Settlements for September with fees and GST" → preview table → 3-line summary on top → **Schedule to CA on WhatsApp** (simulated). A ready **Month-end CA pack**.
+- Seed history so recommendations make sense ("You asked for success rate 4 times this week").
+
+## 13. Every other design from the map, at demo depth
+
+Each gets seeded cases in the Cases inbox with a full case page (findings, Your call, timeline), its own moment filter, and a "Try it" from section 11. They reuse the case page and shell; their logic is replayed and labelled Simulated where the engine has no flow. No new engine rules.
+| Design | What to show |
+|---|---|
+| Is it me or Razorpay? | Success-rate drop alert; RAY splits it by method and bank; "HDFC netbanking down 7:40 to 8:10 PM (Razorpay downtime feed)"; your side vs Razorpay's side; hot fix "Re-enable your disabled webhook" with a tap; developer brief |
+| Ticket went into a black hole | Open ticket with stage; RAY answers first from live data; chases on SLA with Escalate Now; "asked once, never again" note |
+| Settlement held or account frozen | Plain reason, cash impact (₹ held, days), evidence pack checklist, timeline; LEA case shows the clock |
+| AI-chat order went wrong | Order placed in a chat app; intent record vs order vs payment three-way check; drift flagged; fix proposed |
+| Pay on time, stay liquid | A **Dues** page: one list of dues with dates, cash in bank, shortfall options, 43B(h) order; "Invoices in" from email with a duplicate flagged and a bank-change hold; odd bill flagged (jump vs last 3 months) with BBPS pay |
+| Grow | Lever cards from section 11 with before/after results |
