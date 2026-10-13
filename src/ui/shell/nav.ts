@@ -13,10 +13,10 @@ export const NAV: NavSection[] = [
     label: "Agentic Dashboard",
     items: [
       { key: "cases", label: "Cases", icon: Inbox, href: merchantPage("/cases"), badge: "needs_you" },
-      { key: "ask", label: "Ask RAY", icon: Sparkles, href: merchantPage("/ask") },
+      { key: "ask", label: "Ask Agentic Dashboard", icon: Sparkles, href: merchantPage("/ask") },
       { key: "dashboard", label: "My dashboard", icon: LayoutDashboard, href: merchantPage("/dashboard") },
       { key: "rules", label: "Rules", icon: ListChecks, href: merchantPage("/rules") },
-      { key: "dues", label: "Dues", icon: CalendarClock, href: merchantPage("/dues") },
+      { key: "dues", label: "Dues & Liquidity", icon: CalendarClock, href: merchantPage("/dues") },
     ],
   },
   { label: "Channels", items: [{ key: "whatsapp", label: "RAY on WhatsApp", icon: MessageCircle, href: merchantPage("/whatsapp") }] },

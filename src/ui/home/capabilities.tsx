@@ -1,4 +1,4 @@
-// "What RAY can do for you" (docs/ui-rebuild.md section 11): every capability,
+// "What Agentic Dashboard can do" (docs/ui-rebuild.md section 11): every capability,
 // marked On, Try it or Coming soon. Try it opens a short guided example.
 import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
@@ -34,9 +34,9 @@ export function Capabilities({ merchantId, rayOn, dashboardSet }: { merchantId: 
   const base = `/merchant/${merchantId}`;
   const status = (c: Capability): CapabilityStatus => c.key === "dues" || c.key === "grow" ? "soon" : (c.moment && rayOn ? "on" : c.key === "dash" && dashboardSet ? "on" : "try");
   return (
-    <section className="stack" style={{ gap: 12 }} aria-label="What RAY can do for you">
+    <section className="stack" style={{ gap: 12 }} aria-label="What Agentic Dashboard can do">
       <div className="section-head" data-coach="capabilities">
-        <h2>What RAY can do for you</h2>
+        <h2>What Agentic Dashboard can do</h2>
       </div>
       <div className="grid-3">
         {CAPABILITIES.map((c, i) => {

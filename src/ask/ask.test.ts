@@ -96,6 +96,7 @@ describe("rule cards", () => {
     expect(rules[0]).toMatchObject({ id: "rule_pattern_refund_dup_leafy", status: "approved", rule_json: { max: 49_999 } });
     expect(describePlan(a, LEAFY, { intent: "refund_duplicates", rupees: 500 }).scope).toContain("under ₹500");
     expect(rulesView(a, LEAFY).active.find((r) => r.id === "rule_pattern_refund_dup_leafy")?.limit).toBe("Under ₹500");
+    expect(rulesView(a, LEAFY).active.find((r) => r.sentence === "Refund duplicate charges under ₹500 automatically")?.on).toBe(true);
     expect(rulesView(a, LEAFY).suggested.map((r) => r.sentence)).not.toContain("Refund duplicate charges under ₹500 automatically");
     expect(describePlan(a, LEAFY, { intent: "refund_duplicates", rupees: 500 }).alreadyOn).toBe(true);
   });

@@ -229,6 +229,9 @@ pre.raw { background: var(--canvas); padding: 8px; border-radius: 6px; overflow:
 .metric strong { font-size: 26px; font-variant-numeric: tabular-nums; }
 .insight { color: var(--muted); font-size: 12px; }
 .dues-list { display: flex; flex-direction: column; gap: 0; }
+.dues-overview { align-items: start; }
+.dues-overview > .panel { min-width: 0; }
+.dues-overview h3 { margin: 8px 0 0; font-size: 14px; }
 .due-row, .invoice-row { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-top: 1px solid var(--border); }
 .due-row > div { flex: 1; min-width: 160px; }
 .invoice-row .grow { min-width: 0; }

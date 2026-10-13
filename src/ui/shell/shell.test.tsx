@@ -37,12 +37,15 @@ const text = html.replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
 describe("the shell", () => {
   it("has the top bar tabs, search, RAY button, Prototype tag and the account", () => {
     for (const label of ["Razorpay Home", "Payments", "Agentic Dashboard", "Banking+", "Prototype", "Leafy Bakes", "Phone", "Desktop"]) expect(text).toContain(label);
-    expect(html).toContain('aria-label="Ask RAY"');
+    expect(html).toContain('aria-label="Ask Agentic Dashboard"');
+    expect(html).toContain('href="/merchant/m_leafy_bakes/payments"');
+    expect(html).toContain('href="/merchant/m_leafy_bakes/banking"');
     expect(html).toMatch(/aria-current="page"[^>]*>Agentic Dashboard/);
   });
 
   it("lists the nav exactly as the spec does, with the count on Cases and Simulated on the other side", () => {
-    const order = ["Home", "Agentic Dashboard", "Cases", "Ask RAY", "My dashboard", "Rules", "Channels", "RAY on WhatsApp", "See it from the other side", "Customer inbox", "Buyer inbox", "Store admin", "Demo controls"];
+    expect(html).toContain("Dues &amp; Liquidity");
+    const order = ["Home", "Agentic Dashboard", "Cases", "Ask Agentic Dashboard", "My dashboard", "Rules", "Dues", "Channels", "RAY on WhatsApp", "See it from the other side", "Customer inbox", "Buyer inbox", "Store admin", "Demo controls"];
     let at = text.indexOf("Home");
     for (const label of order.slice(1)) {
       const next = text.indexOf(label, at + 1);

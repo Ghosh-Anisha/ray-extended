@@ -88,9 +88,9 @@ function AccountSwitcher({ merchants, currentId }: { merchants: ShellMerchant[];
 function RayButton() {
   const { open, setOpen } = useAsk();
   return (
-    <button type="button" className="shell-ray" aria-label="Ask RAY" aria-expanded={open} data-coach="ray-button" onClick={() => setOpen(!open)}>
+    <button type="button" className="shell-ray" aria-label="Ask Agentic Dashboard" aria-expanded={open} data-coach="ray-button" onClick={() => setOpen(!open)}>
       <Sparkles size={16} aria-hidden="true" />
-      <span className="label">RAY</span>
+      <span className="label">Ask</span>
     </button>
   );
 }
@@ -140,12 +140,12 @@ function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: She
         </Link>
         <nav className="shell-tabs" aria-label="Razorpay">
           <Link href={home} className="shell-tab link">Razorpay Home</Link>
-          <span className="shell-tab unavailable" title="Unavailable in this prototype">Payments <small>Unavailable</small></span>
-          <Link href={`${home}/cases`} className="shell-tab link" aria-current="page">Agentic Dashboard</Link>
-          <span className="shell-tab unavailable" title="Unavailable in this prototype">Banking+ <small>Unavailable</small></span>
+          <Link href={`${home}/payments`} className="shell-tab link" aria-current={path.endsWith("/payments") ? "page" : undefined}>Payments</Link>
+          <Link href={`${home}/cases`} className="shell-tab link" aria-current={path.startsWith(`${home}/cases`) || ["/ask", "/dashboard", "/rules", "/dues"].some((p) => path.startsWith(`${home}${p}`)) ? "page" : undefined}>Agentic Dashboard</Link>
+          <Link href={`${home}/banking`} className="shell-tab link" aria-current={path.endsWith("/banking") ? "page" : undefined}>Banking+</Link>
         </nav>
         <span className="shell-spacer" />
-        <Link href={`${home}/ask`} className="shell-search" aria-label="Search or ask RAY">
+        <Link href={`${home}/ask`} className="shell-search" aria-label="Search payments or ask Agentic Dashboard">
           <Search size={16} aria-hidden="true" />
           <span>Search payments, cases</span>
         </Link>
@@ -203,7 +203,7 @@ function ShellFrame({ merchants, defaultMerchantId, children }: { merchants: She
         <GuidedDemoHost />
       </Suspense>
       <AskPanel />
-      <CoachMarks id="ray-button" steps={[{ target: "[data-coach='ray-button']", title: "Ask RAY from anywhere", text: "Ask about a payment or a case, or tell RAY how to handle things. It answers from your own cases." }]} />
+      <CoachMarks id="ray-button" steps={[{ target: "[data-coach='ray-button']", title: "Ask Agentic Dashboard from anywhere", text: "Ask a question about available payment and case data, or propose a rule. The separate RAY bot is shown in WhatsApp." }]} />
       {controlsOpen && <DemoControls merchantId={merchantId} onClose={() => setControlsOpen(false)} />}
     </div>
   );

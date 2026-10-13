@@ -17,16 +17,16 @@ export function AskPanel() {
   return (
     <>
       <div className="drawer-scrim ask-scrim" onClick={() => setOpen(false)} />
-      <aside ref={panelRef} className="ask-panel" role="dialog" aria-modal="true" aria-label="Ask RAY" tabIndex={-1}>
+        <aside ref={panelRef} className="ask-panel" role="dialog" aria-modal="true" aria-label="Ask Agentic Dashboard" tabIndex={-1}>
         <div className="drawer-head">
           <Sparkles size={16} aria-hidden="true" />
-          <strong className="grow">Ask RAY{caseId ? " · this case" : ""}</strong>
+          <strong className="grow">Ask Agentic Dashboard{caseId ? " · this case" : ""}</strong>
           {!caseId && (
             <Link href={`/merchant/${merchantId}/ask`} className="linkbtn" onClick={() => setOpen(false)}>
               Open full page
             </Link>
           )}
-          <button type="button" className="icon-btn" aria-label="Close Ask RAY" onClick={() => setOpen(false)}>
+          <button type="button" className="icon-btn" aria-label="Close Agentic Dashboard" onClick={() => setOpen(false)}>
             <X size={18} />
           </button>
         </div>
@@ -34,8 +34,8 @@ export function AskPanel() {
         <CoachMarks
           id="ask-panel"
           steps={[
-            { target: ".ask-panel [data-coach='ask-chips']", title: "Start with a question", text: "Tap one, or type your own. RAY answers from your cases and shows where each number came from." },
-            { target: ".ask-panel [data-coach='ask-input']", title: "Or tell RAY a rule", text: "Try: Refund duplicate charges under ₹500 automatically. RAY shows the rule first and does nothing until you approve." },
+            { target: ".ask-panel [data-coach='ask-chips']", title: "Ask Agentic Dashboard", text: "Tap a supported question or type your own. Answers use available demo records and show their basis or link to a case. RAY is the separate WhatsApp bot." },
+            { target: ".ask-panel [data-coach='ask-input']", title: "Propose a rule", text: "Try: Refund duplicate charges under ₹500 automatically. The dashboard shows the rule first; nothing is saved until you approve it." },
           ]}
         />
       </aside>

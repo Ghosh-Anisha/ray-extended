@@ -106,6 +106,20 @@ export function starterWidgets(setup: Setup): SavedWidget[] {
   return STARTER.map((kind) => ({ id: `w_${kind}`, kind, source: "starter", watch: watched.has(kind) }));
 }
 
+export function setupWidgets(setup: Setup): SavedWidget[] {
+  const widgets = starterWidgets(setup);
+  const seen = new Set(widgets.map((w) => w.kind));
+  const phrases = (setup.request ?? "").toLowerCase().split(/,|\band\b/).map((part) => part.trim()).filter(Boolean);
+  for (const phrase of phrases) {
+    const kind = parseWidgetAsk(phrase);
+    if (kind && !seen.has(kind)) {
+      widgets.push({ id: `w_${kind}`, kind, source: "asked", watch: false });
+      seen.add(kind);
+    }
+  }
+  return widgets;
+}
+
 const UPI_APP = (vpa: string | null) => {
   const handle = vpa?.split("@")[1] ?? "";
   return ({ okaxis: "Axis Bank UPI", okicici: "ICICI Bank UPI", okhdfcbank: "HDFC Bank UPI", oksbi: "SBI UPI" } as Record<string, string>)[handle] ?? "Other UPI";
@@ -227,7 +241,7 @@ export function parseWidgetAsk(text: string): WidgetKind | null {
   if (/^(show )?subscriptions?( at risk)?$/.test(t)) return "subs_risk";
   if (/^(show )?refunds?$/.test(t)) return "refunds";
   if (/^(show )?(saved|savings)$/.test(t)) return "saved";
-  if (/^(show )?(cases|cases waiting|waiting on me)$/.test(t)) return "needs_you";
+  if (/^(show )?(cases|cases waiting|waiting on me|cases that need my attention|cases needing my attention)$/.test(t)) return "needs_you";
   return null;
 }
 

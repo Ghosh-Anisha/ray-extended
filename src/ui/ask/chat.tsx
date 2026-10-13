@@ -32,8 +32,8 @@ export function AskChat({ initialQuery = "", compact }: { initialQuery?: string;
             <span className="tile-icon" aria-hidden="true">
               <Sparkles size={18} />
             </span>
-            <strong>{caseId ? "Ask RAY about this case" : "Ask a supported question"}</strong>
-            <span className="muted">{caseId ? "RAY answers from what it found on this case." : "Answers use scripted routing and your seeded demo records. Rule requests always need your approval."}</span>
+            <strong>{caseId ? "Ask about this case" : "Ask a supported question"}</strong>
+            <span className="muted">{caseId ? "The answer uses the evidence shown on this case." : "Answers use demo-data routing, not a general AI investigation. Rule requests always need your approval."}</span>
           </div>
         )}
         {thread.map((m) =>
@@ -47,7 +47,7 @@ export function AskChat({ initialQuery = "", compact }: { initialQuery?: string;
             </div>
           ),
         )}
-        {busy && <div className="ask-msg ray muted">RAY is checking your cases…</div>}
+        {busy && <div className="ask-msg ray muted">Checking available demo data…</div>}
         <div ref={end} />
       </div>
       <div className="ask-bottom">
@@ -68,7 +68,7 @@ export function AskChat({ initialQuery = "", compact }: { initialQuery?: string;
             submit(text);
           }}
         >
-          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={caseId ? "Ask RAY about this case…" : "Ask a question, or tell RAY a rule…"} aria-label="Ask RAY" maxLength={400} />
+          <input value={text} onChange={(e) => setText(e.target.value)} placeholder={caseId ? "Ask about this case…" : "Ask a question, or propose a rule…"} aria-label="Ask Agentic Dashboard" maxLength={400} />
           <button type="submit" className="btn primary small" disabled={busy || !text.trim()} aria-label="Send">
             <Send size={14} aria-hidden="true" />
             Ask

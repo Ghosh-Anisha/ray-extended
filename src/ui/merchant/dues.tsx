@@ -24,7 +24,8 @@ const balanceLabel = (minor: number) => minor < 0 ? `${rupees(-minor)} short` : 
 export function duesExampleSummary(now: number) {
   const dueThisMonth = DUE_EXAMPLE.filter((d) => monthAt(d.dueAt) === monthAt(now)).reduce((sum, d) => sum + d.amount, 0);
   const dueLater = DUE_EXAMPLE.filter((d) => monthAt(d.dueAt) > monthAt(now)).reduce((sum, d) => sum + d.amount, 0);
-  return { openingCash: EXAMPLE_CASH, dueThisMonth, afterThisMonth: EXAMPLE_CASH - dueThisMonth, dueLater };
+  const afterThisMonth = EXAMPLE_CASH - dueThisMonth;
+  return { openingCash: EXAMPLE_CASH, dueThisMonth, afterThisMonth, dueLater, afterAllListed: afterThisMonth - dueLater };
 }
 function currentMonthBills(now: number) {
   let balance = EXAMPLE_CASH;
@@ -93,32 +94,32 @@ export function Dues({ merchantId, now, collectRequests = [] }: { merchantId: st
     <section className="stack">
       <div className="row" style={{ justifyContent: "space-between" }}>
         <div>
-          <h1 className="page-title">Dues</h1>
-          <p className="muted" style={{ margin: "4px 0 0" }}>Illustrative dated arithmetic, not a liquidity assessment</p>
+          <h1 className="page-title">Dues &amp; Liquidity</h1>
+          <p className="muted" style={{ margin: "4px 0 0" }}>Incoming Collect requests beside outgoing obligations</p>
         </div>
         <span className="chip simulated"><CalendarClock size={14} /> Simulated example · {formatDate(now)}</span>
       </div>
       {!isLeafy && <div className="panel">No Dues example is seeded for this account. These figures are not account data.</div>}
       {isLeafy && <div className="banner promise" role="note">Illustrative only. There is no connected complete ledger, settlement or reconciliation feed, supplier payment rail, or verified supplier recipient. Nothing on this screen can send a supplier payment.</div>}
-      <div className="grid-3">
+      <div className="grid-4">
         <div className="panel metric"><span className="muted">Illustrative starting amount · 13 Oct</span><strong>{isLeafy ? rupees(summary.openingCash) : "Not available"}</strong><span className="insight">Example only; not a bank balance.</span></div>
         <div className="panel metric"><span className="muted">Example dues dated in {thisMonth}</span><strong>{isLeafy ? rupees(summary.dueThisMonth) : "Not available"}</strong><span className="insight">Includes only listed bills due this month. Later-dated bills are excluded.</span></div>
         <div className="panel metric"><span className="muted">Illustrative running balance after {thisMonth}-dated items</span><strong>{isLeafy ? rupees(summary.afterThisMonth) : "Not available"}</strong><span className="insight">Starting example less bills due this month only. Not a bank balance; payment status is not connected.</span></div>
+        <div className="panel metric"><span className="muted">After all listed items, including later dues</span><strong>{isLeafy ? balanceLabel(summary.afterAllListed) : "Not available"}</strong><span className="insight">October&apos;s {rupees(summary.afterThisMonth)} less the 1 Nov item of {rupees(summary.dueLater)}. Illustrative only.</span></div>
       </div>
-      {isLeafy && <section id="invoices" className="panel stack">
+      {isLeafy && <div className="grid-2 dues-overview"><section id="invoices" className="panel stack">
         <div className="row" style={{ justifyContent: "space-between" }}><h2 style={{ margin: 0 }}>Example obligations</h2><span className="chip simulated">Simulated · no payment rail</span></div>
         <p className="muted">Illustrative dated arithmetic only, not a forecast or payment recommendation. October running balance starts at ₹42,000 and subtracts only bills due by 31 Oct. The 1 Nov item is shown separately and excluded from October totals.</p>
         <h3>Due in {thisMonth}</h3>
         <div className="dues-list">{currentMonthBills(now).map((d) => <div className="due-row" key={d.reference}><div><strong>{d.name}</strong><div className="muted">{d.source} · sender/biller: {d.sender} · invoice/bill ID: {d.reference} · ₹{(d.amount / 100).toLocaleString("en-IN")} · due {dueLabel(d.dueAt)}</div></div><span className="chip neutral">Illustrative running balance: {balanceLabel(d.runningBalance)}</span></div>)}</div>
         <h3>Due later</h3>
         <div className="dues-list">{DUE_EXAMPLE.filter((d) => monthAt(d.dueAt) > monthAt(now)).map((d) => <div className="due-row" key={d.reference}><div><strong>{d.name}</strong><div className="muted">{d.source} · sender/biller: {d.sender} · bill ID: {d.reference} · ₹{(d.amount / 100).toLocaleString("en-IN")} · due {dueLabel(d.dueAt)}</div></div><span className="chip neutral">Excluded from {thisMonth} running balance</span></div>)}</div>
-      </section>}
-      {isLeafy && <InvoiceInbox />}
-      {isLeafy && <section className="panel stack" aria-label="Simulated Collect requests">
+      </section><section className="panel stack" aria-label="Simulated Collect requests">
         <div className="row"><h2 style={{ margin: 0 }}>Collect requests</h2><span className="chip simulated">Simulated demo data</span></div>
         <p className="muted">Outstanding amounts and statuses from the seeded Collect morning list. No live buyer requests or payment rails are connected.</p>
-        {collectRequests.length === 0 ? <span className="muted">No seeded Collect requests are outstanding.</span> : collectRequests.map((r) => <div className="due-row" key={r.buyer}><div><strong>{r.buyer}</strong><div className="muted">Outstanding request: {r.overdue} · expected payment: {r.promise ?? "No expected date recorded"}</div></div><span className="chip notice">{r.state ?? r.stage}</span></div>)}
-      </section>}
+        {collectRequests.length === 0 ? <span className="muted">No seeded Collect requests are outstanding.</span> : collectRequests.map((r) => <div className="due-row" key={r.buyer}><div><strong>{r.buyer}</strong><div className="muted">Amount: {r.overdue} · expected: {r.promise ?? "No date recorded"}</div></div><span className="chip notice">{r.state ?? r.stage}</span></div>)}
+      </section></div>}
+      {isLeafy && <InvoiceInbox />}
       <NudgeBar text={isLeafy ? "These simulated rows do not include a complete cash forecast or a payment rail." : "No account-specific dues data is loaded for this merchant."} action={isLeafy ? { label: "Review invoices", href: "#invoices" } : { label: "View cases", href: `/merchant/${merchantId}/cases` }} />
       <CoachMark id="dues" steps={["These simulated figures demonstrate date-based arithmetic only. No bank balance or complete obligations ledger is connected.", "Supplier invoices are not BBPS bills. Review the demo flags, but they are not independently verified and no payment action is available."]} />
       <Link className="sr-only" href={`/merchant/${merchantId}/cases`}>Back to cases</Link>

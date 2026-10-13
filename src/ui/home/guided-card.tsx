@@ -1,6 +1,6 @@
 "use client";
 
-// "See RAY in 3 minutes" (docs/ui-rebuild.md 3.1): shown until dismissed, per
+// The combined dashboard and WhatsApp story (docs/ui-rebuild.md 3.1): shown until dismissed, per
 // browser. The button starts the ten-step story in the shared shell overlay.
 import { Play } from "lucide-react";
 import Link from "next/link";
@@ -30,8 +30,8 @@ export function GuidedDemoCard({ merchantId }: { merchantId: string }) {
         <Play size={20} aria-hidden="true" />
       </span>
       <div className="grow">
-        <strong>See RAY in 3 minutes: follow one day at Leafy Bakes.</strong>
-        <div className="muted">Ten short steps, from a missed order to a filled dashboard.</div>
+        <strong>Follow a demo day with Agentic Dashboard and RAY on WhatsApp.</strong>
+        <div className="muted">Ten short steps, from a missed order to a custom dashboard. All outcomes are simulated.</div>
       </div>
       <Link className="btn primary" href={`/merchant/${merchantId}?guided=1&step=1`}>
         Start guided demo

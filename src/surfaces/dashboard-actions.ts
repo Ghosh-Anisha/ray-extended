@@ -8,6 +8,7 @@ import {
   parseWidgetAsk,
   readState,
   recordAsk,
+  setupWidgets,
   starterWidgets,
   WIDGET_DEFINITION,
   WIDGET_TITLE,
@@ -45,7 +46,7 @@ export function dashboardAction(a: Adapters, raw: unknown): DashboardResult {
     case "setup": {
       const setup: Setup = { business: i.business, daily: i.daily, audience: i.audience, ...(i.request?.trim() ? { request: i.request.trim() } : {}) };
       writeState(a, m, "dash.setup", setup);
-      writeState(a, m, "dash.widgets", starterWidgets(setup));
+      writeState(a, m, "dash.widgets", setupWidgets(setup));
       writeState(a, m, "dash.kept", false);
       return {};
     }

@@ -41,9 +41,20 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     expect(inboxView(a, LEAFY).tabs.map((t) => [t.label, t.rows.length])).toEqual([["Needs you", 4], ["RAY is handling", 13], ["Closed", 23]]);
   });
 
-  it("seeds fictional examples for each of the five supported case moments", () => {
-    const moments = new Set(createRepository(db).cases.list(eq(s.cases.merchant_id, LEAFY)).map((c) => c.moment));
-    expect([...moments]).toEqual(expect.arrayContaining(["paid_no_order", "international", "subscription", "chargeback", "collect"]));
+  it("seeds an openable example for every moment and keeps filtered counts tied to returned cases", () => {
+    const moments = ["paid_no_order", "international", "subscription", "chargeback", "collect", "whose_side", "ticket", "settlement_hold", "ai_chat_order"] as const;
+    const repo = createRepository(db);
+    for (const moment of moments) {
+      const filtered = inboxView(a, LEAFY, moment);
+      const rows = filtered.tabs.flatMap((tab) => tab.rows);
+      expect(rows.length, moment).toBeGreaterThan(0);
+      expect(rows.every((row) => row.momentKey === moment), moment).toBe(true);
+      for (const row of rows) {
+        expect(repo.cases.get(row.id)?.merchant_id).toBe(LEAFY);
+        expect(caseView(a, row.id).id).toBe(row.id);
+      }
+      expect(filtered.tabs.reduce((sum, tab) => sum + tab.rows.length, 0)).toBe(rows.length);
+    }
   });
 
   it("computes Home's numbers from the rows", () => {

@@ -9,7 +9,7 @@ import { openMigratedDb } from "@/db/client";
 import { DEMO_NOW } from "@/db/seed";
 import { seedDemo } from "@/db/seed/demo";
 import { dashboardAction } from "./dashboard-actions";
-import { buildReport, dashboardView, parseReportRequest, parseWidgetAsk } from "./dashboard";
+import { buildReport, dashboardView, parseReportRequest, parseWidgetAsk, setupWidgets } from "./dashboard";
 import { chaseCard, emiCard, setEmi } from "./grow";
 
 vi.setConfig({ testTimeout: 90_000, hookTimeout: 90_000 });
@@ -39,12 +39,21 @@ describe("My dashboard", () => {
     const v = dashboardView(a, M);
     expect(v.setup?.request).toBe("Show today's sales and refunds by product");
     const by = Object.fromEntries(v.widgets.map((w) => [w.kind, w.data]));
-    expect(v.widgets).toHaveLength(8);
+    expect(v.widgets).toHaveLength(9);
+    expect(v.widgets.map((w) => w.kind)).toContain("refunds_by_product");
     expect(by.saved.value).toBe("₹1,84,300");
     expect(by.success_rate.value).toBe("94.2%");
     expect(by.needs_you.value).toBe("4");
     expect(by.overdue.value).toBe("₹6,10,000");
     expect(v.widgets.every((w) => w.definition.length > 0)).toBe(true);
+  });
+
+  it("adds supported widgets requested in natural language to the saved setup", () => {
+    const setup = { ...dashboardView(a, M).suggested, request: "Show today's sales, refunds by product, and cases that need my attention" };
+    const widgets = setupWidgets(setup);
+    expect(widgets.map((w) => w.kind)).toEqual(expect.arrayContaining(["sales_today", "refunds_by_product", "needs_you"]));
+    dashboardAction(a, { action: "setup", merchantId: M, ...setup });
+    expect(dashboardView(a, M).widgets.map((w) => w.kind)).toEqual(expect.arrayContaining(["refunds_by_product", "needs_you"]));
   });
 
   it("adds the supported widgets by phrase, says no to the rest, and removes", () => {

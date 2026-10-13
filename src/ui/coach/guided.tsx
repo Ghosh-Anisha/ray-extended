@@ -8,16 +8,16 @@ type DemoState = { cases?: Record<string, string> };
 type GuidedStep = { title: string; text: string; target: string; next: string; href: (base: string, cases: Record<string, string>) => string };
 
 const STEPS: GuidedStep[] = [
-  { title: "Start with one case", text: "Demo amount marked saved: ₹1,84,300. This is a simulated figure, not verified recovered revenue. Select Review cases to inspect the evidence and see where your approval is needed.", target: "[data-guided='review-cases']", next: "Review cases", href: (b) => `${b}/cases?guided=1&step=2` },
-  { title: "Priya's case", text: "Before Priya contacted Leafy, Razorpay had recorded the payment and two webhook deliveries returned 200, while the store order stayed pending. RAY opened this case from that signal.", target: "[data-guided='case-priya']", next: "Open Priya's case", href: (b, c) => `${b}/cases/${c["RD-1042"] ?? ""}?guided=1&step=3` },
-  { title: "RAY's diagnosis", text: "RAY compared the captured ₹1,299 payment, two HTTP 200 webhook deliveries marked unprocessed, Leafy's pending order and a report from another store on the same plugin version. That report corroborates a plugin issue but does not prove the identical cause or confirm compensation. Review the evidence, then approve Mark paid & ship.", target: "[data-guided='primary-action']", next: "Approve Mark paid & ship", href: () => `/sim/inbox?guided=1&step=4&person=cus_priya` },
+  { title: "Start with one case", text: "Demo amount marked saved: ₹1,84,300. This is a simulated total from demo cases, not money we've verified recovering. Choose Review cases to inspect the evidence and decide what needs your approval.", target: "[data-guided='review-cases']", next: "Review cases", href: (b) => `${b}/cases?guided=1&step=2` },
+  { title: "Priya's case", text: "Before Priya contacted Leafy, Razorpay had recorded the payment and two webhook deliveries returned 200, while the store order stayed pending. Agentic Dashboard opened this case from that signal.", target: "[data-guided='case-priya']", next: "Open Priya's case", href: (b, c) => `${b}/cases/${c["RD-1042"] ?? ""}?guided=1&step=3` },
+  { title: "Evidence and recommendation", text: "The dashboard compared the captured ₹1,299 payment, two webhook deliveries marked unprocessed, Leafy's pending order and a report from another store on the same plugin version. That report corroborates a plugin issue but does not prove the identical cause or confirm compensation. Review the evidence, then approve Mark paid & ship.", target: "[data-guided='primary-action']", next: "Approve Mark paid & ship", href: () => `/sim/inbox?guided=1&step=4&person=cus_priya` },
   { title: "Next morning reply", text: "Move the demo clock through the engine, then send Priya's reply through the inbound-message path. The demo checks that the case reaches Resolved with an arrived outcome; this is simulated, not a live customer confirmation.", target: "[data-guided-customer='priya']", next: "Skip to next morning", href: (b) => `${b}/whatsapp?guided=1&step=5` },
   { title: "RAY on WhatsApp", text: "Rahul was charged twice. Approve the duplicate refund. The case will show its real 10-minute Undo window.", target: "[data-guided='approve-rahul']", next: "Approve Rahul's duplicate refund", href: (b) => `${b}/rules?guided=1&step=6` },
   { title: "Make a repeated choice a rule", text: "Tap the example or type: Refund duplicate charges under ₹500 automatically. Then approve the rule.", target: "[data-coach='rules-chat']", next: "See chargebacks", href: (b, c) => `${b}/cases/${c["RD-1051"] ?? ""}?guided=1&step=7` },
-  { title: "Chargebacks", text: "RAY found delivery proof and prepared the reply before Neha's deadline.", target: "[data-guided='primary-action']", next: "See subscriptions", href: (b, c) => `${b}/cases/${c["RD-1060"] ?? ""}?guided=1&step=8` },
-  { title: "Save a subscription", text: "Karan wants to cancel. Choose a pause, then RAY schedules the resume.", target: "[data-guided='primary-action']", next: "See the morning list", href: (b) => `${b}/collect?guided=1&step=9` },
-  { title: "Invoice overdue", text: "Acme's promise is visible here. RAY matches a bank credit to the right invoices before posting it.", target: "[data-guided='collect']", next: "Open My dashboard", href: (b) => `${b}/dashboard?guided=1&step=10` },
-  { title: "My dashboard", text: "Answer three questions, add a widget in plain words, and keep the layout you want RAY to watch.", target: "[data-coach='dash-setup']", next: "Finish", href: (b) => b },
+  { title: "Chargebacks", text: "The dashboard shows delivery proof and the prepared response before Neha's deadline.", target: "[data-guided='primary-action']", next: "See subscriptions", href: (b, c) => `${b}/cases/${c["RD-1060"] ?? ""}?guided=1&step=8` },
+  { title: "Save a subscription", text: "Karan wants to cancel. Choose a pause; the demo schedules the resume.", target: "[data-guided='primary-action']", next: "See the morning list", href: (b) => `${b}/collect?guided=1&step=9` },
+  { title: "Invoice overdue", text: "Acme's promise is visible here. The simulated workflow matches a bank-credit example to the listed invoices before posting it.", target: "[data-guided='collect']", next: "Open My dashboard", href: (b) => `${b}/dashboard?guided=1&step=10` },
+  { title: "My dashboard", text: "Answer three questions, add a widget in plain words, and keep the layout you want Agentic Dashboard to watch.", target: "[data-coach='dash-setup']", next: "Finish", href: (b) => b },
 ];
 
 function baseFor(path: string) {
@@ -155,11 +155,11 @@ export function GuidedDemoHost() {
   if (finished) {
     return (
       <aside className="coach guided-end" role="dialog" aria-label="Guided demo complete">
-        <strong>That&apos;s RAY: an account manager that acts, for every small merchant.</strong>
+        <strong>That&apos;s Agentic Dashboard, with RAY as the WhatsApp bot.</strong>
         <p className="coach-text">You saw the same engine move from evidence to a merchant tap, then keep following up.</p>
         <div className="row" style={{ justifyContent: "flex-end" }}>
           <button type="button" className="btn secondary small" onClick={() => { setFinished(false); router.push(`${base}?guided=1&step=1`); }}>Restart</button>
-          <button type="button" className="btn primary small" onClick={() => router.push(`${base}?tour=grow`)}>See what RAY can do</button>
+          <button type="button" className="btn primary small" onClick={() => router.push(`${base}/whatsapp`)}>Open RAY on WhatsApp</button>
           <button type="button" className="btn tertiary small" onClick={() => router.push(base)}>Explore</button>
         </div>
       </aside>

@@ -54,7 +54,7 @@ function chapters(base: string, cases: Record<string, string>) {
     { title: "Case page: paid, no order", href: `${c("RD-1042")}?guided=1&step=3` },
     { title: "Customer inbox", href: "/sim/inbox?guided=1&step=4" },
     { title: "RAY on WhatsApp", href: `${base}/whatsapp?guided=1&step=5` },
-    { title: "Ask RAY", href: `${base}/rules?guided=1&step=6` },
+    { title: "Ask Agentic Dashboard", href: `${base}/rules?guided=1&step=6` },
     { title: "Chargeback", href: `${c("RD-1051")}?guided=1&step=7` },
     { title: "Subscription stopped", href: `${c("RD-1060")}?guided=1&step=8` },
     { title: "Invoice overdue", href: `${base}/collect?guided=1&step=9` },

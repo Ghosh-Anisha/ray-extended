@@ -1,4 +1,4 @@
-// Home (docs/ui-rebuild.md 3.1, first cut): what is waiting, what RAY did,
+// Home (docs/ui-rebuild.md 3.1, first cut): what is waiting, demo outcomes,
 // and where each moment stands. Every number comes from merchantStats.
 import { ArrowRight, CalendarDays, CheckCircle2, Clock, LayoutDashboard, ListChecks, Sparkles, TriangleAlert } from "lucide-react";
 import Link from "next/link";
@@ -42,7 +42,7 @@ function Insight({ children }: { children: string }) {
     <span className="insight">
       <Sparkles size={12} aria-hidden="true" />
       <span>
-        <strong>Insight by RAY</strong> · {children}
+        <strong>Demo insight</strong> · {children}
       </span>
     </span>
   );
@@ -50,7 +50,7 @@ function Insight({ children }: { children: string }) {
 
 export type TopCase = { id: string; name: string; amount: string };
 
-export type HomeExtras = { emi: EmiCard | null; chase: { line: string; href: string } | null; rayOn: boolean; dashboardSet: boolean };
+export type HomeExtras = { emi: EmiCard | null; chase: { line: string; href: string } | null; rayOn: boolean; dashboardSet: boolean; dashboardWidgets: { title: string; value: string; definition: string }[] };
 
 export function Home({ merchantId, merchantName, stats, card, topCase, extras }: { merchantId: string; merchantName: string; stats: MerchantStats; card: Card | null; topCase: TopCase | null; extras: HomeExtras }) {
   const base = `/merchant/${merchantId}`;
@@ -61,7 +61,7 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
       <div className="stack">
       <div>
         <h1 className="page-title">{merchantName}</h1>
-        <p className="page-sub">What RAY is doing for you.</p>
+        <p className="page-sub">Your merchant operations dashboard.</p>
       </div>
 
       <section className={`panel attention ${waiting ? "" : "clear"}`} aria-label="Waiting on you">
@@ -88,9 +88,9 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
 
       <GuidedDemoCard merchantId={merchantId} />
 
-      <section className="stack" style={{ gap: 12 }} aria-label="What RAY did">
+      <section className="stack" style={{ gap: 12 }} aria-label="Demo case outcomes">
         <div className="section-head">
-          <h2>What RAY did this month</h2>
+          <h2>Demo case outcomes this month</h2>
           <DateChips stats={stats} />
         </div>
         <div className="grid-4">
@@ -104,7 +104,7 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
             <span className="metric-label">Estimated time</span>
             <span className="big-number">{hoursLabel(stats.timeSavedMinutes)}</span>
             <span className="muted">Fixed minutes per case, not measured time</span>
-            <Insight>{`${stats.closed.byRay} of ${stats.closed.count} cases marked as handled by RAY.`}</Insight>
+            <Insight>{`${stats.closed.byRay} of ${stats.closed.count} cases marked handled by the demo flow.`}</Insight>
           </div>
           <div className="panel stack" style={{ gap: 8 }}>
             <span className="metric-label">Cases closed</span>
@@ -122,6 +122,13 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
       </section>
 
       <ProactiveCards merchantId={merchantId} emi={extras.emi} chase={extras.chase} />
+
+      <section className="stack" style={{ gap: 12 }} aria-label="Your custom dashboard">
+        <div className="section-head"><h2>Your custom dashboard</h2><Link className="btn secondary small" href={`${base}/dashboard`}>{extras.dashboardSet ? "Open My dashboard" : "Build My dashboard"}</Link></div>
+        {!extras.dashboardSet ? <p className="muted">Create a layout from seeded payment and case data. It will appear here and on My dashboard.</p> : (
+          <div className="grid-4">{extras.dashboardWidgets.slice(0, 4).map((w) => <article className="panel stack" key={w.title}><span className="metric-label">{w.title}</span><strong className="big-number">{w.value}</strong><span className="muted">{w.definition}</span><span className="chip simulated">Seeded demo data</span></article>)}</div>
+        )}
+      </section>
 
       <section className="stack" style={{ gap: 12 }} aria-label="By moment">
         <div className="section-head">
@@ -154,13 +161,13 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
           </Link>
           <Link className="panel tile" href={`${base}/ask`}>
             <span className="tile-icon"><Sparkles size={18} aria-hidden="true" /></span>
-            <strong>Ask RAY</strong>
-            <span className="muted">Ask why an order did not show up, or what is waiting on you.</span>
+            <strong>Ask Agentic Dashboard</strong>
+            <span className="muted">Ask a grounded question about your demo payments and cases.</span>
           </Link>
           <Link className="panel tile" href={`${base}/rules`}>
             <span className="tile-icon"><ListChecks size={18} aria-hidden="true" /></span>
             <strong>Set a rule</strong>
-            <span className="muted">Tell RAY once, for example to refund small duplicate charges.</span>
+            <span className="muted">Save an approved rule, for example for small duplicate charges.</span>
           </Link>
         </div>
       </section>
@@ -190,13 +197,13 @@ export function Home({ merchantId, merchantName, stats, card, topCase, extras }:
         id="home-u6"
         steps={[
           { target: "[data-coach='capabilities']", text: "Each card says if it is On, ready to Try, a Preview using seeded examples, or Coming soon without a preview." },
-          { target: "[data-coach='suggestions']", text: "RAY proposes levers from seeded demo numbers. Preview a modeled scenario or choose Not now; no live setting changes here." },
-          { target: "[data-coach='try-it']", text: "Try it opens a short example on Leafy Bakes, with RAY pointing things out." },
+          { target: "[data-coach='suggestions']", text: "The demo suggests levers from seeded numbers. Preview a modeled scenario or choose Not now; no live setting changes here." },
+          { target: "[data-coach='try-it']", text: "Try it opens a short example on Leafy Bakes, with the evidence shown on screen." },
         ]}
       />
       <NudgeBar
-        text={topCase ? `${stats.needsYou.count} ${stats.needsYou.count === 1 ? "case needs" : "cases need"} you. Start with the biggest: ${topCase.name}, ${topCase.amount}.` : "You're all caught up. Ask RAY what it can do for you next."}
-        action={topCase ? { label: "Open", href: `${base}/cases/${topCase.id}` } : { label: "Ask RAY", href: `${base}/ask` }}
+        text={topCase ? `${stats.needsYou.count} ${stats.needsYou.count === 1 ? "case needs" : "cases need"} you. Start with the biggest: ${topCase.name}, ${topCase.amount}.` : "You're all caught up. Ask Agentic Dashboard about your demo data."}
+        action={topCase ? { label: "Open", href: `${base}/cases/${topCase.id}` } : { label: "Ask Agentic Dashboard", href: `${base}/ask` }}
       />
     </div>
   );

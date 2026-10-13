@@ -1,4 +1,4 @@
-// Ask RAY: answers from the merchant's own rows. Every number comes from the
+// Agentic Dashboard assistant: answers from the merchant's own rows. Every number comes from the
 // database (cases, payments, refunds, disputes, invoices) and is cited with a
 // link to the cases it came from. Nothing here calls a model, so it behaves
 // the same in replay, live and record mode, and nothing in a customer message
@@ -62,14 +62,14 @@ function whatsWaiting(a: Adapters, merchantId: string): AskReply {
   });
 }
 
-// The story of one case: the cause, what RAY checked, and what comes next.
+// The story of one case: the cause, available evidence, and what comes next.
 function aboutCase(a: Adapters, merchantId: string, caseId: string, lead?: string): AskReply {
   const kase = createRepository(a.db).cases.get(caseId);
   if (!kase || kase.merchant_id !== merchantId) return fallback();
   const v = caseView(a, caseId);
   const bullets = v.findings.slice(0, 5).map((f) => `${f.ok ? "✓" : "✗"} ${f.text} (${f.source})`);
   const next = v.yourCall.canTap && v.yourCall.primary ? `Next: ${v.yourCall.primary.label}, ${v.yourCall.primary.covered ? "Covered" : "Your call"}.` : v.promiseLine ? v.promiseLine : "Nothing needs your tap on this one.";
-  const side = v.side ? `${v.side.label}. ${v.side.note}` : "RAY is still checking whose side this is.";
+  const side = v.side ? `${v.side.label}. ${v.side.note}` : "This case is still being checked.";
   return reply({
     text: `${lead ?? `${v.name}, ${v.amount}`}: ${side}`,
     bullets: [...bullets, next],
@@ -175,7 +175,7 @@ function rulesSummary(a: Adapters, merchantId: string): AskReply {
   const on = rules.filter((r) => r.status === "approved");
   const proposed = rules.filter((r) => r.status === "proposed");
   return reply({
-    text: `${on.length} rule${on.length === 1 ? " is" : "s are"} on${proposed.length ? `, and RAY suggests ${proposed.length} more` : ""}.`,
+      text: `${on.length} rule${on.length === 1 ? " is" : "s are"} on${proposed.length ? `, and the demo suggests ${proposed.length} more` : ""}.`,
     bullets: ["Basis: saved playbook rules for this merchant in the demo." , ...on.map((r) => `On: ${r.text}`), ...proposed.map((r) => `Suggested: ${r.text}`)],
     cites: [{ label: "Rules", href: `/merchant/${merchantId}/rules` }],
     chips: proposed.slice(0, 1).map((r) => r.text),
@@ -192,7 +192,7 @@ function whatCanYouDo(a: Adapters, merchantId: string, first: boolean): AskReply
   const suggested = p.moments.flatMap((m) => m.rules.filter((r) => r.status === "proposed"));
   const tryIt = caps.filter((c) => c.status === "Try it");
   const bullets = [
-    ...suggested.map((r) => `Turn on "${r.text}". RAY suggested it from your own choices.`),
+    ...suggested.map((r) => `Turn on "${r.text}". The demo suggested it from your saved choices.`),
     ...caps.filter((c) => c.openCases > 0).slice(0, 2).map((c) => `${c.title}: ${c.openCases} open ${c.openCases === 1 ? "case" : "cases"}.`),
     ...tryIt.map((c) => `Try: ${c.title}.`),
   ].slice(0, 5);
