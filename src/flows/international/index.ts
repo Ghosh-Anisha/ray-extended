@@ -53,7 +53,7 @@ export const LOST_WINDOW_MS = 30 * DAY;
 // paid twice (card and PayPal): then the merchant decides which to refund.
 export const DUPLICATE_WINDOW_MS = 30 * MIN;
 
-export const TIMERS = { leave: "leave_check", noPay: "no_pay", request: "request_check", refund: "refund_check", settle: "settle", close: "close_check" } as const;
+export const TIMERS = { leave: "leave_check", noPay: "no_pay", request: "request_check", refund: "refund_check", settle: "settle", close: "close_check", reopen: "reopen" } as const;
 
 // Events the simulated systems send through handleEvent (payload.event).
 export const SIM_EVENTS = {
@@ -467,7 +467,7 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
   // wherever the case is.
   function outcomeStep(ctx: EngineContext, kase: Case, o: Outcome, findings: Finding[], fixedItself: boolean): InvestigateResult {
     if (fixedItself) return { to: "fixed_itself", reason: `Fixed itself: ${o.line}`, findings };
-    if (kase.state === "waiting_merchant") {
+    if (kase.state === "waiting_merchant" || kase.state === "likely") {
       // waiting_merchant can't go straight to verifying: through waiting_customer, then a settle check.
       return { to: "waiting_customer", reason: o.line, findings, timers: [{ kind: TIMERS.settle, inMs: 0 }] };
     }
@@ -835,7 +835,8 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
       if (e.kind !== "webhook") return null;
       const open = ctx.repo.cases
         .list(and(eq(s.cases.merchant_id, e.merchantId), eq(s.cases.moment, "international")))
-        .filter((k) => !isFinal(k.state))
+        // Closed, no reply: only the engine's late rule (14 days) may take an event.
+        .filter((k) => !isFinal(k.state) && k.state !== "unconfirmed")
         .sort((x, y) => y.opened_at - x.opened_at);
       if (!open.length) return null;
       const event = String(e.payload.event ?? "");
@@ -871,7 +872,16 @@ export function createInternationalSpecialist(opts: InternationalOptions = {}): 
     },
 
     async investigate(ctx, kase, e) {
+      // A new message reopens a case that closed with no reply; RAY reads it next.
+      if (e.kind === "message_in" && kase.state === "unconfirmed") {
+        return { to: "likely", reason: "The buyer wrote again.", findings: [], timers: [{ kind: TIMERS.reopen, inMs: 0 }] };
+      }
       if (e.kind === "message_in") return onBuyerMessage(ctx, kase, e);
+      if (kase.state === "unconfirmed") return stay(kase, "Closed, no reply. A payment or a message from the buyer reopens it.");
+      if (e.kind === "timer" && e.payload.timer_kind === TIMERS.reopen && kase.state === "likely") {
+        const last = ctx.repo.caseEvents.listByCase(kase.id).findLast((x) => x.type === "message_in");
+        if (last) return onBuyerMessage(ctx, kase, { ...e, kind: "message_in", sourceId: last.evidence_ref ?? last.id, payload: last.payload });
+      }
       if (e.kind === "timer") {
         switch (e.payload.timer_kind) {
           case TIMERS.leave:

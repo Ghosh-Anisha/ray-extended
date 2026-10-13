@@ -479,3 +479,50 @@ describe("the Checkout abroad simulator (Simulated)", () => {
     await expect(runSimAction(w.engine, w.a, { action: "pay_paypal", merchantId: PIXELFORGE, orderId: order.id })).rejects.toThrow();
   });
 });
+
+describe("late events after Closed, no reply", () => {
+  async function closedNoReply() {
+    const r = await w.checkout({ outcome: "card_not_international" });
+    await w.engine.advanceBy(30 * MIN);
+    const [mail] = w.sent(r.kase!.id);
+    await w.engine.advanceBy(72 * HOUR);
+    expect(w.state(r.kase!.id).state).toBe("unconfirmed");
+    return { k: r.kase!, mail };
+  }
+
+  it("paying the link 5 days later closes it as Resolved, paid late, saved", async () => {
+    const { k, mail } = await closedNoReply();
+    await w.engine.advanceBy(5 * 24 * HOUR);
+    await payLink(w.a, { merchantId: NOTENEST, linkId: linkIdIn(w, mail.body), method: "card" });
+    expect(w.state(k.id)).toMatchObject({ state: "closed", outcome: "paid_late", counts_as_saved: true });
+    expect(w.cases()).toHaveLength(1);
+    expect(caseView(w.a, k.id).state.label).toBe("Resolved");
+    expect(w.repo.alerts.list(eq(s.alerts.case_id, k.id)).some((x) => x.kind === "paid_late")).toBe(true);
+  });
+
+  it("the same buyer paying the same amount on a new checkout counts too", async () => {
+    const { k } = await closedNoReply();
+    await w.engine.advanceBy(3 * 24 * HOUR);
+    const again = openCheckout(w.a, { merchantId: NOTENEST, amount: 4_900, currency: "USD", receipt: "nn_pro_annual_996", buyer: EMMA });
+    await payByCard(w.a, { merchantId: NOTENEST, orderId: again.id, outcome: "success" });
+    expect(w.state(k.id)).toMatchObject({ state: "closed", outcome: "paid_late", counts_as_saved: true });
+  });
+
+  it("after 14 days a payment doesn't reopen anything", async () => {
+    const { k } = await closedNoReply();
+    await w.engine.advanceBy(15 * 24 * HOUR);
+    const again = openCheckout(w.a, { merchantId: NOTENEST, amount: 4_900, currency: "USD", receipt: "nn_pro_annual_995", buyer: EMMA });
+    await payByCard(w.a, { merchantId: NOTENEST, orderId: again.id, outcome: "success" });
+    expect(w.state(k.id).state).toBe("unconfirmed");
+  });
+
+  it("a buyer's message 10 days later reopens it and RAY drafts a reply", async () => {
+    const { k } = await closedNoReply();
+    await w.engine.advanceBy(10 * 24 * HOUR);
+    await w.engine.receiveMessage({ merchantId: NOTENEST, channel: "email", from: EMMA.email, body: "Sorry, I was away. Can I still pay?" });
+    expect(w.state(k.id).state).toBe("likely");
+    await w.engine.advanceBy(0);
+    expect(w.state(k.id).state).toBe("waiting_merchant");
+    expect(caseView(w.a, k.id).yourCall.primary?.label).toBe("Send reply to Emma");
+  });
+});
