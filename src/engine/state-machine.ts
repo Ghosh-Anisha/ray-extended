@@ -15,7 +15,9 @@ export type Case = typeof s.cases.$inferSelect;
 export const TRANSITIONS: Record<CaseState, readonly CaseState[]> = {
   likely: ["confirmed", "waiting_customer", "waiting_merchant", "unconfirmed", "fixed_itself"],
   confirmed: ["waiting_merchant", "waiting_customer", "acting", "fixed_itself"],
-  waiting_customer: ["confirmed", "likely", "waiting_merchant", "unconfirmed", "fixed_itself"],
+  // verifying: the customer acted on something RAY sent alone (a recovery
+  // link, Step 8) or paid another way; verify() checks it and closes.
+  waiting_customer: ["confirmed", "likely", "waiting_merchant", "unconfirmed", "fixed_itself", "verifying"],
   waiting_merchant: ["acting", "waiting_customer", "confirmed", "closed", "fixed_itself"],
   acting: ["verifying", "waiting_merchant"],
   // unconfirmed: no reply to the "did it arrive?" check (Step 7).

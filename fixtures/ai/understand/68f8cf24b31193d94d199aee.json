@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "68f8cf24b31193d94d199aee",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v1",
+  "model": null,
+  "input": {
+    "text": "No thanks, just cancel"
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "subscription",
+    "language": "en",
+    "mood": "calm",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

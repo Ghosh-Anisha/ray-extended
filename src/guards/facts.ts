@@ -13,11 +13,23 @@ const MONEY = new Set(["amount", "base_amount", "total", "price", "paid_amount",
 const TIME = new Set([
   "created_at", "captured_at", "at", "due_at", "promised_by", "respond_by", "due_date", "issued_at", "accepted_at", "date",
   "billing_start", "billing_end", "promised_date", "made_at", "opened_at", "start", "end", "reported_at", "delivered_at", "expires_at",
+  // Subscriptions (Step 9): mandate approval and pre-debit notice.
+  "authorised_at", "notified_at",
 ]);
 // Fields that are internal and never quoted, so their numbers don't count.
 const SKIP = new Set(["id", "seq", "merchant_id", "customer_id", "case_id", "token_id"]);
 
 type Row = Record<string, unknown>;
+
+// Extra case data a flow keeps in its own tables (Step 8: MoneySaver bank
+// details, the account's international limit). Each source returns raw rows
+// for one case, or none; they are shown like every other record. Sources
+// only add facts, never remove them.
+export type FactSource = (db: Db, kase: typeof s.cases.$inferSelect) => Row[];
+const FACT_SOURCES = new Map<string, FactSource>();
+export function registerFactSource(name: string, source: FactSource) {
+  FACT_SOURCES.set(name, source);
+}
 
 function display(row: Row, currency: string): Row {
   const out: Row = {};
@@ -76,6 +88,7 @@ export function caseFacts(db: Db, caseId: string): Row {
     if (sub && add(sub)) {
       add(repo.customers.get(sub.customer_id));
       for (const i of db.select().from(s.subInvoices).where(eq(s.subInvoices.subscription_id, id)).all()) add(i);
+      for (const m of db.select().from(s.mandates).where(eq(s.mandates.subscription_id, id)).all()) add(m);
       return;
     }
     const subInvoice = repo.subInvoices.get(id);
@@ -102,11 +115,16 @@ export function caseFacts(db: Db, caseId: string): Row {
   for (const a of db.select().from(s.actions).where(and(eq(s.actions.case_id, caseId), eq(s.actions.status, "done"))).all()) {
     if (a.result) records.push(display(a.result, "INR"));
   }
+  for (const source of FACT_SOURCES.values()) for (const r of source(db, kase)) records.push(display(r, (r.currency as string) ?? "INR"));
   const timers = db.select().from(s.timers).where(eq(s.timers.case_id, caseId)).all();
 
   return {
     case: display(kase, "INR"),
-    merchant: { name: merchant.name },
+    merchant: {
+      name: merchant.name,
+      // Step 9: the discount save offer a subscriber may be told about.
+      ...(kase.moment === "subscription" && merchant.sub_discount_percent ? { subscription_offer: `${merchant.sub_discount_percent}% off` } : {}),
+    },
     records,
     timers: timers.map((t) => ({ kind: t.kind, due: `${formatTime(t.due_at)} on ${formatDate(t.due_at)}` })),
   };

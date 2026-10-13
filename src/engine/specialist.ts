@@ -47,6 +47,10 @@ export type Decision = Step<"waiting_merchant" | "waiting_customer" | "acting" |
   summary: string;
   // An approved playbook rule lets RAY act without a tap.
   ruleId?: string;
+  // Step 9: every proposed action runs alone in code (a recovery link, a
+  // question), so no tap or rule is needed. The orchestrator checks each
+  // proposal with runsAlone and calls onRunAlone instead of onApproval.
+  alone?: boolean;
 };
 
 export type ProposedAction = {
@@ -90,6 +94,9 @@ export interface Specialist {
   proposeActions(ctx: EngineContext, kase: Case, decision: Decision): Promise<ProposedAction[]>;
   // Runs while the case is acting, after a tap or under an approved rule.
   onApproval(ctx: EngineContext, kase: Case, approval: Approval): Promise<ApprovalResult>;
+  // Runs while the case is acting after a decision marked alone, where every
+  // proposed action runs alone (Step 9). Flows without it never act alone.
+  onRunAlone?(ctx: EngineContext, kase: Case): Promise<ApprovalResult>;
   verify(ctx: EngineContext, kase: Case, event: EngineEvent | null): Promise<VerifyResult>;
   // Required: what to do when the time promised to the customer has passed.
   onPromisedTime(ctx: EngineContext, kase: Case, event: EngineEvent): Promise<PromisedTimeResult>;
@@ -97,6 +104,11 @@ export interface Specialist {
   // The merchant tapped Change with free text: redraft and offer the same
   // card again. Flows without it only record the text.
   onChange?(ctx: EngineContext, kase: Case, text: string, event: EngineEvent): Promise<ChangeResult>;
+  // Optional: when grouping finds no case for an event, a flow may claim it
+  // for one of its own open cases (the id), before any detector runs. Used
+  // when an event belongs to a case but carries a different payment, such as
+  // a buyer's later payment by another method. Flows without it are unchanged.
+  claim?(ctx: EngineContext, event: EngineEvent): string | null | Promise<string | null>;
 }
 
 export type Registry = {

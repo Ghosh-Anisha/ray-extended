@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "725bd77f9aad470a4606f0e3",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_card_not_international",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "buyer_first_name": "Emma",
+      "amount": "$49",
+      "for": "order nn_pro_annual_902",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": true,
+      "bank_details": null,
+      "reference": "nn_pro_annual_902",
+      "sign_off": "Team NoteNest",
+      "what_happened": "your card isn't turned on for payments abroad",
+      "never_the_same_card": false
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Emma,\n\nYour payment of $49 to NoteNest for order nn_pro_annual_902 didn't go through because your card isn't turned on for payments abroad.\n\nIt's a quick fix: in your bank's app, turn on international payments for your card ending 4242, then use this fresh payment link from NoteNest for $49: https://pay.sim.example/l/plinkref1\n\nYou can also use another card on the same link. If it's easier, you can pay with PayPal on the same page.\n\nTeam NoteNest",
+    "confidence": "sure"
+  }
+}

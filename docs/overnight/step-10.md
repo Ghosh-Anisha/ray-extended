@@ -318,3 +318,29 @@ parallel session's checkout, which eslint scans because it sits in the
 repo folder); `npx eslint . --ignore-pattern ".claude/**"` is clean. Adding
 `.claude/**` to the eslint ignores would fix that, but it's a shared config
 change, so it's left for you.
+
+## Merge with main (Steps 8 and 9)
+
+Merged `origin/main` (no rebase). Conflicts and how each was kept:
+- `src/engine/index.ts`: every flow in the registry, in step order
+  (paid-no-order, international, subscriptions, chargebacks).
+- `src/db/seed.ts`: every flow's seed call, in step order.
+- `src/db/migrations/meta/_journal.json`: main's entries unchanged
+  (0800_international idx 10, 0900_subscriptions idx 11), then
+  1000_chargebacks as idx 12 with a later `when` (it had collided with
+  0800's idx and timestamp). No migration file edited.
+- `src/surfaces/views.ts`, case page, approval card: Steps 8 and 9 added
+  the same "follow-ups listed on the card" as `Proposal.then`; this step
+  had `alsoDoes`. Both fields kept; `then` uses a follow-up's own label
+  when it has one (only chargebacks set labels, so Steps 8 and 9 render as
+  before); the screens render `then` once, so follow-ups aren't listed twice.
+- `node_modules`: main had a symlink to `/Users/annie/ray-extended/node_modules`
+  (added in 040b266). It points at itself in this checkout, so the merge
+  removes it from the index; `.gitignore` now says `node_modules` (the old
+  `node_modules/` only matched a folder, which let the link in). This
+  branch's own commits never tracked it.
+- `eslint.config.mjs`: ignores `.claude/**` (Claude Code sessions'
+  checkouts), so `npm run lint` checks only the project.
+
+After the merge: `npm install`, `npm run db:reset && npm run db:seed`,
+`npm test` 477 passed / 27 skipped, `npm run lint` clean, `npm run typecheck` clean.

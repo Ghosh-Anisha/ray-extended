@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { newId } from "@/adapters/ids";
 import * as s from "@/db/schema";
 import type { CaseState } from "@/db/schema";
+import { runsAlone } from "@/guards";
 import { tapPayload, type EngineEvent } from "./events";
 import { HANDLED_BY_MERCHANT } from "./outcomes";
 import { PROMISED_TIME_TIMER, type Approval, type EngineContext, type Finding, type ProposedAction, type Registry, type TimerRequest } from "./specialist";
@@ -43,6 +44,8 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
 
   let trigger: EngineEvent | null = event;
   let approval: Approval | null = null;
+  // Set when a decision marked alone proposed only actions that run alone.
+  let alone = false;
 
   for (let step = 0; step < MAX_STEPS; step++) {
     const kase = repo.cases.get(caseId)!;
@@ -151,6 +154,19 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         const d = await spec.decide(deps, kase);
         note(kase, { kind: "decided", to: d.to, summary: d.summary, rule_id: d.ruleId ?? null });
         let to: CaseState = d.to;
+        if (to === "acting" && d.alone && !d.ruleId) {
+          // Runs alone (Step 9): only if every proposal runs alone in code.
+          const actions = await spec.proposeActions(deps, kase, d);
+          note(kase, { kind: "actions_proposed", actions });
+          alone = !!spec.onRunAlone && actions.length > 0 && actions.every((p) => runsAlone(p.tool, p.args));
+          if (!alone) {
+            note(kase, { kind: "not_runs_alone" });
+            to = "waiting_merchant";
+          }
+          setTimers(kase, d.timers);
+          move(kase, to, alone ? "Runs alone" : d.reason);
+          break;
+        }
         if (to === "acting") {
           const rule = d.ruleId ? repo.playbookRules.get(d.ruleId) : undefined;
           if (!rule || rule.status !== "approved" || rule.merchant_id !== kase.merchant_id) {
@@ -169,6 +185,15 @@ export async function orchestrate(deps: OrchestratorDeps, caseId: string, event:
         break;
       }
       case "acting": {
+        if (alone && spec.onRunAlone) {
+          alone = false;
+          const r = await spec.onRunAlone(deps, kase);
+          note(kase, { kind: "run_alone_handled", to: r.to, reason: r.reason }, evidenceRef);
+          setTimers(kase, r.timers);
+          propose(kase, r.proposals);
+          move(kase, r.to, r.reason);
+          break;
+        }
         if (!approval) {
           note(kase, { kind: "acting_without_approval" });
           return kase;

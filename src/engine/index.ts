@@ -4,6 +4,8 @@
 import { getAdapters } from "@/adapters";
 import { createChargebacksSpecialist } from "@/flows/chargebacks";
 import { createPaidNoOrderSpecialist } from "@/flows/paid-no-order";
+import { createInternationalSpecialist } from "@/flows/international";
+import { createSubscriptionsSpecialist } from "@/flows/subscriptions";
 import { createEngine, type Engine } from "./engine";
 import { createRegistry, type Registry } from "./specialist";
 import { startRealClockTicker } from "./ticker";
@@ -14,7 +16,7 @@ export { createRegistry, type Specialist } from "./specialist";
 const holder = globalThis as unknown as { __rayEngine?: Engine };
 
 export function buildRegistry(): Registry {
-  return createRegistry([createPaidNoOrderSpecialist(), createChargebacksSpecialist()]);
+  return createRegistry([createPaidNoOrderSpecialist(), createInternationalSpecialist(), createSubscriptionsSpecialist(), createChargebacksSpecialist()]);
 }
 
 export function getEngine(): Engine {

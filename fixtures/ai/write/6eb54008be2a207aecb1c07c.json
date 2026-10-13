@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "6eb54008be2a207aecb1c07c",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_reply",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "PixelForge Studio",
+      "buyer_first_name": "Ana",
+      "amount": "$600",
+      "for": "order pf_quote_77",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": false,
+      "bank_details": null,
+      "reference": "pf_quote_77",
+      "sign_off": "Team PixelForge Studio",
+      "buyer_message": "Hi, I paid this morning but I didn't get any order confirmation. Can you check?",
+      "paid": false
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Ana,\n\nThanks for your message. We've checked, and we haven't received your payment of $600 to PixelForge Studio for order pf_quote_77 yet. You can still pay $600 on our payment link: https://pay.sim.example/l/plinkref1\n\nTeam PixelForge Studio",
+    "confidence": "sure"
+  }
+}

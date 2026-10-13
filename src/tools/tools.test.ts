@@ -68,9 +68,9 @@ describe("read tools", () => {
 });
 
 describe("the tool lists", () => {
-  it("has the 13 read tools and 18 act tools from Steps 5 and 5b, with no name on both", () => {
+  it("has the 13 read tools and 19 act tools from Steps 5, 5b and 9 (apply_offer), with no name on both", () => {
     expect(READ_TOOLS).toHaveLength(13);
-    expect(ACT_TOOLS).toHaveLength(18);
+    expect(ACT_TOOLS).toHaveLength(19);
     for (const t of READ_TOOLS) expect(isActTool(t)).toBe(false);
     for (const t of ACT_TOOLS) expect(isReadTool(t)).toBe(false);
   });

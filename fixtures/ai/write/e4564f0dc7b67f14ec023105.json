@@ -1,0 +1,27 @@
+{
+  "job": "write",
+  "key": "e4564f0dc7b67f14ec023105",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "merchant",
+    "kind": "intl_insight",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "NoteNest",
+      "failures": 3,
+      "days": 7,
+      "what_they_share": "the card security check (3DS) didn't go through",
+      "at_stake": "₹12,300",
+      "setting_change": "Take cards from abroad without the security check (3DS)",
+      "trade_off": "Without 3DS, you carry fraud chargebacks on these payments."
+    },
+    "tone": "Plain",
+    "language": "en"
+  },
+  "output": {
+    "draft": "3 buyers abroad couldn't pay you in the last 7 days for the same reason: the card security check (3DS) didn't go through. That's ₹12,300 at stake. Take cards from abroad without the security check (3DS)? Without 3DS, you carry fraud chargebacks on these payments.",
+    "confidence": "sure"
+  }
+}

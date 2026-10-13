@@ -1,0 +1,32 @@
+{
+  "job": "write",
+  "key": "a4c36e67f0a42ac9752dc6ac",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "buyer_recovery_bank_declined",
+    "first_customer_message": false,
+    "facts": {
+      "merchant": "PixelForge Studio",
+      "buyer_first_name": "Ana",
+      "amount": "$600",
+      "for": "order pf_quote_77",
+      "card": "card ending 4242",
+      "link": "https://pay.sim.example/l/plinkref1",
+      "paypal": false,
+      "bank_details": null,
+      "reference": "pf_quote_77",
+      "sign_off": "Team PixelForge Studio",
+      "what_happened": "your bank declined the card",
+      "never_the_same_card": true
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hi Ana,\n\nYour payment of $600 to PixelForge Studio for order pf_quote_77 didn't go through: your bank declined the card.\n\nPlease pay with a different card on this fresh payment link from PixelForge Studio for $600: https://pay.sim.example/l/plinkref1\n\nTeam PixelForge Studio",
+    "confidence": "sure"
+  }
+}
