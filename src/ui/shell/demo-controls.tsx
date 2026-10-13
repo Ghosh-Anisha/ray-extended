@@ -144,7 +144,7 @@ export function DemoControls({ merchantId, onClose }: { merchantId: string; onCl
           </section>
 
           <section>
-            <h3>Clock</h3>
+            <h3>Move clock forward</h3>
             <p className="muted" style={{ margin: "0 0 8px" }}>
               It is {state?.nowLabel ?? "…"}.{state?.clockMode === "real" ? " The real clock is on, so it can't be moved." : ""}
             </p>

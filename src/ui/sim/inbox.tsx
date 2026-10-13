@@ -6,7 +6,8 @@
 import { Button } from "@/ui/kit";
 import { useState } from "react";
 import type { Person } from "@/surfaces/sims";
-import { useAction } from "../bits";
+import { SimulatedTag, useAction } from "../bits";
+import { CoachMarks } from "../coach-mark";
 import { CallCard, VoiceNoteBubble } from "../voice";
 import { VoiceCompose } from "../voice-compose";
 import { SimTitle } from "./sim-title";
@@ -30,11 +31,19 @@ export function PeopleInbox({
   const { busy, error, run } = useAction();
   const [status, setStatus] = useState("");
   const p = people.find((x) => x.id === id);
+  const quickReplies = kind === "customer" ? ["mil gaya, thanks", "I didn't authorise this"] : ["will clear by Friday", "Please resend the invoice"];
   return (
     <div className="stack">
       <SimTitle>{title}</SimTitle>
-      <div className="split">
-        <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 8 }}>
+      <div className="sim-banner"><SimulatedTag /> <span>You&apos;re seeing what {kind === "customer" ? "the customer" : "the buyer"} sees.</span></div>
+      <div className="mail-layout">
+        <nav className="mail-folders panel" aria-label="Mailbox folders">
+          <strong>Mailbox</strong>
+          <button type="button" className="mail-folder active">Inbox <span>{people.length}</span></button>
+          <button type="button" className="mail-folder">WhatsApp</button>
+          <button type="button" className="mail-folder">Sent</button>
+        </nav>
+        <ul className="mail-list panel" style={{ listStyle: "none", margin: 0, padding: 8 }} data-tour="thread-list">
           {people.map((x) => (
             <li key={x.id}>
               <button
@@ -43,17 +52,17 @@ export function PeopleInbox({
                 aria-pressed={x.id === id}
                 className="pick"
               >
-                <strong>{x.name}</strong>
-                <div className="muted" style={{ fontSize: 12 }}>
-                  {x.merchant} · {x.messages.length} messages
-                </div>
+                <div className="mail-row-top"><strong>{x.name}</strong><span className="muted">{x.messages.at(-1)?.at ?? "New"}</span></div>
+                <div className="mail-subject">{x.messages.length ? `${x.messages.at(-1)?.channel} thread` : "No messages yet"}</div>
+                <div className="muted mail-snippet">{x.messages.at(-1)?.body ?? `${x.merchant} · waiting for a message`}</div>
               </button>
             </li>
           ))}
         </ul>
         {p && (
-          <section className="panel stack">
-            <div className="muted">
+          <section className="panel stack mail-reading" data-tour="reading-pane">
+            <div className="mail-reading-head"><div><h2>{p.name}</h2><div className="muted">{p.email ?? p.phone ?? "No address"}</div></div><span className="chip simulated">Simulated</span></div>
+            <div className="muted mail-addresses">
               {p.phone ?? "No phone"} · {p.email ?? "No email"}
               {kind === "customer" && ` · WhatsApp: ${p.whatsapp}`}
             </div>
@@ -97,6 +106,7 @@ export function PeopleInbox({
                 }
               }}
             >
+              <div className="quick-replies" aria-label="Quick replies">{quickReplies.map((reply) => <button type="button" key={reply} onClick={() => setBody(reply)}>{reply}</button>)}</div>
               <div className="row">
                 <label>
                   Send on{" "}
@@ -118,6 +128,7 @@ export function PeopleInbox({
           </section>
         )}
       </div>
+      <CoachMarks id={`${kind}-inbox`} steps={[{ target: "[data-tour='thread-list']", text: "Every seeded case has a thread here, so the inbox is ready from the first screen." }, { target: "[data-tour='reading-pane']", text: "Read the full conversation, then use a quick reply or write your own." }]} />
     </div>
   );
 }

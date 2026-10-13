@@ -5,6 +5,7 @@ import { storeAdmin } from "@/surfaces/sims";
 import { StoreAdmin } from "@/ui/sim/store";
 import { currentAccount } from "@/ui/shell/account";
 import { Breadcrumbs } from "@/ui/shell/breadcrumbs";
+import { NudgeBar } from "@/ui/nudge";
 
 export default async function StoreAdminPage() {
   await connection();
@@ -14,6 +15,7 @@ export default async function StoreAdminPage() {
     <>
       <Breadcrumbs trail={[{ label: "See it from the other side" }, { label: "Store admin" }]} />
       <StoreAdmin stores={stores.length ? stores : storeAdmin(a)} failures={[...STORE_FAILURES]} />
+      <NudgeBar text="Order #1234 is the paid order the store missed." action={{ label: "Open Priya's case", href: `/merchant/${await currentAccount()}/cases` }} />
     </>
   );
 }

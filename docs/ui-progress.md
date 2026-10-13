@@ -36,3 +36,9 @@ PHASE U3: DONE
 - `src/app/api/merchant/ask` and `/ask/rule`.
 - `src/ui/ask/` (shared thread, chat, side panel, `/ask` page), `src/ui/merchant/rules.tsx` (Rules page), `src/ui/coach/coach.tsx` (coach marks), shell wiring (RAY button opens the panel, "Show me around").
 - Screenshots in `docs/screenshots/u3/` at 1440x900 and 390x844. Pages load in about 0.6 s in `npm run demo`.
+
+# Phase U4 (WhatsApp, inboxes, Store admin, Demo controls): DONE
+
+Implemented sections 3.7, 3.8, 3.9, 3.10, 5, 7 and 10 on top of the existing U2 shell and guarded actions.
+
+Verified: `npm run typecheck`, `npm run lint`, and `npm run build` pass. `npm run demo` served on port 3001 and Playwright screenshots at 1440x900 and 390x844 are in `docs/screenshots/u4/`. The build emits existing dynamic filesystem tracing warnings from the voice and prompt adapters. The full `npm test` run reproduced existing failures in chargeback, collect, and database seed tests and was stopped after the suite continued running; no tests were changed. Git fetch, merge, commit, and push are being retried in the unrestricted environment.
