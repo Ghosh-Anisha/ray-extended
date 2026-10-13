@@ -3,7 +3,7 @@
 // history and relationship. Banking+ merchants get the full loop and see
 // what RAY will do today; everyone else gets the read-only overdue view
 // with a Banking+ offer and no actions.
-import { eq } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import type { Adapters } from "@/adapters";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
@@ -54,6 +54,9 @@ export type MorningList = {
   date: string;
   total: string;
   rows: MorningRow[];
+  // At the top: Sure matches RAY posted on its own above the approval
+  // limit in the last day, each with Undo.
+  posted: { actionId: string; caseId: string; text: string }[];
   // Non-Banking+ only.
   offer: { title: string; text: string } | null;
   empty: string;
@@ -105,6 +108,7 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
     });
   }
   rows.sort((x, y) => y.priority - x.priority || y.overdueMinor - x.overdueMinor);
+  const posted = m.banking_plus ? postedAboveLimit(a, merchantId, m.approval_limit) : [];
   const total = rows.reduce((n, r) => n + r.overdueMinor, 0);
   return {
     merchantId,
@@ -113,9 +117,34 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
     date: formatDate(now),
     total: formatMoney(total),
     rows,
+    posted,
     offer: m.banking_plus ? null : BANKING_PLUS_OFFER,
     empty: "No invoices are overdue. RAY will list buyers here, highest priority first, once an invoice passes its due date.",
   };
+}
+
+export const POSTED_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function postedAboveLimit(a: Adapters, merchantId: string, limit: number) {
+  const repo = createRepository(a.db);
+  const since = a.clock.now() - POSTED_WINDOW_MS;
+  const rows = a.db
+    .select({ ev: s.caseEvents, kase: s.cases })
+    .from(s.caseEvents)
+    .innerJoin(s.cases, eq(s.cases.id, s.caseEvents.case_id))
+    .where(and(eq(s.cases.merchant_id, merchantId), eq(s.cases.moment, "collect"), eq(s.caseEvents.type, "tool_call"), gte(s.caseEvents.at, since)))
+    .all()
+    .filter((r) => r.ev.payload.kind === "action_done" && r.ev.payload.tool === "post_match" && r.ev.payload.approved_by === null);
+  return rows.flatMap(({ ev, kase }) => {
+    const action = repo.actions.get(String(ev.payload.action_id));
+    if (!action || action.status !== "done") return [];
+    const allocations = action.args.allocations as { invoice_id: string; amount: number }[];
+    const amount = allocations.reduce((n, x) => n + x.amount, 0);
+    if (amount <= limit) return [];
+    const numbers = allocations.map((x) => repo.invoices.get(x.invoice_id)?.number ?? x.invoice_id);
+    const list = numbers.length > 1 ? `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}` : numbers[0];
+    return [{ actionId: action.id, caseId: kase.id, text: `Posted ${formatMoney(amount)} to ${list}` }];
+  });
 }
 
 function nextLine(pending: ReturnType<typeof pendingItems>, state: string | null): string {

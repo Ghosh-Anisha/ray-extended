@@ -1,0 +1,117 @@
+{
+  "job": "write",
+  "key": "318783acf1b346e4ba2de60a",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "buyer",
+    "kind": "firm_reminder_redraft",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "collect",
+        "state": "waiting_merchant",
+        "confidence": "sure",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹1.1 lakh",
+        "opened_at": "10:00 AM on 12 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "PackRight"
+      },
+      "records": [
+        {
+          "name": "Mehra Snacks Pvt Ltd",
+          "contact_name": "Anil Mehra",
+          "email": "accounts@mehrasnacks.example.com",
+          "phone": "+919800000304",
+          "avg_days_late": 45,
+          "pay_history": "Slow payer. Often promises a date and misses it.",
+          "usual_tds_rate": 1,
+          "key_account": false
+        },
+        {
+          "buyer_id": "buy_mehra_snacks",
+          "number": "PR/26-27/2404",
+          "amount": "₹38,700",
+          "issued_at": "10:00 AM on 7 Aug",
+          "due_date": "10:00 AM on 6 Sep",
+          "accepted_at": "10:00 AM on 8 Aug",
+          "status": "open",
+          "paid_amount": "₹0",
+          "key_account": false,
+          "disputed_part": "₹8,500"
+        },
+        {
+          "invoice_id": "inv_PR_2404",
+          "buyer_id": "buy_mehra_snacks",
+          "promised_date": "10:00 AM on 8 Oct",
+          "amount": "₹38,700",
+          "made_at": "10:00 AM on 30 Sep",
+          "status": "broken"
+        },
+        {
+          "buyer_id": "buy_mehra_snacks",
+          "number": "PR/26-27/2409",
+          "amount": "₹38,700",
+          "issued_at": "10:00 AM on 2 Aug",
+          "due_date": "10:00 AM on 1 Sep",
+          "accepted_at": "10:00 AM on 3 Aug",
+          "status": "open",
+          "paid_amount": "₹0",
+          "key_account": false
+        },
+        {
+          "buyer_id": "buy_mehra_snacks",
+          "number": "PR/26-27/2414",
+          "amount": "₹38,700",
+          "issued_at": "10:00 AM on 28 Jul",
+          "due_date": "10:00 AM on 27 Aug",
+          "accepted_at": "10:00 AM on 29 Jul",
+          "status": "open",
+          "paid_amount": "₹0",
+          "key_account": false
+        },
+        {
+          "total_exact": "₹1,07,600",
+          "invoice_count": "3",
+          "owed_PR/26-27/2404": "₹30,200",
+          "days_overdue_PR/26-27/2404": "36",
+          "owed_PR/26-27/2409": "₹38,700",
+          "days_overdue_PR/26-27/2409": "41",
+          "owed_PR/26-27/2414": "₹38,700",
+          "days_overdue_PR/26-27/2414": "46"
+        },
+        {
+          "total_exact": "₹1,07,600",
+          "invoice_count": "3",
+          "msme_days": "45",
+          "section": "43B(h)",
+          "owed_PR/26-27/2404": "₹30,200",
+          "days_overdue_PR/26-27/2404": "36",
+          "owed_PR/26-27/2409": "₹38,700",
+          "days_overdue_PR/26-27/2409": "41",
+          "owed_PR/26-27/2414": "₹38,700",
+          "days_overdue_PR/26-27/2414": "46"
+        }
+      ],
+      "timers": [
+        {
+          "kind": "collect_check",
+          "due": "10:30 AM on 12 Oct"
+        }
+      ],
+      "current_draft": "Hello Anil,\n\nPR/26-27/2404 for ₹30,200 is now 36 days overdue, PR/26-27/2409 for ₹38,700 is now 41 days overdue and PR/26-27/2414 for ₹38,700 is now 46 days overdue. That's ₹1,07,600 across 3 invoices. Can you share a payment date this week?\n\nThank you,\nPackRight",
+      "merchant_change": "Make it warmer, and say we value working with them"
+    },
+    "tone": "Warm",
+    "language": "en"
+  },
+  "output": {
+    "draft": "Hello Anil,\n\nWe value working with Mehra Snacks, so here is a friendly note. PR/26-27/2404 for ₹30,200 is now 36 days overdue, PR/26-27/2409 for ₹38,700 is now 41 days overdue and PR/26-27/2414 for ₹38,700 is now 46 days overdue. That's ₹1,07,600 across 3 invoices. Can you share a payment date this week?\n\nThank you,\nPackRight",
+    "confidence": "sure"
+  }
+}

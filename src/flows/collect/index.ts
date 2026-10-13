@@ -18,6 +18,13 @@ import { openProposals } from "@/engine/orchestrator";
 import type { Approval, Detection, EngineContext, Finding, InvestigateResult, ProposedAction, Specialist, TimerRequest, VerifyResult } from "@/engine/specialist";
 import type { Case } from "@/engine/state-machine";
 import { formatDate, formatMoney, guardedCall, type GuardedResult } from "@/guards";
+import { createAi } from "@/ai";
+import { writeSpec, type WriteInput, type WriteOutput } from "@/ai/jobs/write";
+import { runJob } from "@/ai/runner";
+import type { AiResult } from "@/ai/types";
+import { caseFacts } from "@/guards/facts";
+import { readSettings } from "@/surfaces/playbook";
+import { idAliases } from "../shared/stable-ids";
 import { defaultReader, type RemittanceReader } from "./advice";
 import {
   addPending,
@@ -81,7 +88,10 @@ export const CALL_ATTEMPTS = 3;
 // A hardship plan: this many weekly parts.
 export const PLAN_PARTS = 3;
 
-export type CollectOptions = { reader?: RemittanceReader };
+// writer: the write job, for Change redrafts (replay by default).
+export type CollectOptions = { reader?: RemittanceReader; writer?: DraftWriter };
+export type DraftWriter = (ctx: EngineContext, input: WriteInput, caseId: string) => Promise<AiResult<WriteOutput>>;
+const defaultWriter: DraftWriter = (ctx, input, caseId) => runJob(createAi({ repo: ctx.repo }).ctx, writeSpec, input, { caseId });
 
 type Outcome = { to: "chasing" | "merchant" | "closed"; reason: string; findings: Finding[]; outcome?: string };
 
@@ -93,14 +103,35 @@ const nums = (invs: Pick<Invoice, "number">[]) => {
 
 export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
   const reader = opts.reader ?? defaultReader();
+  const writer = opts.writer ?? defaultWriter;
 
   const adaptersOf = (ctx: Ctx) => {
     if (!ctx.adapters) throw new Error("Collect needs adapters");
     return ctx.adapters;
   };
   const merchantOf = (ctx: Ctx, kase: Case) => ctx.repo.merchants.get(kase.merchant_id)!;
+  // WhatsApp and call consent is for the buyer's number on file.
   const consented = (ctx: Ctx, b: Buyer, channel: "email" | "whatsapp" | "call") =>
-    adaptersOf(ctx).messaging.buyerConsent(b.id, channel) === "opted_in";
+    adaptersOf(ctx).messaging.buyerConsent(b.id, channel, channel === "email" ? null : b.phone) === "opted_in";
+
+  // An approved playbook rule for this step, thresholds included ("call
+  // buyers who owe more than ₹1 lakh"). Key accounts never run under a
+  // rule: a tap for anything firm and a tap per call. MSME notices always
+  // need a tap. The approval guard checks the rule and its threshold again.
+  function ruleFor(ctx: Ctx, kase: Case, b: Buyer, tool: string, kind: string): string | null {
+    if (b.key_account) return null;
+    const amount = syncAmount(ctx, kase);
+    const rule = ctx.repo.playbookRules
+      .list(and(eq(s.playbookRules.merchant_id, kase.merchant_id), eq(s.playbookRules.moment, "collect"), eq(s.playbookRules.status, "approved")))
+      .find((r) => {
+        const j = r.rule_json;
+        if (j.tool !== tool || (j.kind !== undefined && j.kind !== kind)) return false;
+        if (typeof j.min === "number" && amount <= j.min) return false;
+        if (typeof j.max === "number" && amount > j.max) return false;
+        return true;
+      });
+    return rule?.id ?? null;
+  }
   const line = (ctx: Ctx, inv: Invoice): M.Line => ({ id: inv.id, number: inv.number, due_date: inv.due_date, accepted_at: inv.accepted_at, owed: owedOn(ctx.db, inv) });
   const openInv = (ctx: Ctx, inv: Invoice): OpenInvoice => ({
     id: inv.id,
@@ -284,7 +315,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     if (addPending(ctx, kase.id, { itemId, ask, proposal: { ...proposal, id: itemId }, meta }, ref)) writeFacts(ctx, kase.id, facts, ref);
   }
 
-  function firmOffer(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], ref: string) {
+  async function firmOffer(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], ref: string) {
     const m = merchantOf(ctx, kase);
     const now = ctx.clock.now();
     const lines = invs.map((i) => line(ctx, i));
@@ -303,6 +334,10 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     const oldest = Math.max(...invs.map((i) => daysOverdue(i, now)));
     const owed = lines.reduce((n, l) => n + l.owed, 0);
     const itemId = `firm_${invs.map((i) => tail(i.number)).sort().join("_")}`;
+    const ruleId = ruleFor(ctx, kase, b, "send_message", "firm_reminder");
+    if (ruleId) return underRule(ctx, kase, ruleId, actions, built.facts, ref, async () => {
+      markStage(ctx, kase, "firm", invs.map((i) => i.id), "under your rule", ref);
+    });
     const key = b.key_account ? " They're a key account, so this waits for you." : "";
     offer(
       ctx, kase, itemId,
@@ -336,23 +371,64 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     return { args: { kind: "collect_call", to: b.phone, opening: script.opening, lines: script.lines }, facts: script.facts };
   }
 
-  function callOffer(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], attempt: number, ref: string) {
+  // The call's own follow-up: the details by email, as the call promises.
+  function callFollowUps(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[]) {
+    if (!b.email || !consented(ctx, b, "email")) return { followUps: [], facts: {} };
+    const built = M.callDetails(b, merchantOf(ctx, kase).name, invs.map((i) => line(ctx, i)), ctx.clock.now());
+    return { followUps: [{ tool: "send_message", args: { channel: "email", to: b.email, sender_mode: "via_razorpay", kind: "status", body: built.body } }], facts: built.facts };
+  }
+
+  const RETRIES_LINE = `Up to ${CALL_ATTEMPTS - 1} more tries on the next days if there's no answer`;
+
+  async function callOffer(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], attempt: number, ref: string, out?: Outcome) {
     if (!b.phone || !consented(ctx, b, "call")) {
       markStage(ctx, kase, "call", invs.map((i) => i.id), "skipped: no call consent", ref);
       return false;
     }
     const { args, facts } = callArgs(ctx, kase, b, invs);
+    const fu = callFollowUps(ctx, kase, b, invs);
+    const ruleId = attempt === 1 ? ruleFor(ctx, kase, b, "place_call", "collect_call") : null;
+    if (ruleId && out) {
+      writeFacts(ctx, kase.id, { ...facts, ...fu.facts }, ref);
+      const approval: Approval = { by: "rule", ruleId, evidenceRef: ref };
+      const r = await call(ctx, kase, "place_call", args, approval);
+      if (r.status !== "done") {
+        blocked(ctx, kase, r, ref);
+        return true;
+      }
+      for (const f of fu.followUps) {
+        const fr = await call(ctx, kase, f.tool, f.args, { ...approval, followUpOf: r.action.id });
+        if (fr.status !== "done") note(ctx, kase.id, { kind: "collect_follow_up_failed", tool: f.tool, why: failure(fr) }, fr.action.id);
+      }
+      afterCall(ctx, kase, b, invs, r.result, { by: "rule", ruleId, evidenceRef: ref, args }, attempt, out, ref);
+      out.findings.push({ text: `Called ${firstNameOf(b.contact_name)} under your rule. (Simulated)`, evidenceRef: r.action.id });
+      return true;
+    }
     const itemId = `call_${kase.id.slice(-6)}_${attempt}`;
     const owed = invs.reduce((n, i) => n + owedOn(ctx.db, i), 0);
     const why = b.key_account ? " They're a key account, so each call waits for your tap." : attempt > 1 ? "" : " One tap covers this call and up to two retries.";
     offer(
       ctx, kase, itemId,
       `${b.name} still owes ${formatMoney(owed)} after the reminders.${why} Call ${firstNameOf(b.contact_name)} to ask for a payment date?`,
-      { id: itemId, label: `Call ${firstNameOf(b.contact_name)}`, tool: "place_call", args, covered: false },
+      { id: itemId, label: `Call ${firstNameOf(b.contact_name)}`, tool: "place_call", args, covered: false, followUps: fu.followUps, covers: b.key_account ? [] : [RETRIES_LINE] },
       { type: "call", stage: "call", invoice_ids: invs.map((i) => i.id), attempt },
-      facts, ref, "call",
+      { ...facts, ...fu.facts }, ref, "call",
     );
     return true;
+  }
+
+  // Runs an action and its own follow-ups now, under an approved rule.
+  async function underRule(ctx: Ctx, kase: Case, ruleId: string, actions: { tool: string; args: Record<string, unknown> }[], facts: Record<string, string>, ref: string, after: () => Promise<void>) {
+    writeFacts(ctx, kase.id, facts, ref);
+    const approval: Approval = { by: "rule", ruleId, evidenceRef: ref };
+    const [main, ...rest] = actions;
+    const r = await call(ctx, kase, main.tool, main.args, approval);
+    if (r.status !== "done") return blocked(ctx, kase, r, ref);
+    for (const f of rest) {
+      const fr = await call(ctx, kase, f.tool, f.args, { ...approval, followUpOf: r.action.id });
+      if (fr.status !== "done") return blocked(ctx, kase, fr, ref);
+    }
+    await after();
   }
 
   // Promises whose date has passed: kept if the money came, else broken.
@@ -425,9 +501,9 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
       }
     }
     const firm = group("firm");
-    if (firm.length) firmOffer(ctx, kase, b, firm, ref);
+    if (firm.length) await firmOffer(ctx, kase, b, firm, ref);
     const calls = group("call");
-    if (calls.length && !pendingItems(ctx, kase.id).some((p) => p.meta.type === "call") && !callRunning(ctx, kase)) callOffer(ctx, kase, b, calls, 1, ref);
+    if (calls.length && !pendingItems(ctx, kase.id).some((p) => p.meta.type === "call") && !callRunning(ctx, kase)) await callOffer(ctx, kase, b, calls, 1, ref, offersOnly ? undefined : out);
     if (!offersOnly) await retryCall(ctx, kase, b, out, ref);
 
     if (m.udyam) {
@@ -456,31 +532,40 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     // Mark this retry as taken, whatever happens next.
     note(ctx, kase.id, { kind: N.call, outcome: "retrying", retry: false, attempt: last.payload.attempt, invoice_ids: invoiceIds }, last.id);
     if (!invs.length) return;
-    if (b.key_account) {
+    const by = last.payload.tap as CallApproval;
+    if (b.key_account || !by) {
       // Key accounts: a fresh tap for every call.
-      callOffer(ctx, kase, b, invs, attempt, ref);
+      await callOffer(ctx, kase, b, invs, attempt, ref);
       return;
     }
-    // One tap covers the Call stage: the retry runs under the same tap,
-    // checked again by the approval guard against the tapped proposal.
-    const tap = last.payload.tap as { proposalId: string; evidenceRef: string };
-    const proposal = ctx.repo.caseEvents
-      .listByCase(kase.id)
-      .filter((e) => e.payload.kind === "actions_proposed")
-      .flatMap((e) => e.payload.actions as ProposedAction[])
-      .findLast((p) => p.id === tap.proposalId);
-    if (!proposal) return;
-    const approval: Approval = { by: "tap", tap: { choice: "approve", proposalId: tap.proposalId }, evidenceRef: tap.evidenceRef };
-    const r = await call(ctx, kase, "place_call", proposal.args, approval, `${tap.evidenceRef}_try${attempt}`);
+    // One approval covers the Call stage: the retry runs under the same tap
+    // (checked again against the tapped proposal) or the same rule.
+    let args: Record<string, unknown> | undefined;
+    let approval: Approval;
+    if (by.by === "rule") {
+      args = by.args;
+      approval = { by: "rule", ruleId: by.ruleId, evidenceRef: by.evidenceRef };
+    } else {
+      args = ctx.repo.caseEvents
+        .listByCase(kase.id)
+        .filter((e) => e.payload.kind === "actions_proposed")
+        .flatMap((e) => e.payload.actions as ProposedAction[])
+        .findLast((p) => p.id === by.proposalId)?.args;
+      approval = { by: "tap", tap: { choice: "approve", proposalId: by.proposalId }, evidenceRef: by.evidenceRef };
+    }
+    if (!args) return;
+    const r = await call(ctx, kase, "place_call", args, approval, `${by.evidenceRef}_try${attempt}`);
     if (r.status !== "done") {
-      // Something changed since the tap (the amount, the hours): ask again.
-      callOffer(ctx, kase, b, invs, attempt, ref);
+      // Something changed since the approval (the amount, the hours): ask again.
+      await callOffer(ctx, kase, b, invs, attempt, ref);
       return;
     }
-    afterCall(ctx, kase, b, invs, r.result, tap, attempt, out, ref);
+    afterCall(ctx, kase, b, invs, r.result, by, attempt, out, ref);
   }
 
-  function afterCall(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], result: Record<string, unknown>, tap: { proposalId: string; evidenceRef: string }, attempt: number, out: Outcome, ref: string) {
+  type CallApproval = { by?: "tap"; proposalId: string; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string; args: Record<string, unknown> };
+
+  function afterCall(ctx: Ctx, kase: Case, b: Buyer, invs: Invoice[], result: Record<string, unknown>, tap: CallApproval, attempt: number, out: Outcome, ref: string) {
     const outcome = String(result.outcome);
     const ids = invs.map((i) => i.id);
     const msgRef = String(result.message_id);
@@ -523,7 +608,6 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
       const read = await reader(ctx, "bank_remark", credit.remark, kase.id);
       if (read.source !== "fallback" && read.output.payer_name) buyer = buyerByName(ctx, kase.merchant_id, read.output.payer_name) ?? null;
     }
-    const m = merchantOf(ctx, kase);
     if (!buyer) return unknownPayer(ctx, kase, credit, ref);
 
     const invs = openInvoicesOfBuyer(ctx.db, buyer);
@@ -539,15 +623,17 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     const named = invoicesNamed(credit.remark, invs);
     const match = matchCredit({ amount: credit.amount, invoices: invs.map((i) => openInv(ctx, i)), tdsRate: buyer.usual_tds_rate, exact: [...exact], advice: advice ?? null, named });
     note(ctx, kase.id, { kind: "collect_match", credit_id: credit.id, match }, credit.id);
-    await settleMatch(ctx, kase, buyer, credit, match, m.approval_limit, out, ref);
+    await settleMatch(ctx, kase, buyer, credit, match, out, ref);
   }
 
-  async function settleMatch(ctx: Ctx, kase: Case, b: Buyer, credit: typeof s.bankCredits.$inferSelect, match: MatchResult, limit: number, out: Outcome, ref: string) {
+  async function settleMatch(ctx: Ctx, kase: Case, b: Buyer, credit: typeof s.bankCredits.$inferSelect, match: MatchResult, out: Outcome, ref: string) {
     const byId = new Map(openInvoicesOfBuyer(ctx.db, b).map((i) => [i.id, i]));
     const label = (alloc: Allocation[]) => `Post ${formatMoney(alloc.reduce((n, x) => n + x.amount, 0))} to ${nums(alloc.map((x) => byId.get(x.invoice_id)!))}`;
     if (match.confidence === "unsure") return unknownPayer(ctx, kase, credit, ref, match, b);
 
-    if (match.confidence === "sure" && credit.amount <= limit) {
+    // Posting is a bookkeeping entry with Undo, not a money action: Sure
+    // posts on its own at any amount.
+    if (match.confidence === "sure") {
       ctx.repo.cases.update(kase.id, { confidence: "sure" });
       const r = await call(ctx, kase, "post_match", { credit_id: credit.id, allocations: match.options[0] });
       if (r.status === "done") {
@@ -559,7 +645,7 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
     }
 
     // Likely, or Sure above the approval limit: one tap.
-    ctx.repo.cases.update(kase.id, { confidence: match.confidence === "sure" ? "sure" : "likely" });
+    ctx.repo.cases.update(kase.id, { confidence: "likely" });
     const m = merchantOf(ctx, kase);
     const options = match.options.slice(0, 3);
     for (const [i, alloc] of options.entries()) {
@@ -581,11 +667,11 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         }
       }
       const tdsLine = match.kind === "tds" && i === 0 ? ` and ask ${firstNameOf(b.contact_name)} for the TDS certificate` : "";
-      const why = match.confidence === "sure" ? `It matches exactly, but it's above your approval limit of ${formatMoney(limit)}.` : match.reason;
+      const why = match.reason;
       offer(
         ctx, kase, itemId,
         `${formatMoney(credit.amount)} came in from ${b.name}. ${why} ${label(alloc)}${tdsLine}?`,
-        { id: itemId, label: label(alloc), tool: "post_match", args: { credit_id: credit.id, allocations: alloc }, covered: match.confidence === "sure", followUps },
+        { id: itemId, label: label(alloc), tool: "post_match", args: { credit_id: credit.id, allocations: alloc }, covered: false, followUps },
         { type: "post", credit_id: credit.id, kind: match.kind, tds: i === 0 ? match.tds : [], option: i + 1, of: options.length },
         facts, ref,
       );
@@ -765,22 +851,40 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         return;
       }
       // The new contact is from the buyer's message, so the merchant
-      // approves it (rule 5); the reminder then goes to the new address.
+      // approves it (rule 5: stricter than the guide on purpose, so a reply
+      // can't redirect chasing). Email consent carries over to a new address
+      // at the same buyer; WhatsApp and call consent belong to a number, so
+      // a new number needs its own opt-in first.
       const m = merchantOf(ctx, kase);
       const lines = x.targets.map((i) => line(ctx, i));
-      const built = M.gentle({ ...b, contact_name: "there" }, m.name, lines, null, ctx.clock.now());
-      const to = r.newEmail ?? r.newPhone!;
-      const channel = r.newEmail ? "email" : "whatsapp";
-      const args = channel === "email"
-        ? { channel, to, sender_mode: "via_razorpay", kind: "gentle_reminder", body: built.body }
-        : { channel, to, sender_mode: "merchant_inbox", kind: "gentle_reminder", template_id: "invoice_reminder", params: { name: "there", invoice: lines[0].number, amount: M.exact(lines[0].owed), merchant: m.name, date: formatDate(lines[0].due_date) } };
       const itemId = `contact_${x.e.sourceId}`;
+      if (r.newEmail) {
+        const built = M.gentle({ ...b, contact_name: "there" }, m.name, lines, null, ctx.clock.now());
+        const carries = consented(ctx, b, "email");
+        offer(
+          ctx, kase, itemId,
+          `${b.contact_name} says they're the wrong person and pointed to ${r.newEmail}. Update ${b.name}'s email and resend the reminder?`,
+          {
+            id: itemId, label: "Update contact & resend", tool: "send_message", covered: false,
+            args: { channel: "email", to: r.newEmail, sender_mode: "via_razorpay", kind: "gentle_reminder", body: built.body },
+            covers: [`Update ${b.name}'s email to ${r.newEmail}${carries ? "; their email consent carries over" : ""}`],
+          },
+          { type: "contact", email: r.newEmail, phone: r.newPhone },
+          built.facts, x.ref,
+        );
+        return;
+      }
+      const text = `Contact change for ${b.name}: ${b.contact_name} says payments go to ${r.newPhone}. WhatsApp and calls to the new number wait until it opts in.`;
       offer(
         ctx, kase, itemId,
-        `${b.contact_name} says they're the wrong person and pointed to ${to}. Update ${b.name}'s contact and resend the reminder?`,
-        { id: itemId, label: "Update contact & resend", tool: "send_message", args, covered: false },
-        { type: "contact", email: r.newEmail, phone: r.newPhone },
-        built.facts, x.ref,
+        `${b.contact_name} says they're the wrong person and pointed to ${r.newPhone}. Update ${b.name}'s number? WhatsApp and calls to it wait for its own opt-in.`,
+        {
+          id: itemId, label: "Update contact", tool: "draft_request", covered: false,
+          args: { request: "billing_details", text, evidence_refs: [x.e.sourceId] },
+          covers: [`Update ${b.name}'s phone to ${r.newPhone}`, "No WhatsApp or calls to the new number until it opts in"],
+        },
+        { type: "contact", email: null, phone: r.newPhone },
+        {}, x.ref,
       );
     },
 
@@ -1050,9 +1154,40 @@ export function createCollectSpecialist(opts: CollectOptions = {}): Specialist {
         compose(ctx, kase, { to: "merchant", reason: "", findings: [] });
         return { reason: "Drafted from your answer." };
       }
-      return { reason: "Noted. RAY keeps chasing as before." };
+      return redraft(ctx, kase, text);
     },
   };
+
+  // Change: the merchant's text goes to the write job with the draft on the
+  // card; the redraft passes the write guard (numbers in the case, no banned
+  // words) and the same card comes back with it. The text is data, never
+  // an instruction. WhatsApp templates aren't redrafted.
+  async function redraft(ctx: Ctx, kase: Case, text: string) {
+    const items = pendingItems(ctx, kase.id).filter((p) => p.proposal);
+    if (!items.length) return { reason: "There's no draft to change. RAY keeps chasing as before." };
+    const ids = idAliases();
+    const facts = ids.hide(caseFacts(ctx.db, kase.id));
+    const tone = readSettings(ctx.db, kase.merchant_id, "collect").tone;
+    let changed = 0;
+    const rewrite = async (args: Record<string, unknown>) => {
+      if (typeof args.body !== "string") return args;
+      const r = await writer(ctx, { audience: "buyer", kind: `${String(args.kind)}_redraft`, first_customer_message: false, facts: { ...facts, current_draft: ids.hide(args.body), merchant_change: text }, tone, language: "en" }, kase.id);
+      if (r.source === "fallback" || !r.output.draft) return args;
+      changed++;
+      return { ...args, body: ids.show(r.output.draft) };
+    };
+    for (const p of items) {
+      const prop = p.proposal!;
+      const args = prop.tool === "send_message" ? await rewrite(prop.args) : prop.args;
+      const followUps = prop.followUps ? await Promise.all(prop.followUps.map(async (f) => (f.tool === "send_message" ? { ...f, args: await rewrite(f.args) } : f))) : undefined;
+      if (args !== prop.args || followUps?.some((f, i) => f !== prop.followUps![i])) {
+        // The same card (same id), with the new draft.
+        note(ctx, kase.id, { kind: N.pending, item_id: p.itemId, ask: p.ask, proposal: { ...prop, args, ...(followUps ? { followUps } : {}) }, meta: p.meta }, kase.id);
+      }
+    }
+    compose(ctx, kase, { to: "merchant", reason: "", findings: [] });
+    return { reason: changed ? "RAY redrafted the message with your note." : "I couldn't redraft that, so the draft is unchanged." };
+  }
 
   async function samadhaan(ctx: Ctx, kase: Case) {
     const b = buyerOf(ctx, kase.id);

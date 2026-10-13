@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { bannedWordsIn, hasEmDash } from "@/ai/grounding";
 import { caseView } from "@/surfaces/views";
+import { ApprovalCard } from "@/ui/merchant/approval-card";
 import { CasePage } from "@/ui/merchant/case-page";
 import { ViewProvider, type View } from "@/ui/view";
 import { morningList } from "./morning";
@@ -87,5 +88,14 @@ describe("the morning list", () => {
     expect(text).toContain("Send firm reminder");
     expect(text).toContain("Your call");
     expect(bannedWordsIn(text)).toEqual([]);
+  });
+
+  it("the WhatsApp approval card lists what the same tap also covers", async () => {
+    await w.morning();
+    const v = caseView(w.a, w.caseOf(BUYERS.mehra)!.id);
+    const text = textOf(render("phone", <ApprovalCard card={v.card!} merchantId={PR} />));
+    expect(text).toContain("The same tap also covers:");
+    expect(text).toContain("Then send the firm reminder by WhatsApp to +919800000304");
+    expect(textOf(render("desktop", <CasePage v={v} />))).toContain("The same tap also covers:");
   });
 });

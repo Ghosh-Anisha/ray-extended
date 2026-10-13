@@ -78,6 +78,13 @@
       "when": 1792000000000,
       "tag": "1100_collect",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1792000000001,
+      "tag": "1101_consent_address",
+      "breakpoints": true
     }
   ]
 }

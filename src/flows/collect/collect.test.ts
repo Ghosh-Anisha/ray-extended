@@ -5,16 +5,22 @@
 // read-only view. Plus: consent on every channel, approvals per stage, the
 // Call stage, every reply type, remittance advice and the handoff.
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MessagingError } from "@/adapters/messaging";
 import { bannedWordsIn, hasEmDash } from "@/ai/grounding";
 import * as s from "@/db/schema";
 import { guardedCall, undoAction } from "@/guards";
+import { undo } from "@/surfaces/actions";
+import { COLLECT_CALL_RULE } from "@/db/seed/collect";
 import { caseFacts } from "@/guards/facts";
 import { NO_CONSENT_BUYER } from "@/db/seed/collect";
-import { caseView } from "@/surfaces/views";
+import { caseView, playbookView } from "@/surfaces/views";
 import { morningList, BANKING_PLUS_OFFER } from "./morning";
 import { BUYERS, collectWorld, DAY, HOUR, PR, type CollectWorld } from "./test-helpers";
+
+// These tests run days of daily checks on the fake clock; on a busy
+// machine that takes longer than the 5 s default.
+vi.setConfig({ testTimeout: 60_000 });
 
 let w: CollectWorld;
 beforeEach(() => {
@@ -347,16 +353,31 @@ describe("matching money", () => {
     expect(w.state(kase.id).state).toBe("waiting_merchant");
   });
 
-  it("Sure but above the approval limit waits for a tap", async () => {
+  it("a Sure match above the approval limit (₹77,400 over ₹50,000) posts alone with Undo and tops the morning list", async () => {
+    // Posting is a bookkeeping entry, not a money action: no amount cap.
+    expect(w.repo.merchants.get(PR)!.approval_limit).toBe(rupees(50_000));
     await w.morning();
     const kase = w.caseOf(BUYERS.mehra)!;
     await w.credit({ amount: rupees(38_700 * 2), remark: "RTGS MEHRA SNACKS PVT LTD", utr: "ICIC0026101555" });
-    expect(w.repo.actions.list(eq(s.actions.tool, "post_match"))).toHaveLength(0);
-    const p = w.proposals(kase.id)[0];
-    expect(p).toMatchObject({ label: "Post ₹77,400 to invoices 2414 and 2409", covered: true });
-    expect(w.ask(kase.id)).toMatch(/above your approval limit of ₹50,000/);
-    await w.tapLabel(kase.id, p.label);
-    expect(w.repo.actions.list(eq(s.actions.tool, "post_match"))[0]).toMatchObject({ status: "done", approved_by: "tap" });
+    const post = w.repo.actions.list(eq(s.actions.tool, "post_match"))[0];
+    expect(post).toMatchObject({ status: "done", approved_by: null });
+    expect(post.guard_result?.passed).toContain("amount_cap");
+    expect(w.proposals(kase.id).some((p) => p.tool === "post_match")).toBe(false);
+    const list = morningList(w.a, PR);
+    expect(list.posted).toEqual([{ actionId: post.id, caseId: kase.id, text: "Posted ₹77,400 to PR/26-27/2414 and PR/26-27/2409" }]);
+    // Undo from the morning list reverses it and hands the case back.
+    await undo(w.a, PR, post.id);
+    expect(w.repo.invoices.get(inv(2409))!.status).toBe("open");
+    expect(morningList(w.a, PR).posted).toEqual([]);
+    expect(w.state(kase.id).state).toBe("waiting_merchant");
+  });
+
+  it("below the approval limit, a Sure post isn't listed at the top (it's in the case as usual)", async () => {
+    setLimit(200_000);
+    await w.morning();
+    await w.credit({ amount: rupees(38_700 * 2), remark: "RTGS MEHRA SNACKS PVT LTD", utr: "ICIC0026101555" });
+    expect(w.repo.actions.list(eq(s.actions.tool, "post_match"))[0].status).toBe("done");
+    expect(morningList(w.a, PR).posted).toEqual([]);
   });
 
   it("TDS short-pay at the buyer's usual rate: Likely, a tap, and a request for the certificate", async () => {
@@ -537,6 +558,32 @@ describe("reading replies", () => {
     const resend = w.a.db.select().from(s.messages).all().filter((m) => m.to === "payables@bansaltraders.example.com");
     expect(resend).toHaveLength(1);
     expect(resend[0].body).toMatch(/^Hello there,/);
+    // Email consent carries over to the new address at the same buyer.
+    expect(w.a.messaging.buyerConsent(BUYERS.bansal, "email")).toBe("opted_in");
+    expect(w.state(kase.id).state).toBe("verifying");
+  });
+
+  it("wrong person with a new number: WhatsApp and calls wait for that number's own opt-in", async () => {
+    const kase = w.caseOf(BUYERS.mehra)!;
+    await w.replies(BUYERS.mehra, "I'm not the right person. Please contact our accounts team on +91 98111 22233.");
+    const card = caseView(w.a, kase.id).yourCall.primary!;
+    expect(card).toMatchObject({ label: "Update contact" });
+    expect(card.alsoDoes).toEqual(["Update Mehra Snacks Pvt Ltd's phone to +919811122233", "No WhatsApp or calls to the new number until it opts in"]);
+    await w.tapLabel(kase.id, "Update contact");
+    const b = w.buyer(BUYERS.mehra);
+    expect(b.phone).toBe("+919811122233");
+    expect(w.a.messaging.buyerConsent(BUYERS.mehra, "whatsapp", b.phone)).toBeNull();
+    expect(w.a.messaging.buyerConsent(BUYERS.mehra, "call", b.phone)).toBeNull();
+    expect(w.a.messaging.buyerConsent(BUYERS.mehra, "email")).toBe("opted_in");
+    const wa = { merchantId: PR, channel: "whatsapp" as const, to: b.phone!, senderMode: "merchant_inbox" as const, templateId: "invoice_reminder", params: { name: "Anil", invoice: "PR/26-27/2404", amount: "₹30,200", merchant: "PackRight", date: "6 Sep" } };
+    await expect(w.a.messaging.send(wa)).rejects.toThrow(/not opted in/);
+    const g = await guardedCall("send_message", { channel: "whatsapp", to: b.phone, sender_mode: "merchant_inbox", kind: "gentle_reminder", template_id: "invoice_reminder", params: wa.params }, { adapters: w.a, caseId: kase.id });
+    expect(g.status === "blocked" && g.failures.map((f) => f.code)).toContain("no_opt_in");
+    const c = await guardedCall("place_call", { kind: "collect_call", to: b.phone, opening: "Hi Anil, this is PackRight about ₹1,07,600 overdue on 3 invoices." }, { adapters: w.a, caseId: kase.id });
+    expect(c.status === "blocked" && c.failures.map((f) => f.code)).toContain("no_opt_in");
+    // Once the new number opts in, WhatsApp works again.
+    w.a.messaging.setBuyerConsent(BUYERS.mehra, "whatsapp", "opted_in", "new number opted in", b.phone);
+    await expect(w.a.messaging.send(wa)).resolves.toMatchObject({ to: b.phone });
   });
 
   it("hardship: RAY proposes a split plan to the merchant, and the parts go into the ledger", async () => {
@@ -658,5 +705,124 @@ describe("every message", () => {
     // Facts carry the numbers RAY worked out.
     const facts = caseFacts(w.a.db, w.caseOf(BUYERS.mehra)!.id);
     expect(JSON.stringify(facts)).toMatch(/days_overdue_PR\/26-27\/2404/);
+  });
+});
+
+describe("follow-ups: covered by the same approval and listed on the card", () => {
+  it("a firm reminder's WhatsApp messages are listed and go with the one tap", async () => {
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    const p = caseView(w.a, kase.id).yourCall.primary!;
+    expect(p.alsoDoes).toEqual([
+      "Then send the firm reminder by WhatsApp to +919800000304",
+      "Then send the firm reminder by WhatsApp to +919800000304",
+      "Then send the firm reminder by WhatsApp to +919800000304",
+    ]);
+  });
+
+  it("a call lists its details email and its retries; the email goes after the call under the same tap", async () => {
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    await w.tapLabel(kase.id, "Send firm reminder");
+    await w.advance(3 * DAY + HOUR);
+    const p = caseView(w.a, kase.id).yourCall.primary!;
+    expect(p.label).toBe("Call Anil");
+    expect(p.alsoDoes).toEqual(["Then send the status by email to accounts@mehrasnacks.example.com", "Up to 2 more tries on the next days if there's no answer"]);
+    w.a.voice.setCallSim(w.buyer(BUYERS.mehra).phone!, { outcome: "answered", reply: "ok", promise: "pay on 20 Oct" });
+    await w.tapLabel(kase.id, "Call Anil");
+    const details = w.repo.actions.list(eq(s.actions.tool, "send_message")).find((x) => /Here are the details we called about/.test(String(x.args.body)))!;
+    expect(details).toMatchObject({ status: "done", approved_by: "tap" });
+  });
+});
+
+describe("playbook thresholds count as rules", () => {
+  const approve = (min?: number) => {
+    w.repo.playbookRules.update(COLLECT_CALL_RULE.id, { status: "approved", approved_at: w.a.clock.now(), ...(min ? { rule_json: { ...COLLECT_CALL_RULE.rule_json, min } } : {}) });
+  };
+
+  it("'Call buyers who owe more than ₹1 lakh' places the call under the rule, with its follow-up", async () => {
+    approve();
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    await w.tapLabel(kase.id, "Send firm reminder");
+    w.a.voice.setCallSim(w.buyer(BUYERS.mehra).phone!, { outcome: "answered", reply: "ok", promise: "pay on 20 Oct" });
+    await w.advance(3 * DAY + HOUR);
+    const call = w.repo.actions.list(eq(s.actions.tool, "place_call"))[0];
+    expect(call).toMatchObject({ status: "done", approved_by: COLLECT_CALL_RULE.id });
+    const details = w.repo.actions.list(eq(s.actions.tool, "send_message")).find((x) => /Here are the details we called about/.test(String(x.args.body)))!;
+    expect(details).toMatchObject({ status: "done", approved_by: COLLECT_CALL_RULE.id });
+    expect(caseView(w.a, kase.id).underRule).toEqual([{ ruleId: COLLECT_CALL_RULE.id, text: `Under your rule: ${COLLECT_CALL_RULE.text}` }]);
+    expect(w.promises(inv(2409)).find((x) => x.status === "open")!.promised_date).toBe(Date.parse("2026-10-20T00:00:00+05:30"));
+  });
+
+  it("below the threshold it waits for a tap, and the guard checks the threshold too", async () => {
+    approve(rupees(200_000));
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    await w.tapLabel(kase.id, "Send firm reminder");
+    await w.advance(3 * DAY + HOUR);
+    expect(w.repo.actions.list(eq(s.actions.tool, "place_call"))).toHaveLength(0);
+    const p = w.proposals(kase.id).find((x) => x.tool === "place_call")!;
+    const r = await guardedCall("place_call", p.args, { adapters: w.a, caseId: kase.id, approval: { by: "rule", ruleId: COLLECT_CALL_RULE.id, evidenceRef: "x" } });
+    expect(r.status === "blocked" && r.failures.map((f) => f.code)).toContain("rule_threshold");
+  });
+
+  it("key accounts still get a tap per call, rule or not", async () => {
+    approve();
+    await w.morning();
+    const kase = w.caseOf(BUYERS.gill)!;
+    await w.tapLabel(kase.id, "Send firm reminder");
+    await w.advance(7 * DAY + HOUR);
+    expect(w.repo.actions.list(eq(s.actions.tool, "place_call"))).toHaveLength(0);
+    expect(w.proposals(kase.id).some((p) => p.label === "Call Harpreet")).toBe(true);
+  });
+
+  it("a firm-reminder threshold rule sends firm reminders above it, never to key accounts", async () => {
+    w.repo.playbookRules.insert({ id: "rule_firm_pr", merchant_id: PR, moment: "collect", rule_json: { tool: "send_message", kind: "firm_reminder", min: rupees(50_000) }, text: "Send firm reminders when a buyer owes more than ₹50,000", source: "merchant", status: "approved", approved_at: w.a.clock.now() });
+    await w.morning();
+    const firm = w.repo.actions.list(eq(s.actions.tool, "send_message")).filter((x) => x.args.kind === "firm_reminder" && x.status === "done");
+    expect(firm.length).toBeGreaterThan(0);
+    expect(firm.every((x) => x.approved_by === "rule_firm_pr")).toBe(true);
+    expect(firm.some((x) => x.args.to === w.buyer(BUYERS.gill).email || x.args.to === w.buyer(BUYERS.gill).phone)).toBe(false);
+    expect(w.proposals(w.caseOf(BUYERS.gill)!.id).some((p) => p.label === "Send firm reminder")).toBe(true);
+  });
+
+  it("a rule doesn't cover a follow-up of some other action", async () => {
+    approve();
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    const other = w.repo.actions.list(eq(s.actions.tool, "send_message"))[0] ?? w.repo.actions.list()[0];
+    const r = await guardedCall("send_message", { channel: "email", to: w.buyer(BUYERS.mehra).email, sender_mode: "via_razorpay", kind: "firm_reminder", body: "Hello Anil, a note from PackRight." }, { adapters: w.a, caseId: kase.id, approval: { by: "rule", ruleId: COLLECT_CALL_RULE.id, evidenceRef: "x", followUpOf: other?.id ?? "act_none" } });
+    expect(r.status === "blocked" && r.failures.map((f) => f.code)).toContain("rule_not_approved");
+  });
+
+  it("the playbook shows the threshold", () => {
+    expect(playbookView(w.a, PR).moments.find((m) => m.moment === "collect")!.rules).toEqual([{ id: COLLECT_CALL_RULE.id, text: COLLECT_CALL_RULE.text, status: "proposed", limit: "Above ₹1 lakh" }]);
+  });
+});
+
+describe("Change: the write job redrafts, the same card comes back", () => {
+  it("redrafts the firm reminder with the merchant's note, and the tap sends the redraft", async () => {
+    await w.morning();
+    const kase = w.caseOf(BUYERS.mehra)!;
+    const before = w.proposals(kase.id)[0];
+    await w.change(kase.id, "Make it warmer, and say we value working with them");
+    const after = w.proposals(kase.id)[0];
+    expect(after.id).toBe(before.id);
+    expect(String(after.args.body)).toMatch(/^Hello Anil,\n\nWe value working with Mehra Snacks, so here is a friendly note\. PR\/26-27\/2404 for ₹30,200 is now 36 days overdue/);
+    expect(after.followUps).toEqual(before.followUps);
+    expect(w.repo.aiCalls.list().filter((c) => c.job === "write").every((c) => c.valid && c.mode === "replay")).toBe(true);
+    expect(w.events(kase.id).findLast((e) => e.payload.kind === "change_handled")!.payload.reason).toBe("RAY redrafted the message with your note.");
+    await w.tapLabel(kase.id, "Send firm reminder");
+    expect(w.toBuyer(BUYERS.mehra)[0].body).toBe(after.args.body);
+  });
+
+  it("when the write job can't redraft, the card keeps its draft and says so", async () => {
+    await w.morning();
+    const kase = w.caseOf(BUYERS.sidhu)!;
+    const before = w.proposals(kase.id)[0];
+    await w.change(kase.id, "Something no fixture knows about");
+    expect(w.proposals(kase.id)[0]).toEqual(before);
+    expect(w.events(kase.id).findLast((e) => e.payload.kind === "change_handled")!.payload.reason).toBe("I couldn't redraft that, so the draft is unchanged.");
   });
 });

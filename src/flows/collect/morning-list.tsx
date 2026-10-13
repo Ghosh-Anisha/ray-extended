@@ -36,6 +36,16 @@ export function MorningListView({ list }: { list: MorningList }) {
         </div>
       )}
       {error && <span className="error">{error}</span>}
+      {list.posted.map((p) => (
+        <div key={p.actionId} className="banner hold" role="status">
+          <span>
+            <Link href={`/merchant/${list.merchantId}/cases/${p.caseId}`}>{p.text}</Link> · Sure, above your approval limit
+          </span>
+          <Button size="small" variant="secondary" isLoading={busy === p.actionId} onClick={() => run(p.actionId, "/api/merchant/undo", { merchantId: list.merchantId, actionId: p.actionId })}>
+            Undo
+          </Button>
+        </div>
+      ))}
       {list.rows.length === 0 ? (
         <Empty>{list.empty}</Empty>
       ) : view === "phone" ? (

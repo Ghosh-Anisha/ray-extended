@@ -7,23 +7,25 @@ import { describe, expect, it } from "vitest";
 import { fixturePath } from "@/ai/fixtures";
 import { fixtureKey } from "@/ai/key";
 import { remittanceSpec } from "./advice";
-import { loadCollectSources } from "./fixtures";
+import { loadCollectSources, specFor } from "./fixtures";
 
 describe("Collect fixtures", () => {
   const entries = loadCollectSources();
   it("are all on disk under their key, labelled", () => {
     expect(entries.length).toBeGreaterThan(0);
     for (const e of entries) {
-      const file = fixturePath(path.join(process.cwd(), "fixtures", "ai"), "understand", fixtureKey("understand", e.input));
+      const file = fixturePath(path.join(process.cwd(), "fixtures", "ai"), e.job, fixtureKey(e.job, e.input));
       expect(fs.existsSync(file), `${e.name}: run npx tsx src/flows/collect/fixtures.ts`).toBe(true);
       const f = JSON.parse(fs.readFileSync(file, "utf8"));
-      expect(f).toMatchObject({ label: "recorded in Claude Code", prompt_version: remittanceSpec.prompt.version });
+      expect(f).toMatchObject({ label: "recorded in Claude Code", prompt_version: specFor(e.job).prompt.version });
     }
   });
-  it("pass the reader's schema and guard", () => {
+  it("pass their job's schema and guard (the write guard: numbers in the case, no banned words, no em dash)", () => {
+    expect(entries.some((e) => e.job === "write")).toBe(true);
     for (const e of entries) {
-      const out = remittanceSpec.schema.parse(e.output);
-      expect(remittanceSpec.guard!(out, e.input)).toEqual([]);
+      const spec = specFor(e.job);
+      const out = spec.schema.parse(e.output);
+      expect(spec.guard!(out, e.input)).toEqual([]);
     }
   });
   it("the guard rejects an invoice or amount that isn't in the text", () => {

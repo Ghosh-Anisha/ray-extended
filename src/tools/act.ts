@@ -67,6 +67,9 @@ export type ActToolSpec<A = any> = {
   holdMs?: number;
   paymentId?(args: A): string | undefined;
   storeOrderId?(args: A): string | undefined;
+  // false: not a money action (posting a match is a bookkeeping entry with
+  // Undo), so the amount cap doesn't apply. Defaults to true.
+  money?: boolean;
   // The amount in INR paise the amount cap compares, or null when there is none.
   amountInr?(ctx: { a: Adapters; kase: Case }, args: A): Promise<number | null>;
   run(ctx: ActRunContext, args: A): Promise<Record<string, unknown>>;
@@ -413,6 +416,7 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
     args: postMatchArgs,
     label: "posting the payment to the books",
     approval: "unless_sure",
+    money: false,
     guards: ["amount_cap"],
     async amountInr({ a }, x) {
       return createRepository(a.db).bankCredits.get(x.credit_id)?.amount ?? null;
@@ -496,7 +500,7 @@ export const ACT_TOOL_SPECS: { [K in ActToolName]: ActToolSpec } = {
       let optedOut = false;
       if (call.outcome === "asked_not_to_call") {
         if (customer) a.messaging.setConsent(customer.id, "call", "opted_out", "asked not to be called on a call");
-        if (buyer) a.messaging.setBuyerConsent(buyer.id, "call", "opted_out", "asked not to be called on a call");
+        if (buyer) a.messaging.setBuyerConsent(buyer.id, "call", "opted_out", "asked not to be called on a call", x.to);
         if (urgent) repo.merchants.update(merchant.id, { urgent_call_opt_in: false });
         optedOut = true;
       }

@@ -5,6 +5,8 @@ import { and, eq } from "drizzle-orm";
 import { seededAdapters } from "@/adapters/test-helpers";
 import { createAi } from "@/ai";
 import { DEFAULT_FIXTURES_DIR } from "@/ai/fixtures";
+import { writeSpec } from "@/ai/jobs/write";
+import { runJob } from "@/ai/runner";
 import { createRepository } from "@/db/repository";
 import * as s from "@/db/schema";
 import { createEngine } from "@/engine/engine";
@@ -31,7 +33,7 @@ export function collectWorld() {
   const a = seededAdapters();
   const repo = createRepository(a.db);
   const ai = (ctx: EngineContext) => createAi({ repo: ctx.repo, mode: "replay", fixturesDir: DEFAULT_FIXTURES_DIR }).ctx;
-  const engine = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry([createCollectSpecialist({ reader: defaultReader(ai) })]) });
+  const engine = createEngine({ db: a.db, clock: a.clock, adapters: a, registry: createRegistry([createCollectSpecialist({ reader: defaultReader(ai), writer: (ctx, input, caseId) => runJob(ai(ctx), writeSpec, input, { caseId }) })]) });
 
   const buyer = (id: string) => repo.buyers.get(id)!;
   const caseOf = (buyerId: string) => openCaseForBuyer(a.db, PR, buyerId) ?? lastCaseOf(buyerId);

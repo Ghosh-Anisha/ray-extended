@@ -26,8 +26,19 @@ export const COLLECT_CONSENTS: Row[] = [
 // The buyer with no consent rows at all.
 export const NO_CONSENT_BUYER = "buy_kohli_exports";
 
+// A playbook threshold RAY proposes at setup, off until PackRight approves
+// it: with it, the Call stage runs under the rule above ₹1 lakh (key
+// accounts still need a tap per call).
+export const COLLECT_CALL_RULE = {
+  id: "rule_setup_collect_call_m_packright",
+  text: "Call buyers who owe more than ₹1 lakh (key accounts still need your tap)",
+  rule_json: { tool: "place_call", kind: "collect_call", min: 100_000 * 100 },
+};
+
 export function seedCollect(db: Db, now: number) {
   const repo = createRepository(db);
+  // WhatsApp and call consent is for the buyer's number on file.
+  const phone = new Map(repo.buyers.list().map((b) => [b.id, b.phone]));
   repo.messagingConsents.insertMany(
     COLLECT_CONSENTS.map((r) => ({
       id: `cons_${r.buyer}_${r.channel}`,
@@ -35,7 +46,9 @@ export function seedCollect(db: Db, now: number) {
       channel: r.channel,
       status: r.status,
       source: r.source,
+      address: r.channel === "email" ? null : (phone.get(r.buyer) ?? null),
       updated_at: now - 60 * DAY,
     })),
   );
+  repo.playbookRules.insert({ ...COLLECT_CALL_RULE, merchant_id: "m_packright", moment: "collect", source: "pattern", status: "proposed", approved_at: null });
 }

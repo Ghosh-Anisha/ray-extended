@@ -149,8 +149,9 @@ export type Consent = (typeof s.CONSENT_STATUSES)[number];
 export type MessagingSim = Messaging & {
   setConsent(customerId: string, channel: ConsentChannel, status: Consent, source: string): void;
   consent(customerId: string, channel: ConsentChannel): Consent | null;
-  setBuyerConsent(buyerId: string, channel: ConsentChannel, status: Consent, source: string): void;
-  buyerConsent(buyerId: string, channel: ConsentChannel): Consent | null;
+  // address: for WhatsApp and calls, the number the consent is for.
+  setBuyerConsent(buyerId: string, channel: ConsentChannel, status: Consent, source: string, address?: string | null): void;
+  buyerConsent(buyerId: string, channel: ConsentChannel, address?: string | null): Consent | null;
 };
 
 // Ties on the fake clock fall back to insert order.
@@ -220,6 +221,13 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       .from(s.messagingConsents)
       .where(and(eq(s.messagingConsents.buyer_id, buyerId), eq(s.messagingConsents.channel, channel)))
       .get();
+  // WhatsApp and call consent only counts for the number it was given for.
+  const buyerConsentFor = (buyerId: string, channel: ConsentChannel, address?: string | null) => {
+    const row = buyerConsentRow(buyerId, channel);
+    if (!row) return undefined;
+    if (channel !== "email" && row.address && address && row.address !== address) return undefined;
+    return row.status;
+  };
 
   const thread = (merchantId: string, customer: string) => {
     const mine = merchantAddresses(merchantId);
@@ -279,7 +287,7 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
       const replying = windowOn(input.merchantId, input.to, input.channel).open;
       const customer = customerAt(input.merchantId, input.channel, input.to);
       const buyer = customer ? undefined : buyerAt(input.merchantId, input.channel, input.to);
-      const consent = customer ? consentRow(customer.id, input.channel)?.status : buyer ? buyerConsentRow(buyer.id, input.channel)?.status : undefined;
+      const consent = customer ? consentRow(customer.id, input.channel)?.status : buyer ? buyerConsentFor(buyer.id, input.channel, input.to) : undefined;
       if (!replying && customer && consent === "opted_out") {
         throw new MessagingError("OPTED_OUT", `This customer opted out of ${input.channel === "whatsapp" ? "WhatsApp" : "email"} messages`);
       }
@@ -383,15 +391,16 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
     consent(customerId, channel) {
       return consentRow(customerId, channel)?.status ?? null;
     },
-    setBuyerConsent(buyerId, channel, status, source) {
-      if (!repo.buyers.get(buyerId)) throw new MessagingError("UNKNOWN_ADDRESS", `Buyer ${buyerId} not found`);
+    setBuyerConsent(buyerId, channel, status, source, address) {
+      const buyer = repo.buyers.get(buyerId);
+      if (!buyer) throw new MessagingError("UNKNOWN_ADDRESS", `Buyer ${buyerId} not found`);
       const existing = buyerConsentRow(buyerId, channel);
-      const fields = { status, source, updated_at: clock.now() };
+      const fields = { status, source, updated_at: clock.now(), address: channel === "email" ? null : (address ?? buyer.phone) };
       if (existing) repo.messagingConsents.update(existing.id, fields);
       else repo.messagingConsents.insert({ id: newId("cons"), buyer_id: buyerId, channel, ...fields });
     },
-    buyerConsent(buyerId, channel) {
-      return buyerConsentRow(buyerId, channel)?.status ?? null;
+    buyerConsent(buyerId, channel, address) {
+      return buyerConsentFor(buyerId, channel, address) ?? null;
     },
   };
 }

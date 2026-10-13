@@ -205,6 +205,9 @@ export const messagingConsents = sqliteTable(
     id: id(),
     customer_id: text("customer_id").references(() => customers.id),
     buyer_id: text("buyer_id").references(() => buyers.id),
+    // A buyer's WhatsApp or call consent is for this number (migration
+    // 1101); a new number needs its own opt-in. Null: not tied to an address.
+    address: text("address"),
     channel: text("channel", { enum: CONSENT_CHANNELS }).notNull(),
     status: text("status", { enum: CONSENT_STATUSES }).notNull(),
     source: text("source").notNull(),

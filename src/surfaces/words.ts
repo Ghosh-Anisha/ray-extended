@@ -71,6 +71,8 @@ export const COVERED_HINT = "If RAY gets this wrong, the proposed error cover ap
 export const YOUR_CALL_HINT = "This depends on your judgement.";
 
 export const SIMULATED = "Simulated";
+// Under an action button: the follow-ups the same tap covers.
+export const ALSO_COVERS = "The same tap also covers:";
 export const KILL_SWITCH_BANNER = "RAY's actions are paused for this account. Reading still works.";
 export const DOING_IT = "Doing it…";
 export const SOMETHING_ELSE = "Something else";

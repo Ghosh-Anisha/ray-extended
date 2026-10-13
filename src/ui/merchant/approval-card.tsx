@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { ApprovalCard as Card } from "@/surfaces/views";
-import { APPROVE, CHANGE, DOING_IT, OPEN_CASE } from "@/surfaces/words";
+import { ALSO_COVERS, APPROVE, CHANGE, DOING_IT, OPEN_CASE } from "@/surfaces/words";
 import { ApprovalLabel, useAction } from "../bits";
 import { VoiceNoteBubble } from "../voice";
 
@@ -24,6 +24,16 @@ export function ApprovalCard({ card, merchantId, showOpen = true }: { card: Card
       <div style={{ marginTop: 6 }}>
         <strong>{card.primary.label}</strong> · <ApprovalLabel covered={card.primary.covered} />
       </div>
+      {card.primary.alsoDoes.length > 0 && (
+        <div className="meta">
+          {ALSO_COVERS}
+          <ul style={{ margin: "2px 0 0", paddingLeft: 18 }}>
+            {card.primary.alsoDoes.map((x, i) => (
+              <li key={i}>{x}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       {card.changeAsked && <div className="meta">You asked: {card.changeAsked}</div>}
       <div className="card-actions">
         <button type="button" disabled={busy !== null} onClick={() => run("approve", "/api/merchant/tap", { caseId: card.caseId, choice: "approve", proposalId: card.primary.id })}>

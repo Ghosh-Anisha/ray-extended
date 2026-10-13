@@ -241,7 +241,9 @@ export type ConversationItem = {
   voice: VoiceNoteView | null;
   call: CallView | null;
 };
-export type Proposal = { id: string; label: string; covered: boolean; draft: string | null };
+// alsoDoes: everything else the same approval covers (follow-ups and later
+// steps), listed on the card in plain words.
+export type Proposal = { id: string; label: string; covered: boolean; draft: string | null; alsoDoes: string[] };
 export type ApprovalCard = {
   caseId: string;
   lines: string[];
@@ -408,7 +410,16 @@ function proposalOf(p: ProposedAction): Proposal {
   // confirmation that follows it on the same tap.
   const message = p.tool === "send_message" ? p.args : p.followUps?.find((f) => f.tool === "send_message")?.args;
   const draft = typeof p.args.draft === "string" ? p.args.draft : typeof message?.body === "string" ? message.body : null;
-  return { id: p.id, label: p.label, covered: p.covered, draft };
+  return { id: p.id, label: p.label, covered: p.covered, draft, alsoDoes: [...(p.followUps ?? []).map(followUpLine), ...(p.covers ?? [])] };
+}
+
+const CHANNEL_WORD: Record<string, string> = { whatsapp: "WhatsApp", email: "email" };
+function followUpLine(f: { tool: string; args: Record<string, unknown> }): string {
+  if (f.tool === "send_message") {
+    const what = typeof f.args.kind === "string" ? f.args.kind.replace(/_/g, " ") : "message";
+    return `Then send the ${what} by ${CHANNEL_WORD[String(f.args.channel)] ?? "message"} to ${String(f.args.to)}`;
+  }
+  return `Then: ${actLabel(f.tool)}`;
 }
 
 export const CHANNEL_LABEL: Record<Message["channel"], string> = { whatsapp: "WhatsApp", email: "Email", voice_note: "WhatsApp voice note", call: "Call" };
@@ -640,7 +651,12 @@ export function playbookView(a: Adapters, merchantId: string): PlaybookView {
       label: MOMENT_LABEL[moment],
       rules: rules
         .filter((r) => r.moment === moment)
-        .map((r) => ({ id: r.id, text: r.text, status: r.status, limit: typeof r.rule_json.max === "number" ? `Up to ${money(r.rule_json.max)}` : null })),
+        .map((r) => ({
+          id: r.id,
+          text: r.text,
+          status: r.status,
+          limit: typeof r.rule_json.max === "number" ? `Up to ${money(r.rule_json.max)}` : typeof r.rule_json.min === "number" ? `Above ${money(r.rule_json.min)}` : null,
+        })),
       settings: readSettings(a.db, merchantId, moment),
       sendFromOptions: s.SENDER_MODES.map((mode) => ({ value: mode, label: SENDER_MODE_LABEL[mode](m.name) })),
     })),

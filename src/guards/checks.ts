@@ -81,14 +81,14 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
   }
   if (ap.by === "rule") {
     const rule = g.repo.playbookRules.get(ap.ruleId);
-    const ok =
-      rule &&
-      rule.status === "approved" &&
-      rule.merchant_id === g.kase.merchant_id &&
-      rule.moment === g.kase.moment &&
-      (rule.rule_json.tool === undefined || rule.rule_json.tool === g.tool) &&
-      (rule.rule_json.kind === undefined || rule.rule_json.kind === g.args.kind);
-    return ok ? [] : [fail("approval", "rule_not_approved", "That rule isn't approved for this, so this needs your tap.", { rule_id: ap.ruleId })];
+    const live = rule && rule.status === "approved" && rule.merchant_id === g.kase.merchant_id && rule.moment === g.kase.moment;
+    const covers = (r: NonNullable<typeof rule>) =>
+      (r.rule_json.tool === undefined || r.rule_json.tool === g.tool) && (r.rule_json.kind === undefined || r.rule_json.kind === g.args.kind);
+    // A follow-up of an action this rule approved is covered by the rule too.
+    const ok = live && (covers(rule) || (ap.followUpOf !== undefined && ruleFollowUp(g, ap.ruleId, ap.followUpOf)));
+    if (!ok) return [fail("approval", "rule_not_approved", "That rule isn't approved for this, so this needs your tap.", { rule_id: ap.ruleId })];
+    // A playbook threshold ("call above ₹X", "up to ₹X") is part of the rule.
+    return ruleThreshold(g, rule);
   }
   const ev = g.repo.caseEvents.get(ap.evidenceRef);
   const tapped =
@@ -106,6 +106,36 @@ export async function approval(g: GuardContext): Promise<Failure[]> {
   if (!proposal || !(sameAs(proposal) || (proposal.followUps ?? []).some(sameAs))) {
     return [fail("approval", "different_action", "You approved a different action, so this needs your tap.", { proposal_id: ap.tap.proposalId })];
   }
+  return [];
+}
+
+const sameArgs = (g: GuardContext, x: { tool: string; args: Record<string, unknown> }) =>
+  x.tool === g.tool && Object.entries(x.args).every(([k, v]) => JSON.stringify(normalise(v)) === JSON.stringify(normalise(g.args[k])));
+
+// The parent action was done on this case under this rule, and the
+// proposal it ran from lists this call as one of its follow-ups.
+function ruleFollowUp(g: GuardContext, ruleId: string, parentId: string): boolean {
+  const parent = g.repo.actions.get(parentId);
+  if (!parent || parent.case_id !== g.kase.id || parent.status !== "done" || parent.approved_by !== ruleId) return false;
+  const asParent = (p: ProposedAction) =>
+    p.tool === parent.tool && Object.entries(p.args).every(([k, v]) => JSON.stringify(normalise(v)) === JSON.stringify(normalise(parent.args[k])));
+  return g.repo.caseEvents
+    .listByCase(g.kase.id)
+    .filter((e) => e.payload.kind === "actions_proposed")
+    .flatMap((e) => e.payload.actions as ProposedAction[])
+    .some((p) => asParent(p) && (p.followUps ?? []).some((f) => sameArgs(g, f)));
+}
+
+// Thresholds on a rule: min (above ₹X) and max (up to ₹X), in paise,
+// against the action's amount, else the case's.
+async function ruleThreshold(g: GuardContext, rule: typeof s.playbookRules.$inferSelect): Promise<Failure[]> {
+  const min = typeof rule.rule_json.min === "number" ? rule.rule_json.min : null;
+  const max = typeof rule.rule_json.max === "number" ? rule.rule_json.max : null;
+  if (min === null && max === null) return [];
+  const amount = (g.spec.amountInr ? await g.spec.amountInr({ a: g.a, kase: g.kase }, g.args) : null) ?? g.kase.amount;
+  if (amount === null) return [fail("approval", "rule_threshold", "Your rule has an amount limit and this has no amount, so this needs your tap.", { rule_id: rule.id })];
+  if (min !== null && amount <= min) return [fail("approval", "rule_threshold", `Your rule covers amounts above ${formatMoney(min)}. This is ${formatMoney(amount)}, so it needs your tap.`, { rule_id: rule.id, amount, min })];
+  if (max !== null && amount > max) return [fail("approval", "rule_threshold", `Your rule covers amounts up to ${formatMoney(max)}. This is ${formatMoney(amount)}, so it needs your tap.`, { rule_id: rule.id, amount, max })];
   return [];
 }
 
@@ -137,7 +167,8 @@ function autoMessages(g: GuardContext): Failure[] {
 
 // ---- Amount cap: without a tap, nothing above the merchant's approval limit.
 export async function amountCap(g: GuardContext): Promise<Failure[]> {
-  if (g.approval?.by === "tap" || !g.spec.amountInr) return [];
+  // Only money actions are capped (post_match is a bookkeeping entry).
+  if (g.approval?.by === "tap" || !g.spec.amountInr || g.spec.money === false) return [];
   const amount = await g.spec.amountInr({ a: g.a, kase: g.kase }, g.args);
   if (amount === null || amount <= g.merchant.approval_limit) return [];
   return [
@@ -383,7 +414,7 @@ export async function consent(g: GuardContext): Promise<Failure[]> {
   // Buyers need an opt-in row on every channel, for every message (Step 11).
   const buyer = recipient(g) ? undefined : buyerRecipient(g);
   if (buyer) {
-    const status = g.a.messaging.buyerConsent(buyer.id, channel);
+    const status = g.a.messaging.buyerConsent(buyer.id, channel, g.args.to as string);
     const label = channel === "whatsapp" ? "WhatsApp" : "email";
     if (status === "opted_out") return [fail("consent", "opted_out", `${buyer.name} opted out of ${label} messages.`)];
     if (status !== "opted_in") return [fail("consent", "no_opt_in", `${buyer.name} hasn't opted in to ${label} messages.`)];
@@ -535,7 +566,7 @@ function callee(g: GuardContext): Callee | undefined {
   const c = g.a.db.select().from(s.customers).where(and(eq(s.customers.merchant_id, g.kase.merchant_id), eq(s.customers.phone, to))).get();
   if (c) return { name: c.name, phone: c.phone, email: c.email, consent: g.a.messaging.consent(c.id, "call") };
   const b = g.a.db.select().from(s.buyers).where(and(eq(s.buyers.merchant_id, g.kase.merchant_id), eq(s.buyers.phone, to))).get();
-  if (b) return { name: b.contact_name, phone: b.phone, email: b.email, consent: g.a.messaging.buyerConsent(b.id, "call") };
+  if (b) return { name: b.contact_name, phone: b.phone, email: b.email, consent: g.a.messaging.buyerConsent(b.id, "call", to) };
   return undefined;
 }
 

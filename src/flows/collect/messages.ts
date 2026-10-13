@@ -88,6 +88,15 @@ export function callScript(b: Buyer, merchant: string, lines: Line[], owedTotal:
   };
 }
 
+// After a call: the details by email, so the buyer can check them.
+export function callDetails(b: Buyer, merchant: string, lines: Line[], now: number): Built {
+  const items = lines.map((l) => `${itemDue(l)}, ${Math.max(0, daysOverdue(l, now))} days overdue`);
+  return {
+    body: `Hello ${firstNameOf(b.contact_name)},\n\nHere are the details we called about:\n${items.map((x) => `- ${x}`).join("\n")}\n${lines.length > 1 ? `That's ${exact(total(lines))} in all.\n` : ""}\nBank details are on the invoice. Can you share a payment date?\n\n${signOff(merchant)}`,
+    facts: factsFor(lines, now),
+  };
+}
+
 export function promiseNoted(b: Buyer, merchant: string, lines: Line[], date: number, now: number): Built {
   return {
     body: `Thank you, ${firstNameOf(b.contact_name)}. We've noted ${exact(total(lines))} for ${and(lines.map((l) => l.number))} by ${formatDate(date)}.\n\n${merchant}`,

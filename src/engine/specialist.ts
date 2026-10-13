@@ -61,9 +61,16 @@ export type ProposedAction = {
   // args by the approval guard. The confirmation message the card shows as
   // its draft is one of these.
   followUps?: { tool: string; args: Record<string, unknown> }[];
+  // Later steps the same approval covers, in plain words for the card
+  // ("Up to 2 more tries if there's no answer"). Optional.
+  covers?: string[];
 };
 
-export type Approval = { by: "tap"; tap: TapPayload; evidenceRef: string } | { by: "rule"; ruleId: string; evidenceRef: string };
+// followUpOf (optional): the action, done under this rule, whose own
+// follow-up this is. A rule covers its action's follow-ups, as a tap does.
+export type Approval =
+  | { by: "tap"; tap: TapPayload; evidenceRef: string }
+  | { by: "rule"; ruleId: string; evidenceRef: string; followUpOf?: string };
 
 // A flow sets a timer of this kind for the time it promised the customer.
 // When it fires, the orchestrator records promised_time_reached and calls
