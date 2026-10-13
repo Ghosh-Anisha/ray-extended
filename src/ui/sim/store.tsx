@@ -5,7 +5,7 @@
 import { useState } from "react";
 import type { StoreView } from "@/surfaces/sims";
 import { useAction } from "../bits";
-import { SimTitle } from "./sim-bar";
+import { SimTitle } from "./sim-title";
 
 const FAILURE_LABEL: Record<string, string> = {
   none: "Working",

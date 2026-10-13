@@ -4,7 +4,7 @@
 // first. Banking+ merchants see what RAY will do today and can log a note
 // ("spoke to them, paying on 20th"); everyone else gets the read-only
 // overdue view with the Banking+ offer. Phone shows cards, desktop a table.
-import { Button, Heading } from "@razorpay/blade/components";
+import { Button, Heading } from "@/ui/kit";
 import Link from "next/link";
 import { useState } from "react";
 import { Empty, SimulatedTag, useAction } from "@/ui/bits";

@@ -37,7 +37,9 @@ export function callView(a: Adapters, m: Message): CallView {
   const outcome = (p.outcome as CallOutcome | undefined) ?? "answered";
   const customer = a.db.select().from(s.customers).where(eq(s.customers.phone, m.to)).get();
   const merchant = m.case_id ? repo.merchants.get(repo.cases.get(m.case_id)!.merchant_id) : undefined;
-  const callee = m.to.startsWith("merchant:") ? (merchant?.name ?? "you") : customer ? firstNameOf(customer.name) : m.to;
+  // Collect calls a buyer's contact person.
+  const buyer = customer ? undefined : a.db.select().from(s.buyers).where(eq(s.buyers.phone, m.to)).get();
+  const callee = m.to.startsWith("merchant:") ? (merchant?.name ?? "you") : customer ? firstNameOf(customer.name) : buyer ? firstNameOf(buyer.contact_name) : m.to;
   const lines = (p.transcript as TranscriptLine[] | undefined) ?? (m.transcript ?? "").split("\n").filter(Boolean).map((text) => ({ speaker: "line" as const, who: "", text, audioRef: null }));
   return {
     id: m.id,

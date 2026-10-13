@@ -1,0 +1,21 @@
+{
+  "job": "understand",
+  "key": "9365df217f89338b8c364e42",
+  "label": "recorded in Claude Code",
+  "prompt_version": "understand.v2",
+  "model": null,
+  "input": {
+    "text": "Please cancel my cookie box plan, it's too expensive for me right now."
+  },
+  "output": {
+    "amount": null,
+    "rough_time": null,
+    "utr": null,
+    "payment_id": null,
+    "intent": "subscription",
+    "language": "en",
+    "mood": "worried",
+    "legal_or_chargeback_words": [],
+    "confidence": "sure"
+  }
+}

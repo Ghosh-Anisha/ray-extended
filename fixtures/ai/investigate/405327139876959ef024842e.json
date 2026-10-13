@@ -1,0 +1,76 @@
+{
+  "job": "investigate",
+  "key": "405327139876959ef024842e",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "chargeback",
+      "merchant": "Leafy Bakes",
+      "dispute_id": "disp_LB_nehak",
+      "payment_id": "pay_LB1190NEHA",
+      "amount": "₹2,400",
+      "reason": "Product not received",
+      "type": "not_received",
+      "phase": "chargeback",
+      "looking_for": [
+        "delivery proof",
+        "chats",
+        "past orders",
+        "earlier RAY case",
+        "refund or single charge",
+        "Buyer Protection claim"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "so_leafy_1190",
+        "type": "store_order",
+        "summary": "Order #1190 is completed (Shipped by courier)"
+      },
+      {
+        "id": "msg_demo_neha_1",
+        "type": "message_in",
+        "summary": "Customer wrote: Hi, my cookie hamper hasn't arrived yet. It has been 5 days since I ordered."
+      },
+      {
+        "id": "msg_demo_neha_2",
+        "type": "message_out",
+        "summary": "You wrote: Hi Neha, the courier shows your hamper was delivered on 8 Oct and signed for by N. Kumar. Could you check with your family or neighbours?"
+      },
+      {
+        "id": "msg_demo_neha_3",
+        "type": "message_in",
+        "summary": "Customer wrote: I asked everyone, nobody has it. I will ask my bank for the money back."
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": []
+  },
+  "output": {
+    "findings": [],
+    "next": {
+      "tool": "get_dispute",
+      "id": "disp_LB_nehak"
+    },
+    "cause": null,
+    "side": null,
+    "situation": null,
+    "confidence": "likely"
+  }
+}

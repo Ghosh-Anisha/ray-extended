@@ -1,0 +1,268 @@
+{
+  "home": {
+    "desktop": {
+      "ttfb": 141,
+      "domReady": 159,
+      "loaded": 252,
+      "ms": 293
+    },
+    "phone": {
+      "ttfb": 11,
+      "domReady": 22,
+      "loaded": 60,
+      "ms": 112
+    }
+  },
+  "cases": {
+    "desktop": {
+      "ttfb": 39,
+      "domReady": 55,
+      "loaded": 67,
+      "ms": 86
+    },
+    "phone": {
+      "ttfb": 33,
+      "domReady": 48,
+      "loaded": 59,
+      "ms": 83
+    }
+  },
+  "case-priya": {
+    "desktop": {
+      "ttfb": 27,
+      "domReady": 43,
+      "loaded": 65,
+      "ms": 89
+    },
+    "phone": {
+      "ttfb": 16,
+      "domReady": 27,
+      "loaded": 47,
+      "ms": 76
+    }
+  },
+  "case-neha-chargeback": {
+    "desktop": {
+      "ttfb": 21,
+      "domReady": 35,
+      "loaded": 36,
+      "ms": 69
+    },
+    "phone": {
+      "ttfb": 13,
+      "domReady": 26,
+      "loaded": 27,
+      "ms": 67
+    }
+  },
+  "case-karan-subscription": {
+    "desktop": {
+      "ttfb": 14,
+      "domReady": 27,
+      "loaded": 28,
+      "ms": 60
+    },
+    "phone": {
+      "ttfb": 11,
+      "domReady": 23,
+      "loaded": 25,
+      "ms": 60
+    }
+  },
+  "case-acme-invoice": {
+    "desktop": {
+      "ttfb": 15,
+      "domReady": 28,
+      "loaded": 29,
+      "ms": 54
+    },
+    "phone": {
+      "ttfb": 14,
+      "domReady": 27,
+      "loaded": 28,
+      "ms": 62
+    }
+  },
+  "ask-ray": {
+    "desktop": {
+      "ttfb": 11,
+      "domReady": 23,
+      "loaded": 24,
+      "ms": 57
+    },
+    "phone": {
+      "ttfb": 8,
+      "domReady": 21,
+      "loaded": 22,
+      "ms": 44
+    }
+  },
+  "my-dashboard": {
+    "desktop": {
+      "ttfb": 9,
+      "domReady": 19,
+      "loaded": 20,
+      "ms": 44
+    },
+    "phone": {
+      "ttfb": 8,
+      "domReady": 18,
+      "loaded": 19,
+      "ms": 47
+    }
+  },
+  "rules": {
+    "desktop": {
+      "ttfb": 17,
+      "domReady": 27,
+      "loaded": 46,
+      "ms": 65
+    },
+    "phone": {
+      "ttfb": 13,
+      "domReady": 24,
+      "loaded": 39,
+      "ms": 62
+    }
+  },
+  "whatsapp": {
+    "desktop": {
+      "ttfb": 53,
+      "domReady": 65,
+      "loaded": 77,
+      "ms": 95
+    },
+    "phone": {
+      "ttfb": 47,
+      "domReady": 57,
+      "loaded": 68,
+      "ms": 94
+    }
+  },
+  "alerts": {
+    "desktop": {
+      "ttfb": 46,
+      "domReady": 58,
+      "loaded": 72,
+      "ms": 93
+    },
+    "phone": {
+      "ttfb": 79,
+      "domReady": 94,
+      "loaded": 113,
+      "ms": 147
+    }
+  },
+  "digest": {
+    "desktop": {
+      "ttfb": 30,
+      "domReady": 42,
+      "loaded": 52,
+      "ms": 73
+    },
+    "phone": {
+      "ttfb": 33,
+      "domReady": 45,
+      "loaded": 54,
+      "ms": 74
+    }
+  },
+  "invoices-overdue": {
+    "desktop": {
+      "ttfb": 56,
+      "domReady": 68,
+      "loaded": 81,
+      "ms": 112
+    },
+    "phone": {
+      "ttfb": 22,
+      "domReady": 33,
+      "loaded": 45,
+      "ms": 75
+    }
+  },
+  "customer-inbox": {
+    "desktop": {
+      "ttfb": 35,
+      "domReady": 47,
+      "loaded": 66,
+      "ms": 86
+    },
+    "phone": {
+      "ttfb": 30,
+      "domReady": 40,
+      "loaded": 56,
+      "ms": 76
+    }
+  },
+  "buyer-inbox": {
+    "desktop": {
+      "ttfb": 14,
+      "domReady": 25,
+      "loaded": 32,
+      "ms": 53
+    },
+    "phone": {
+      "ttfb": 14,
+      "domReady": 25,
+      "loaded": 31,
+      "ms": 56
+    }
+  },
+  "store-admin": {
+    "desktop": {
+      "ttfb": 10,
+      "domReady": 23,
+      "loaded": 36,
+      "ms": 59
+    },
+    "phone": {
+      "ttfb": 8,
+      "domReady": 19,
+      "loaded": 32,
+      "ms": 54
+    }
+  },
+  "calls": {
+    "desktop": {
+      "ttfb": 20,
+      "domReady": 32,
+      "loaded": 46,
+      "ms": 66
+    },
+    "phone": {
+      "ttfb": 13,
+      "domReady": 25,
+      "loaded": 36,
+      "ms": 57
+    }
+  },
+  "checkout-abroad": {
+    "desktop": {
+      "ttfb": 20,
+      "domReady": 32,
+      "loaded": 62,
+      "ms": 83
+    },
+    "phone": {
+      "ttfb": 11,
+      "domReady": 22,
+      "loaded": 44,
+      "ms": 65
+    }
+  },
+  "demo-controls": {
+    "desktop": {
+      "ttfb": 10,
+      "domReady": 21,
+      "loaded": 23,
+      "ms": 50
+    },
+    "phone": {
+      "ttfb": 10,
+      "domReady": 21,
+      "loaded": 22,
+      "ms": 59
+    }
+  }
+}

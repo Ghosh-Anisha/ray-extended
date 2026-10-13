@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import type { ReactNode } from "react";
-import "@razorpay/blade/fonts.css";
 import "./globals.css";
+import { ShellServer } from "@/ui/shell/shell-server";
 import { Providers } from "./providers";
-import { StyledRegistry } from "./registry";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "RAY",
@@ -12,12 +14,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       {/* Browser extensions add attributes to body before React loads. */}
       <body suppressHydrationWarning>
-        <StyledRegistry>
-          <Providers>{children}</Providers>
-        </StyledRegistry>
+        <Providers>
+          <ShellServer>{children}</ShellServer>
+        </Providers>
       </body>
     </html>
   );

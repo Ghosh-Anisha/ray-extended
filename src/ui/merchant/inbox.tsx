@@ -1,6 +1,6 @@
 "use client";
 
-import { Heading } from "@razorpay/blade/components";
+import { Heading } from "@/ui/kit";
 import Link from "next/link";
 import { useState } from "react";
 import type { CaseRow, InboxView } from "@/surfaces/views";
@@ -8,7 +8,17 @@ import { EMPTY, type InboxTab } from "@/surfaces/words";
 import { Chip, Empty, HoldBanner } from "../bits";
 import { useView } from "../view";
 
-export function Inbox({ merchantId, inbox, initialTab = "needs_you" }: { merchantId: string; inbox: InboxView; initialTab?: InboxTab }) {
+export function Inbox({
+  merchantId,
+  inbox,
+  initialTab = "needs_you",
+  filter = null,
+}: {
+  merchantId: string;
+  inbox: InboxView;
+  initialTab?: InboxTab;
+  filter?: { label: string; clearHref: string } | null;
+}) {
   const { view } = useView();
   const [tab, setTab] = useState<InboxTab>(initialTab);
   const current = inbox.tabs.find((t) => t.key === tab)!;
@@ -16,6 +26,12 @@ export function Inbox({ merchantId, inbox, initialTab = "needs_you" }: { merchan
   return (
     <section className="stack" aria-label="Cases">
       <Heading size="large">{inbox.waitingOnYou}</Heading>
+      {filter && (
+        <div className="row">
+          <span className="chip information">Showing: {filter.label}</span>
+          <Link href={filter.clearHref}>Show all cases</Link>
+        </div>
+      )}
       <div className="tabs" role="tablist">
         {inbox.tabs.map((t) => (
           <button key={t.key} role="tab" type="button" aria-selected={t.key === tab} onClick={() => setTab(t.key)}>

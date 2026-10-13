@@ -1,0 +1,128 @@
+{
+  "job": "write",
+  "key": "6db0ed8d65dfa1990aa0f2e9",
+  "label": "recorded in Claude Code",
+  "prompt_version": "write.v1",
+  "model": null,
+  "input": {
+    "audience": "customer",
+    "kind": "refund_confirmation",
+    "first_customer_message": false,
+    "facts": {
+      "case": {
+        "moment": "paid_no_order",
+        "situation": "E",
+        "state": "confirmed",
+        "confidence": "sure",
+        "side": "customer_or_bank",
+        "razorpay_plugin": false,
+        "covered": false,
+        "amount": "₹499",
+        "payment_id": "pay_LB1235RAHUL2",
+        "cause": "paid_twice",
+        "promised_by": "11:36 AM on 13 Oct",
+        "opened_at": "9:35 AM on 13 Oct",
+        "counts_as_saved": false
+      },
+      "merchant": {
+        "name": "Leafy Bakes"
+      },
+      "records": [
+        {
+          "order_id": "order_LB1235",
+          "status": "captured",
+          "amount": "₹499",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000102",
+          "email": "rahul.m@example.com",
+          "vpa": "rahulm@okicici",
+          "utr": "628514730119 (ending 0119)",
+          "receipt": "wc_1235",
+          "created_at": "6:39 AM on 13 Oct",
+          "captured_at": "6:39 AM on 13 Oct"
+        },
+        {
+          "status": "paid",
+          "amount": "₹499",
+          "currency": "INR",
+          "receipt": "wc_1235",
+          "created_at": "6:35 AM on 13 Oct"
+        },
+        {
+          "order_id": "order_LB1235",
+          "status": "captured",
+          "amount": "₹499",
+          "currency": "INR",
+          "method": "upi",
+          "contact": "+919800000102",
+          "email": "rahul.m@example.com",
+          "vpa": "rahulm@okicici",
+          "utr": "628514730118 (ending 0118)",
+          "receipt": "wc_1235",
+          "created_at": "6:37 AM on 13 Oct",
+          "captured_at": "6:37 AM on 13 Oct"
+        },
+        {
+          "number": "#1235",
+          "status": "processing",
+          "razorpay_order_id": "order_LB1235",
+          "receipt": "wc_1235",
+          "payment_id": "pay_LB1235RAHUL1",
+          "total": "₹499",
+          "stock": 7,
+          "created_at": "6:35 AM on 13 Oct"
+        },
+        {
+          "name": "Banana bread loaf",
+          "qty": 1,
+          "price": "₹499",
+          "stock": 7
+        },
+        {
+          "name": "Rahul M",
+          "email": "rahul.m@example.com",
+          "phone": "+919800000102",
+          "language": "en",
+          "country": "IN"
+        },
+        {
+          "message_id": "msg_ref1",
+          "channel": "whatsapp",
+          "to": "+919800000102",
+          "from": "wa:leafy-bakes",
+          "body": "Hi Rahul, humein aapka ₹499 ka payment dikh raha hai, 13 Oct ko 6:39 AM, UTR ending 0119. Aap ise apne UPI app mein check kar sakte hain. 11:36 AM tak hum aapko update denge. Team Leafy Bakes",
+          "within_24h": true
+        }
+      ],
+      "timers": [
+        {
+          "kind": "confirm_check",
+          "due": "9:50 AM on 13 Oct"
+        },
+        {
+          "kind": "customer_message",
+          "due": "10:05 AM on 13 Oct"
+        },
+        {
+          "kind": "heal_check",
+          "due": "11:35 AM on 13 Oct"
+        },
+        {
+          "kind": "promised_time",
+          "due": "11:36 AM on 13 Oct"
+        }
+      ],
+      "sign_off": "Team Leafy Bakes",
+      "customer_name": "Rahul",
+      "order": "#1235",
+      "amount": "₹499"
+    },
+    "tone": "Warm",
+    "language": "hinglish"
+  },
+  "output": {
+    "draft": "Hi Rahul, humne extra ₹499 refunded kar diya hai. Yeh aapke bank ki speed se usi account mein aayega. Team Leafy Bakes",
+    "confidence": "sure"
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "job": "decide",
+  "key": "d731701140b6a39f815d8462",
+  "label": "recorded in Claude Code",
+  "prompt_version": "decide.v1",
+  "model": null,
+  "input": {
+    "moment": "paid_no_order",
+    "case": {
+      "amount": "₹1,299",
+      "side": "razorpay",
+      "cause": "plugin_dropped_capture",
+      "in_stock": true,
+      "confidence": "sure"
+    },
+    "findings": [
+      {
+        "text": "Razorpay captured ₹1,299 at 8:57 AM on 13 Oct, so the money reached Razorpay.",
+        "evidenceRef": "pay_LB1234PRIYA"
+      },
+      {
+        "text": "Your site answered OK when Razorpay sent the payment update, so status codes alone say no issue.",
+        "evidenceRef": "evt_LB_priya_captured"
+      },
+      {
+        "text": "Order #1234 is still Pending with no payment on it.",
+        "evidenceRef": "so_leafy_1234"
+      },
+      {
+        "text": "Your plugin settings look right: payment updates are on and the secret matches.",
+        "evidenceRef": "store_settings:m_leafy_bakes"
+      },
+      {
+        "text": "Another store on razorpay-woocommerce 4.8.2 reported the same thing: the payment update got an OK but the order stayed Pending. Razorpay's plugin dropped it.",
+        "evidenceRef": "pr_woo_482_1"
+      }
+    ],
+    "playbook": [
+      {
+        "id": "rule_setup_capture_m_leafy_bakes",
+        "moment": "paid_no_order",
+        "text": "Capture authorised payments before the timeout",
+        "status": "approved"
+      },
+      {
+        "id": "rule_pattern_refund_dup_leafy",
+        "moment": "paid_no_order",
+        "text": "Refund duplicate charges under ₹500 automatically",
+        "status": "proposed"
+      }
+    ],
+    "memory": [],
+    "options": [
+      "fulfil",
+      "refund",
+      "ask",
+      "escalate"
+    ]
+  },
+  "output": {
+    "proposal": "fulfil",
+    "reason": "It's in stock and Razorpay has the payment, so ship it.",
+    "rule_id": null,
+    "confidence": "sure"
+  }
+}

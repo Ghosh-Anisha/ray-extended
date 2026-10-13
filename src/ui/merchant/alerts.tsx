@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, Heading, Text } from "@razorpay/blade/components";
+import { Alert, Button, Heading, Text } from "@/ui/kit";
 import Link from "next/link";
 import type { AlertRow, Merchant } from "@/surfaces/views";
 import { EMPTY, LET_RAY_FIX } from "@/surfaces/words";

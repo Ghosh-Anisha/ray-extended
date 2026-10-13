@@ -4,6 +4,8 @@ import { createRepository } from "@/db/repository";
 import { caseView } from "@/surfaces/views";
 import { CasePage } from "@/ui/merchant/case-page";
 import { PageShell } from "@/ui/merchant/page-shell";
+import { caseRef } from "@/surfaces/refs";
+import { Breadcrumbs } from "@/ui/shell/breadcrumbs";
 
 export default async function CaseRoute({ params }: { params: Promise<{ merchantId: string; caseId: string }> }) {
   const { merchantId, caseId } = await params;
@@ -13,6 +15,13 @@ export default async function CaseRoute({ params }: { params: Promise<{ merchant
   const v = caseView(a, caseId);
   return (
     <PageShell killSwitch={v.merchant.killSwitch !== null}>
+      <Breadcrumbs
+        trail={[
+          { label: "Agentic Dashboard", href: `/merchant/${merchantId}` },
+          { label: "Cases", href: `/merchant/${merchantId}/cases` },
+          { label: `#${caseRef(a, caseId)}` },
+        ]}
+      />
       <CasePage v={v} />
     </PageShell>
   );

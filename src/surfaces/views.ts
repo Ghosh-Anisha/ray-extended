@@ -17,6 +17,7 @@ import { age, countdown, dateTime, firstName, formatTime, money, orderLabel, sho
 import { isSettingRow, readSettings } from "./playbook";
 import {
   CONFIDENCE_LABEL,
+  causeLabel,
   CONFIDENCE_TONE,
   INBOX_TABS,
   MOMENT_LABEL,
@@ -69,8 +70,25 @@ function caseKeys(repo: Repo, caseId: string) {
   return { emails, phones };
 }
 
-export function subjectOf(a: Adapters, kase: Case): Subject {
+// A list screen asks about many cases of one merchant: it reads that
+// merchant's customers and buyers once instead of once per case.
+export type SubjectCache = { customers: Map<string, Customer[]>; buyers: Map<string, Buyer[]> };
+type Customer = typeof s.customers.$inferSelect;
+type Buyer = typeof s.buyers.$inferSelect;
+export const subjectCache = (): SubjectCache => ({ customers: new Map(), buyers: new Map() });
+
+export function subjectOf(a: Adapters, kase: Case, cache?: SubjectCache): Subject {
   const repo = createRepository(a.db);
+  const customersOf = (merchantId: string) => {
+    if (!cache) return repo.customers.list(eq(s.customers.merchant_id, merchantId));
+    if (!cache.customers.has(merchantId)) cache.customers.set(merchantId, repo.customers.list(eq(s.customers.merchant_id, merchantId)));
+    return cache.customers.get(merchantId)!;
+  };
+  const buyersOf = (merchantId: string) => {
+    if (!cache) return repo.buyers.list(eq(s.buyers.merchant_id, merchantId));
+    if (!cache.buyers.has(merchantId)) cache.buyers.set(merchantId, repo.buyers.list(eq(s.buyers.merchant_id, merchantId)));
+    return cache.buyers.get(merchantId)!;
+  };
   const payment = kase.payment_id ? repo.rzpPayments.get(kase.payment_id) : undefined;
   const order = kase.store_order_id
     ? repo.storeOrders.get(kase.store_order_id)
@@ -82,15 +100,11 @@ export function subjectOf(a: Adapters, kase: Case): Subject {
   if (payment?.contact) phones.add(payment.contact);
   const customer =
     (order?.customer_id ? repo.customers.get(order.customer_id) : undefined) ??
-    repo.customers
-      .list(eq(s.customers.merchant_id, kase.merchant_id))
-      .find((c) => (c.email && emails.has(c.email.toLowerCase())) || (c.phone && phones.has(c.phone)));
+    customersOf(kase.merchant_id).find((c) => (c.email && emails.has(c.email.toLowerCase())) || (c.phone && phones.has(c.phone)));
   // Collect (Step 11): the case is about a buyer, named by their business.
   const buyer = customer
     ? undefined
-    : repo.buyers
-        .list(eq(s.buyers.merchant_id, kase.merchant_id))
-        .find((b) => (b.email && emails.has(b.email.toLowerCase())) || (b.phone && phones.has(b.phone)));
+    : buyersOf(kase.merchant_id).find((b) => (b.email && emails.has(b.email.toLowerCase())) || (b.phone && phones.has(b.phone)));
   const amountMinor = kase.amount ?? payment?.amount ?? order?.total ?? null;
   const currency = kase.amount === null && payment ? payment.currency : "INR";
   let amount = money(amountMinor, currency);
@@ -170,8 +184,8 @@ export type CaseRow = {
   holds: Hold[];
 };
 
-function caseRow(a: Adapters, kase: Case): CaseRow {
-  const sub = subjectOf(a, kase);
+function caseRow(a: Adapters, kase: Case, cache?: SubjectCache): CaseRow {
+  const sub = subjectOf(a, kase, cache);
   return {
     id: kase.id,
     moment: MOMENT_LABEL[kase.moment],
@@ -192,9 +206,17 @@ const byStakeThenAge = (x: CaseRow, y: CaseRow) => y.amountMinor - x.amountMinor
 
 export type InboxView = { waitingOnYou: string; tabs: { key: InboxTab; label: string; rows: CaseRow[] }[] };
 
-export function inboxView(a: Adapters, merchantId: string): InboxView {
-  const cases = createRepository(a.db).cases.list(eq(s.cases.merchant_id, merchantId));
-  const rows = cases.map((c) => ({ c, row: caseRow(a, c) }));
+// The Closed tab shows the last 30 days; older cases are in the numbers on Home.
+const CLOSED_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+export function inboxView(a: Adapters, merchantId: string, moment: Moment | null = null): InboxView {
+  const now = a.clock.now();
+  const cases = createRepository(a.db)
+    .cases.list(eq(s.cases.merchant_id, merchantId))
+    .filter((c) => !moment || c.moment === moment)
+    .filter((c) => tabFor(c.state) !== "closed" || (c.closed_at ?? c.opened_at) >= now - CLOSED_WINDOW_MS);
+  const cache = subjectCache();
+  const rows = cases.map((c) => ({ c, row: caseRow(a, c, cache) }));
   const tabs = INBOX_TABS.map((t) => ({
     key: t.key,
     label: t.label,
@@ -225,7 +247,7 @@ export function alertsView(a: Adapters, merchantId: string): { merchant: Merchan
         moment: kase ? MOMENT_LABEL[kase.moment] : "",
         name: sub?.name ?? "",
         amount: sub?.amount ?? "",
-        cause: kase?.cause ?? al.text,
+        cause: kase?.cause ? causeLabel(kase.cause) : al.text,
         state: kase ? { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] } : null,
       };
     }),

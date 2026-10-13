@@ -70,6 +70,29 @@ export const YOUR_CALL = "Your call";
 export const COVERED_HINT = "If RAY gets this wrong, the proposed error cover applies.";
 export const YOUR_CALL_HINT = "This depends on your judgement.";
 
+// What the merchant reads for a case's cause (the flows keep short keys).
+const CAUSE_LABEL: Record<string, string> = {
+  plugin_dropped_capture: "Razorpay's plugin dropped the payment update",
+  site_down: "Your site was down when the payment came in",
+  webhook_disabled: "Payment updates are turned off in your store",
+  wrong_settings: "Your store's payment settings don't match Razorpay's",
+  auto_cancelled: "The store cancelled the order before the payment arrived",
+  order_missing: "The payment has no order in your store",
+  not_captured: "The payment was authorised but not captured",
+  paid_twice: "Charged twice",
+  duplicate_charge: "Charged twice",
+  duplicate: "Charged twice, and the bank was told",
+  not_received: "The customer says it never arrived",
+  no_matching_payment: "No payment matches what the customer says",
+  above_international_limit: "Above your limit for international payments",
+  international_declined: "The card was declined abroad",
+  retries_ran_out: "Razorpay's retries ran out",
+  cancel_request: "The customer asked to cancel",
+  invoice_overdue: "The invoice is past its due date",
+  dispute: "The customer disputed the payment with their bank",
+};
+export const causeLabel = (cause: string) => CAUSE_LABEL[cause] ?? cause.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
+
 export const SIMULATED = "Simulated";
 export const KILL_SWITCH_BANNER = "RAY's actions are paused for this account. Reading still works.";
 export const DOING_IT = "Doing it…";

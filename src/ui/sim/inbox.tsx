@@ -3,13 +3,13 @@
 // Customer and buyer inboxes: pick a person, read their WhatsApp, email,
 // voice notes and calls, and write back or send a voice note as them.
 // Sending goes through the engine like any inbound message.
-import { Button } from "@razorpay/blade/components";
+import { Button } from "@/ui/kit";
 import { useState } from "react";
 import type { Person } from "@/surfaces/sims";
 import { useAction } from "../bits";
 import { CallCard, VoiceNoteBubble } from "../voice";
 import { VoiceCompose } from "../voice-compose";
-import { SimTitle } from "./sim-bar";
+import { SimTitle } from "./sim-title";
 
 export function PeopleInbox({
   title,
@@ -33,7 +33,7 @@ export function PeopleInbox({
   return (
     <div className="stack">
       <SimTitle>{title}</SimTitle>
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, alignItems: "start" }}>
+      <div className="split">
         <ul className="panel" style={{ listStyle: "none", margin: 0, padding: 8 }}>
           {people.map((x) => (
             <li key={x.id}>

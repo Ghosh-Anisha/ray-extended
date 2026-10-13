@@ -2,7 +2,7 @@
 
 // Small pieces every surface shares: chips, the Simulated tag, Covered or
 // Your call, banners with live countdowns, and a POST helper.
-import { Button } from "@razorpay/blade/components";
+import { Button } from "@/ui/kit";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { countdown } from "@/surfaces/format";

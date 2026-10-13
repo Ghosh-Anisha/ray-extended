@@ -11,9 +11,11 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "db:reset": "tsx src/db/reset.ts",
-    "db:seed": "tsx src/db/seed.ts",
+    "db:seed": "tsx src/db/seed/run.ts",
     "db:generate": "drizzle-kit generate",
-    "ai:fixtures": "tsx src/ai/record-claude-code.ts"
+    "ai:fixtures": "tsx src/ai/record-claude-code.ts",
+    "demo": "next build && next start -p 3000",
+    "ai:demo-fixtures": "tsx src/db/seed/demo-fixtures.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
@@ -23,6 +25,7 @@
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.4",
     "framer-motion": "^14.1.0",
+    "lucide-react": "^1.56.0",
     "next": "^16.4.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
@@ -39,6 +42,7 @@
     "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.0",
+    "playwright": "^1.64.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",
     "vite": "^8.3.4",

@@ -32,14 +32,14 @@ import { Playbook } from "@/ui/merchant/playbook";
 import { WhatsAppThread } from "@/ui/merchant/whatsapp";
 import { CallScreen } from "@/ui/sim/calls";
 import { PeopleInbox } from "@/ui/sim/inbox";
-import { SimBar } from "@/ui/sim/sim-bar";
 import { StoreAdmin } from "@/ui/sim/store";
-import { MerchantTopBar } from "@/ui/merchant/top-bar";
+import { Shell } from "@/ui/shell/shell";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh() {}, push() {} }),
   usePathname: () => "/merchant/m_leafy_bakes",
   useServerInsertedHTML: () => {},
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: ReactNode }) => (
@@ -259,12 +259,12 @@ describe("both views, Simulated tags and words", () => {
 describe("dev panel", () => {
   it("no merchant, customer or buyer screen links to the dev panel", async () => {
     const { caseId } = await dummyCase();
-    const merchants = [{ id: LEAFY, name: "Leafy Bakes" }];
+    const merchants = [{ id: LEAFY, name: "Leafy Bakes", needsYou: 1 }];
     const screens = {
       ...merchantScreens(caseId),
       ...simScreens(),
-      merchantBar: <MerchantTopBar merchantId={LEAFY} merchants={merchants} />,
-      simBar: <SimBar />,
+      // The shell (top bar, left nav, account switcher) wraps every page.
+      shell: <Shell merchants={merchants} defaultMerchantId={LEAFY}>{null}</Shell>,
     };
     for (const [name, node] of Object.entries(screens)) {
       for (const view of ["phone", "desktop"] as const) {

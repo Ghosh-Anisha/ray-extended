@@ -2,7 +2,7 @@
 
 // Twice-daily digest: count and ₹ at stake; "details" lists numbered cases.
 // Phone: a WhatsApp message. Desktop: the same message in a panel.
-import { Heading } from "@razorpay/blade/components";
+import { Heading } from "@/ui/kit";
 import Link from "next/link";
 import { useState } from "react";
 import type { DigestView } from "@/surfaces/views";

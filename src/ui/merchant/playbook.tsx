@@ -3,7 +3,7 @@
 // Playbook: per-moment rules with on/off, the approval limit, tone,
 // sign-off and send-from. Rules are proposed, never assumed: nothing applies
 // until Approve rule.
-import { Button, Heading, Text } from "@razorpay/blade/components";
+import { Button, Heading, Text } from "@/ui/kit";
 import { useState } from "react";
 import { REFUND_SPEED_LABEL, TONES } from "@/surfaces/words";
 import type { PlaybookView } from "@/surfaces/views";
@@ -26,7 +26,7 @@ export function Playbook({ p }: { p: PlaybookView }) {
 
   return (
     <section className="stack">
-      <Heading size="large">Playbook</Heading>
+      <Heading size="large">Rules</Heading>
       {error && <span className="error">{error}</span>}
       <div className="panel row" style={{ justifyContent: "space-between" }}>
         <div>

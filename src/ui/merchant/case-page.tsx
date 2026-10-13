@@ -3,7 +3,7 @@
 // The case page. Desktop: three panes (conversation, what RAY found, your
 // call) with the WhatsApp card in a side panel. Phone: one column, findings
 // first, then the conversation, with the action bar fixed to the bottom.
-import { Button, Heading, Text } from "@razorpay/blade/components";
+import { Button, Heading, Text } from "@/ui/kit";
 import Link from "next/link";
 import { useState } from "react";
 import type { CaseView, Finding, Proposal } from "@/surfaces/views";
@@ -19,7 +19,7 @@ export function CasePage({ v }: { v: CaseView }) {
   return (
     <div className="stack">
       <p>
-        <Link href={`/merchant/${v.merchant.id}`}>Back to cases</Link>
+        <Link href={`/merchant/${v.merchant.id}/cases`}>Back to cases</Link>
       </p>
       <Header v={v} />
       {v.holds.map((h) => (
@@ -30,7 +30,7 @@ export function CasePage({ v }: { v: CaseView }) {
       {v.underRule.map((r) => (
         <div key={r.ruleId} className="banner rule">
           <span>{r.text}</span>
-          <Link href={`/merchant/${v.merchant.id}/playbook#${r.ruleId}`}>Turn off this rule</Link>
+          <Link href={`/merchant/${v.merchant.id}/rules#${r.ruleId}`}>Turn off this rule</Link>
         </div>
       ))}
       {v.results.map((r, i) => (

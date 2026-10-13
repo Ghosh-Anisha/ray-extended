@@ -1,14 +1,7 @@
-import { merchantParam } from "../merchant";
-import { playbookView } from "@/surfaces/views";
-import { PageShell } from "@/ui/merchant/page-shell";
-import { Playbook } from "@/ui/merchant/playbook";
+import { redirect } from "next/navigation";
 
-export default async function PlaybookPage({ params }: { params: Promise<{ merchantId: string }> }) {
-  const { a, merchantId } = await merchantParam(params);
-  const p = playbookView(a, merchantId);
-  return (
-    <PageShell killSwitch={p.merchant.killSwitch !== null}>
-      <Playbook p={p} />
-    </PageShell>
-  );
+// The playbook is now Rules.
+export default async function PlaybookRedirect({ params }: { params: Promise<{ merchantId: string }> }) {
+  const { merchantId } = await params;
+  redirect(`/merchant/${merchantId}/rules`);
 }

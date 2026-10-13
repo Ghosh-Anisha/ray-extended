@@ -47,10 +47,10 @@ function threadFor(a: Adapters, addresses: (string | null)[]): Thread[] {
   return out.map((x) => x.t);
 }
 
-export function customerInbox(a: Adapters): Person[] {
+export function customerInbox(a: Adapters, merchantId?: string): Person[] {
   const repo = createRepository(a.db);
   const merchants = new Map(repo.merchants.list().map((m) => [m.id, m.name]));
-  return repo.customers.list().map((c) => ({
+  return repo.customers.list(merchantId ? eq(s.customers.merchant_id, merchantId) : undefined).map((c) => ({
     id: c.id,
     name: c.name,
     merchant: merchants.get(c.merchant_id) ?? c.merchant_id,
@@ -62,10 +62,10 @@ export function customerInbox(a: Adapters): Person[] {
   }));
 }
 
-export function buyerInbox(a: Adapters): Person[] {
+export function buyerInbox(a: Adapters, merchantId?: string): Person[] {
   const repo = createRepository(a.db);
   const merchants = new Map(repo.merchants.list().map((m) => [m.id, m.name]));
-  return repo.buyers.list().map((b) => ({
+  return repo.buyers.list(merchantId ? eq(s.buyers.merchant_id, merchantId) : undefined).map((b) => ({
     id: b.id,
     name: `${b.contact_name}, ${b.name}`,
     merchant: merchants.get(b.merchant_id) ?? b.merchant_id,
@@ -86,10 +86,10 @@ export type StoreView = {
   products: { sku: string; name: string; price: string; stock: number }[];
 };
 
-export function storeAdmin(a: Adapters): StoreView[] {
+export function storeAdmin(a: Adapters, merchantId?: string): StoreView[] {
   const repo = createRepository(a.db);
   return repo.merchants
-    .list()
+    .list(merchantId ? eq(s.merchants.id, merchantId) : undefined)
     .filter((m) => a.store.hasStore(m.id))
     .map((m) => {
       const settings = repo.storeSettings.get(m.id);

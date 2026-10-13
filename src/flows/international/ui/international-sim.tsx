@@ -3,10 +3,10 @@
 // Checkout abroad (Simulated): the buyer's checkout with the cause-specific
 // failure message, payment links, MoneySaver transfers, Razorpay's risk desk
 // and the account's international settings. Always desktop, always tagged.
-import { Button } from "@razorpay/blade/components";
+import { Button } from "@/ui/kit";
 import { useState } from "react";
 import { useAction } from "@/ui/bits";
-import { SimTitle } from "@/ui/sim/sim-bar";
+import { SimTitle } from "@/ui/sim/sim-title";
 import type { IntlSimView } from "../sim-actions";
 
 const URL = "/api/dev/international";

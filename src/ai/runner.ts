@@ -37,7 +37,11 @@ export async function runJob<I, O extends { confidence: Confidence }>(
 
   const fallback = (reason: FallbackReason, problems: string[], usedModel: string | null): AiResult<O> => {
     const output = spec.fallback(input);
-    if (reason === "replay_miss") console.warn(`[ai] replay miss: ${spec.job} ${key}`);
+    if (reason === "replay_miss") {
+      console.warn(`[ai] replay miss: ${spec.job} ${key}`);
+      // Seed tooling: with RAY_AI_LOG_MISSES set, the missing call's input is printed so a fixture can be written for it.
+      if (process.env.RAY_AI_LOG_MISSES) console.warn(`[ai-miss] ${JSON.stringify({ job: spec.job, key, input })}`);
+    }
     log({ fallback: reason, problems, output }, false, usedModel);
     return { output, source: "fallback", fallbackReason: reason, problems, key };
   };

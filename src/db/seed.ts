@@ -14,6 +14,8 @@ import { seedSubscriptions } from "./seed/subscriptions";
 import type * as s from "./schema";
 
 export const SEED_NOW = Date.parse("2026-10-12T10:00:00+05:30");
+// The demo world starts here (docs/ui-rebuild.md section 4): Tue 13 Oct 2026, 10:00 AM IST.
+export const DEMO_NOW = Date.parse("2026-10-13T10:00:00+05:30");
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;

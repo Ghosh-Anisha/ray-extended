@@ -1,11 +1,7 @@
 import type { ReactNode } from "react";
-import { SimBar } from "@/ui/sim/sim-bar";
 
+// The simulators are pages in the shell like any other; each shows its own
+// Simulated tag. The old "Simulators" header is gone.
 export default function SimLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <SimBar />
-      <main className="page">{children}</main>
-    </>
-  );
+  return <div className="page stack">{children}</div>;
 }

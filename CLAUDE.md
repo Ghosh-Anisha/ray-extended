@@ -4,6 +4,8 @@ An account manager that acts, for every small Razorpay merchant. When a payment 
 
 This repo is the prototype for the Razorpay AIPM Buildathon (Track 2, Recover and Grow with AI). The full spec is `docs/build-guide.html` (v2), including its Approved changes log. How things look and sound is `docs/design-language.md`. Work one step at a time from the guide.
 
+**UI rebuild (13 Oct): `docs/ui-rebuild.md` wins over the guide's Step 6 and design-language section 3.** The app must be demo-first: seeded demo world on first load, one shell with navigation everywhere, a guided story instead of a dev panel, Razorpay's look, nudges on every screen, fast in `npm run demo`.
+
 ## Scope
 
 - Build the shared case engine and all five moments: paid but no order, international card declined, subscription halts, chargeback, B2B invoice overdue.
@@ -34,7 +36,7 @@ This repo is the prototype for the Razorpay AIPM Buildathon (Track 2, Recover an
 - Finish each step with `npm test`, `npm run lint` and `npm run typecheck` passing, and report what you ran.
 - Prefer reusing the engine, tools and guards over writing flow-specific copies.
 - Every screen, message and AI prompt follows `docs/design-language.md`. Use its exact words for states, labels and buttons.
-- Dev panel controls call the same `handleEvent` entry point as real events.
+- Demo controls (the old dev panel) and the guided story call the same `handleEvent` entry point as real events.
 
 ## AI layer
 

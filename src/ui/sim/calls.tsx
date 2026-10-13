@@ -9,7 +9,7 @@ import type { CalleeSim, CallScreenView } from "@/surfaces/sims";
 import { DOING_IT, EMPTY } from "@/surfaces/words";
 import { Empty, useAction } from "../bits";
 import { CallCard } from "../voice";
-import { SimTitle } from "./sim-bar";
+import { SimTitle } from "./sim-title";
 
 export function CallScreen({ v }: { v: CallScreenView }) {
   return (

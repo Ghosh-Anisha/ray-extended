@@ -1,0 +1,104 @@
+{
+  "job": "investigate",
+  "key": "f6faf5a61e34d0abf4ecaf42",
+  "label": "recorded in Claude Code",
+  "prompt_version": "investigate.v1",
+  "model": null,
+  "input": {
+    "case": {
+      "moment": "chargeback",
+      "merchant": "Leafy Bakes",
+      "dispute_id": "disp_LB_nehak",
+      "payment_id": "pay_LB1190NEHA",
+      "amount": "₹2,400",
+      "reason": "Product not received",
+      "type": "not_received",
+      "phase": "chargeback",
+      "looking_for": [
+        "delivery proof",
+        "chats",
+        "past orders",
+        "earlier RAY case",
+        "refund or single charge",
+        "Buyer Protection claim"
+      ]
+    },
+    "evidence": [
+      {
+        "id": "so_leafy_1190",
+        "type": "store_order",
+        "summary": "Order #1190 is completed (Shipped by courier)"
+      },
+      {
+        "id": "msg_demo_neha_1",
+        "type": "message_in",
+        "summary": "Customer wrote: Hi, my cookie hamper hasn't arrived yet. It has been 5 days since I ordered."
+      },
+      {
+        "id": "msg_demo_neha_2",
+        "type": "message_out",
+        "summary": "You wrote: Hi Neha, the courier shows your hamper was delivered on 8 Oct and signed for by N. Kumar. Could you check with your family or neighbours?"
+      },
+      {
+        "id": "msg_demo_neha_3",
+        "type": "message_in",
+        "summary": "Customer wrote: I asked everyone, nobody has it. I will ask my bank for the money back."
+      }
+    ],
+    "tools": [
+      "get_payment",
+      "get_order",
+      "list_order_payments",
+      "get_refunds",
+      "get_webhook_deliveries",
+      "get_plugin_reports",
+      "get_store_order",
+      "get_store_settings",
+      "get_downtimes",
+      "get_dispute",
+      "get_subscription",
+      "get_invoices",
+      "get_bank_credits"
+    ],
+    "history": [
+      {
+        "tool": "get_dispute",
+        "id": "disp_LB_nehak",
+        "result": {
+          "evidence_ids": [
+            "disp_LB_nehak"
+          ],
+          "data": {
+            "id": "disp_LB_nehak",
+            "payment_id": "pay_LB1190NEHA",
+            "status": "open",
+            "phase": "chargeback",
+            "amount": 240000,
+            "currency": "INR",
+            "reason_code": "13.1",
+            "reason": "Product not received",
+            "network": "Visa",
+            "deducted": true,
+            "respond_by": 1792067400000,
+            "created_at": 1791808200000,
+            "evidence": null
+          }
+        }
+      }
+    ]
+  },
+  "output": {
+    "findings": [
+      {
+        "text": "Razorpay's dispute record: ₹2,400 for not received, already deducted, first stage. The reply is due by Razorpay's respond-by date.",
+        "evidence_id": "disp_LB_nehak",
+        "supports": "not_received"
+      }
+    ],
+    "next": null,
+    "cause": "not_received",
+    "side": "customer_or_bank",
+    "situation": "C",
+    "confidence": "likely"
+  }
+}
