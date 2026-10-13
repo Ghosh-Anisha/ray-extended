@@ -314,19 +314,36 @@ export function createMessagingSim(db: Db, clock: Clock): MessagingSim {
         }
       }
 
-      return repo.messages.insert({
-        id: newId("msg"),
-        case_id: input.caseId ?? null,
-        channel: input.channel,
-        direction: "out",
-        from,
-        to: input.to,
-        sender_mode: input.senderMode,
-        body: body!,
-        template_id: input.templateId ?? null,
-        within_24h: withinWindow,
-        at: clock.now(),
-      });
+      const writeMessage = () => {
+        const at = clock.now();
+        const message = repo.messages.insert({
+          id: newId("msg"),
+          case_id: input.caseId ?? null,
+          channel: input.channel,
+          direction: "out",
+          from,
+          to: input.to,
+          sender_mode: input.senderMode,
+          body: body!,
+          template_id: input.templateId ?? null,
+          within_24h: withinWindow,
+          at,
+        });
+        // Conversation and case history share one source of truth. A failed
+        // event write rolls back the message too, so there can be no phantom
+        // customer reply in only one of the two views.
+        if (input.caseId && repo.cases.get(input.caseId)) {
+          repo.caseEvents.insert({
+            id: newId("cev"), case_id: input.caseId, at, type: "message_out",
+            payload: { source: "message_out", channel: input.channel, from, to: input.to, body: body! },
+            evidence_ref: message.id,
+          });
+        }
+        return message;
+      };
+      return input.caseId && repo.cases.get(input.caseId)
+        ? db.transaction(writeMessage)
+        : writeMessage();
     },
 
     async receive(raw) {

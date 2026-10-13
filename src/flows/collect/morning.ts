@@ -66,6 +66,7 @@ export type MorningList = {
   posted: { actionId: string; caseId: string; text: string }[];
   // Non-Banking+ only.
   offer: { title: string; text: string } | null;
+  workflow: { buyerId: string; channel: "engine" | "email" | "whatsapp"; tone: "gentle" | "firm"; timing: "after_review" | "next_morning"; requireApproval: true; savedAt: number } | null;
   empty: string;
 };
 
@@ -79,6 +80,8 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
   const m = repo.merchants.get(merchantId);
   if (!m) throw new Error(`Merchant ${merchantId} not found`);
   const now = a.clock.now();
+  const workflowRow = a.db.select().from(s.uiState).where(and(eq(s.uiState.merchant_id, merchantId), eq(s.uiState.key, "collect.workflow"))).get();
+  const workflow = workflowRow?.value as MorningList["workflow"] | undefined;
   const ctx = { db: a.db, repo, clock: a.clock, adapters: a };
   const rows: MorningRow[] = [];
   for (const b of repo.buyers.list(eq(s.buyers.merchant_id, merchantId))) {
@@ -146,6 +149,7 @@ export function morningList(a: Adapters, merchantId: string): MorningList {
     rows,
     posted,
     offer: m.banking_plus ? null : BANKING_PLUS_OFFER,
+    workflow: workflow ?? null,
     empty: "No invoices are overdue. RAY will list buyers here, highest priority first, once an invoice passes its due date.",
   };
 }

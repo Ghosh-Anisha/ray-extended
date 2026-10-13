@@ -54,6 +54,7 @@ export const merchantList = (a: Adapters) => createRepository(a.db).merchants.li
 
 type Subject = {
   name: string;
+  buyerId: string | null;
   amountMinor: number | null;
   amount: string;
   paymentId: string | null;
@@ -120,6 +121,7 @@ export function subjectOf(a: Adapters, kase: Case, cache?: SubjectCache): Subjec
   }
   return {
     name: customer?.name ?? buyer?.name ?? payment?.email ?? payment?.contact ?? "A customer",
+    buyerId: buyer?.id ?? null,
     amountMinor: currency === "INR" ? amountMinor : (payment?.base_amount ?? amountMinor),
     amount,
     paymentId: kase.payment_id,
@@ -222,7 +224,7 @@ function caseRow(a: Adapters, kase: Case, cache?: SubjectCache): CaseRow {
     name: sub.name,
     amount: sub.amount,
     amountMinor: sub.amountMinor ?? 0,
-    state: stateChip(kase),
+    state: stateChip(kase, createRepository(a.db)),
     confidence: { label: CONFIDENCE_LABEL[kase.confidence], tone: CONFIDENCE_TONE[kase.confidence] },
     age: age(kase.opened_at, a.clock.now()),
     openedAt: kase.opened_at,
@@ -287,7 +289,7 @@ export function alertsView(a: Adapters, merchantId: string): { merchant: Merchan
         name: sub?.name ?? "",
         amount: sub?.amount ?? "",
         cause: kase?.cause ? causeLabel(kase.cause) : al.text,
-        state: kase ? stateChip(kase) : null,
+        state: kase ? stateChip(kase, repo) : null,
       };
     }),
   };
@@ -309,6 +311,7 @@ export type ConversationItem = {
   voice: VoiceNoteView | null;
   call: CallView | null;
 };
+export type InternalActivity = { id: string; at: string; recipient: string; channel: string; body: string; status: string };
 // then: the action's own follow-ups, done on the same tap and covered by the
 // same approval (a confirmation, the email after a request), listed on the card.
 // alsoDoes: the same follow-ups as bare labels (a follow-up's own label when
@@ -338,6 +341,7 @@ export type YourCall = {
 
 export type CaseView = {
   id: string;
+  buyerId: string | null;
   merchant: Merchant;
   moment: string;
   name: string;
@@ -356,6 +360,7 @@ export type CaseView = {
   findings: Finding[];
   checking: boolean;
   conversation: ConversationItem[];
+  internalActivity: InternalActivity[];
   yourCall: YourCall;
   holds: Hold[];
   underRule: { ruleId: string; text: string }[];
@@ -370,9 +375,13 @@ export type CaseView = {
 
 const FINAL: CaseState[] = ["closed", "fixed_itself"];
 const PREVIEW_MOMENTS: Moment[] = ["whose_side", "ticket", "settlement_hold", "ai_chat_order"];
-function stateChip(kase: Case): Chip {
+function stateChip(kase: Case, repo?: Repo): Chip {
   if (PREVIEW_MOMENTS.includes(kase.moment)) {
-    return { label: kase.state === "waiting_customer" ? "Simulated preview · no customer action pending" : `Simulated preview · ${STATE_LABEL[kase.state]}`, tone: "neutral" };
+    const label = kase.confidence === "unsure" ? "Cause uncertain · review evidence" : "Review evidence · no action sent";
+    return { label: `Simulated preview · ${label}`, tone: "neutral" };
+  }
+  if (repo && kase.state !== "closed" && repo.caseEvents.listByCase(kase.id).some((event) => event.type === "tool_call" && event.payload.kind === "action_done" && event.payload.tool === "send_message" && /@razorpay\./i.test(String(repo.actions.get(String(event.payload.action_id ?? event.evidence_ref))?.args.to ?? "")))) {
+    return { label: "Simulated · Waiting on Razorpay", tone: "information" };
   }
   return { label: STATE_LABEL[kase.state], tone: STATE_TONE[kase.state] };
 }
@@ -404,7 +413,7 @@ const EVENT_STEP: Record<string, string> = {
   "invoice.expired": "Invoice expired",
 };
 
-function stepOf(e: CaseEvent): TimelineStep | null {
+function stepOf(repo: Repo, e: CaseEvent): TimelineStep | null {
   const p = e.payload;
   if (e.type === "webhook") {
     const event = String(p.event ?? "");
@@ -414,20 +423,33 @@ function stepOf(e: CaseEvent): TimelineStep | null {
     return { label, failed: false };
   }
   if (e.type === "message_in") return { label: p.voice_note ? "Customer sent a voice note" : "Customer wrote", failed: false };
-  if (e.type === "message_out") return { label: "Message sent", failed: false };
+  if (e.type === "message_out") return { label: `Message sent to ${String(p.to ?? "recipient not recorded")} via ${String(p.channel ?? "channel not recorded")}`, failed: false };
   if (e.type === "approval") {
     if (p.choice === "change") return null;
     return { label: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no" : "You took over", failed: false };
   }
   if (e.type === "tool_call") {
-    if (p.kind === "action_done") return { label: "Action completed", failed: false };
+    if (p.kind === "action_done") {
+      const action = repo.actions.get(String(p.action_id ?? e.evidence_ref));
+      const recipient = String(action?.args.to ?? "");
+      if (p.tool === "send_message" && action?.result && typeof action.result.message_id === "string") return null;
+      const isSimulatedSupport = p.tool === "send_message" && /@razorpay\./i.test(recipient) && action?.result?.simulated === true;
+      const label = p.tool === "send_message" && /@razorpay\./i.test(recipient) ? `${isSimulatedSupport ? "Simulated support request sent" : "Support request sent"} to ${recipient}` : p.tool === "refund" ? "Refund issued in demo" : p.tool === "mark_paid" ? "Store order marked paid in demo" : `Action completed: ${actLabel(String(p.tool))}`;
+      return { label, failed: false };
+    }
     if (p.kind === "action_blocked" || p.kind === "action_failed") return { label: "Stopped by a check", failed: true };
     if (p.kind === "action_held") return { label: "On hold", failed: false };
     if (p.kind === "action_undone") return { label: "Undone", failed: false };
   }
   if (e.type === "note" && p.kind === "state_changed") {
     const to = p.to as CaseState;
+    const kase = repo.cases.get(e.case_id);
+    if (kase && PREVIEW_MOMENTS.includes(kase.moment)) return { label: "Simulated review ready; no action sent", failed: false };
+    if (to === "verifying" && /razorpay/i.test(String(p.reason ?? ""))) return { label: "Waiting on Razorpay", failed: false };
+    if (to === "waiting_customer") return { label: "Waiting for customer response", failed: false };
+    if (to === "waiting_merchant") return { label: "Needs merchant review", failed: false };
     if (to === "closed" || to === "fixed_itself" || to === "unconfirmed") return { label: STATE_LABEL[to], failed: false };
+    return { label: STATE_LABEL[to], failed: false };
   }
   return null;
 }
@@ -443,16 +465,18 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
       return { what: `Sent: ${String(p.body ?? "")}`, who: "RAY" };
     case "approval":
       if (p.choice === "change") return { what: `You tapped Change: ${String(p.text ?? "")}`, who: "You (tap)" };
-      return { what: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no to this option" : "You chose to handle it yourself", who: "You (tap)" };
+      return { what: p.choice === "approve" ? "You approved" : p.choice === "decline" ? "You said no to this option" : "You chose to handle it yourself", who: p.actor === "merchant" ? "You (merchant)" : "You (tap)" };
     case "finding":
       return { what: `Found: ${String(p.text)}`, who: "RAY" };
     case "timer":
       return { what: "A follow-up time came up", who: "RAY" };
     case "tool_call": {
-      const by = p.approved_by === "tap" ? "You (tap)" : p.approved_by ? `Your rule: ${repo.playbookRules.get(String(p.approved_by))?.text ?? p.approved_by}` : "RAY";
+      const action = repo.actions.get(String(p.action_id ?? e.evidence_ref));
+      const to = String(action?.args.to ?? "");
+      const by = p.approved_by === "tap" ? "You (merchant)" : p.approved_by ? `Your rule: ${repo.playbookRules.get(String(p.approved_by))?.text ?? p.approved_by}` : "RAY";
       const label = actLabel(String(p.tool));
       const what = {
-        action_done: `Action completed: ${label}`,
+        action_done: p.tool === "send_message" && /@razorpay\./i.test(to) ? `${action?.result?.simulated === true ? "Simulated Razorpay support request sent" : "Razorpay support request sent"} to ${to}` : p.tool === "send_message" && action?.result && typeof action.result.message_id === "string" ? "Customer message send action succeeded; message is recorded separately" : p.tool === "refund" ? "Refund issued in demo" : p.tool === "mark_paid" ? "Store order marked paid in demo" : `Action completed: ${label}`,
         action_held: `On hold: ${label}`,
         action_blocked: `A check stopped ${label}: ${String(p.reason ?? "")}`,
         action_failed: `Couldn't finish ${label}`,
@@ -463,6 +487,7 @@ function describe(repo: Repo, e: CaseEvent): { what: string; who: string } {
     }
     case "note":
       if (p.kind === "state_changed") return { what: `${STATE_LABEL[p.to as CaseState]}: ${String(p.reason ?? "")}`, who: "RAY" };
+      if (p.kind === "collect_workflow_saved") return { what: "Simulated Collect workflow saved; no reminder sent", who: "You (merchant)" };
       if (p.kind === "alert_sent") return { what: "Alert sent to you", who: "RAY" };
       if (p.kind === "change_requested") return { what: `You asked: ${String(p.text)}`, who: "You" };
       if (p.kind === "change_handled") return { what: `RAY redrafted: ${String(p.reason ?? "")}`, who: "RAY" };
@@ -554,7 +579,7 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     .filter((e) => e.type === "finding")
     .map((e) => ({ id: e.id, ok: e.payload.ok !== false, text: String(e.payload.text), source: findingSource(repo, e.evidence_ref, e.payload), evidenceRef: e.evidence_ref }));
 
-  const steps = timeline.map(stepOf).filter((x): x is TimelineStep => x !== null);
+  const steps = timeline.map((event) => stepOf(repo, event)).filter((x): x is TimelineStep => x !== null);
   const dedup = steps.filter((st, i) => i === 0 || st.label !== steps[i - 1].label);
 
   const ruleIds = [
@@ -573,10 +598,19 @@ export function caseView(a: Adapters, caseId: string): CaseView {
   const hasCompletedAction = timeline.some((e) => e.type === "tool_call" && e.payload.kind === "action_done");
   const actionMode = a.razorpay(kase.merchant_id).mode;
   const verifiedOutcome = kase.state === "closed" && kase.outcome !== HANDLED_BY_MERCHANT && lastVerified;
-  const results = verifiedOutcome && lastVerified
+  const supportAction = timeline.findLast((e) => e.type === "tool_call" && e.payload.kind === "action_done" && e.payload.tool === "send_message" && /@razorpay\./i.test(String(repo.actions.get(String(e.payload.action_id ?? e.evidence_ref))?.args.to ?? "")));
+  const supportRecipient = supportAction ? String(repo.actions.get(String(supportAction.payload.action_id ?? supportAction.evidence_ref))?.args.to ?? "Razorpay support") : null;
+  const latestCustomerMessage = timeline.findLast((event) => event.type === "message_out");
+  const results = supportAction
+    ? [`Simulated Razorpay support request sent to ${supportRecipient}; waiting on Razorpay in the seeded story. This is internal, not a customer message or verified customer outcome.`]
+    : verifiedOutcome && lastVerified
     ? [`${actionMode === "mock" ? "Simulated outcome checked in demo data" : "Test-mode outcome checked"}: ${String(lastVerified.payload.reason ?? "The case check passed.")}`]
+    : latestCustomerMessage && kase.state === "waiting_customer"
+      ? [`Customer message sent to ${String(latestCustomerMessage.payload.to ?? "recipient not recorded")} via ${String(latestCustomerMessage.payload.channel ?? "channel not recorded")}; waiting for the customer to respond.`]
+      : latestCustomerMessage && kase.state === "waiting_merchant"
+        ? [`Customer update sent to ${String(latestCustomerMessage.payload.to ?? "recipient not recorded")} via ${String(latestCustomerMessage.payload.channel ?? "channel not recorded")}; the recommended merchant action still needs your approval.`]
     : hasCompletedAction
-      ? [`${actionMode === "mock" ? "Simulated action completed" : "Test-mode action completed"}. The customer outcome is not verified yet.`]
+      ? [`${actionMode === "mock" ? "Simulated action recorded" : "Test-mode action recorded"}. No customer outcome is verified yet.`]
       : [];
 
   const changes = timeline.filter((e) => e.payload.kind === "change_requested").map((e) => ({ at: dateTime(e.at), text: String(e.payload.text) }));
@@ -597,6 +631,7 @@ export function caseView(a: Adapters, caseId: string): CaseView {
 
   const view: CaseView = {
     id: kase.id,
+    buyerId: sub.buyerId,
     merchant,
     moment: MOMENT_LABEL[kase.moment],
     name: sub.name,
@@ -606,7 +641,7 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     openedAtLabel: dateTime(kase.opened_at),
     orderNumber: sub.orderNumber,
     open: !FINAL.includes(kase.state),
-    state: stateChip(kase),
+    state: stateChip(kase, repo),
     confidence: {
       label: CONFIDENCE_LABEL[kase.confidence],
       tone: CONFIDENCE_TONE[kase.confidence],
@@ -641,6 +676,13 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     findings,
     checking: kase.state === "likely",
     conversation: conversationOf(a, kase, sub.name),
+    internalActivity: timeline.flatMap((e) => {
+      if (e.type !== "tool_call" || e.payload.kind !== "action_done" || e.payload.tool !== "send_message") return [];
+      const action = repo.actions.get(String(e.payload.action_id ?? e.evidence_ref));
+      const recipient = String(action?.args.to ?? "");
+      if (!/@razorpay\./i.test(recipient)) return [];
+      return [{ id: e.id, at: dateTime(e.at), recipient, channel: String(action?.args.channel ?? "Not recorded"), body: String(action?.args.body ?? "Not recorded"), status: "Simulated request sent in the seeded demo; awaiting Razorpay in the story" }];
+    }),
     yourCall: {
       question,
       primary: unsure ? null : primary,
@@ -782,14 +824,36 @@ export function evidence(a: Adapters, merchantId: string, ref: string): unknown 
   if (action && repo.cases.get(action.case_id)?.merchant_id === merchantId) return action;
   const timer = repo.timers.get(ref);
   if (timer && repo.cases.get(timer.case_id)?.merchant_id === merchantId) return timer;
+  const downtime = repo.downtimes.get(ref);
+  if (downtime) {
+    const citedByMerchant = a.db.select({ merchantId: s.cases.merchant_id }).from(s.caseEvents)
+      .innerJoin(s.cases, eq(s.cases.id, s.caseEvents.case_id))
+      .where(and(eq(s.caseEvents.evidence_ref, ref), eq(s.cases.merchant_id, merchantId))).get();
+    if (citedByMerchant) return downtime;
+  }
   return (
     mine(repo.webhookDeliveries.get(ref)) ??
     mine(repo.rzpPayments.get(ref)) ??
     mine(repo.rzpOrders.get(ref)) ??
     mine(repo.rzpRefunds.get(ref)) ??
+    mine(repo.rzpLinks.get(ref)) ??
     mine(repo.storeOrders.get(ref)) ??
+    mine(repo.storeSettings.get(ref)) ??
+    mine(repo.pluginReports.get(ref)) ??
+    mine(repo.subscriptions.get(ref)) ??
+    mine(repo.invoices.get(ref)) ??
+    mine(repo.buyers.get(ref)) ??
+    mine(repo.products.get(ref)) ??
     mine(repo.disputes.get(ref)) ??
     mine(repo.bankCredits.get(ref)) ??
-    null
+    (() => {
+      const subInvoice = repo.subInvoices.get(ref);
+      if (subInvoice && repo.subscriptions.get(subInvoice.subscription_id)?.merchant_id === merchantId) return subInvoice;
+      const promise = repo.promises.get(ref);
+      const invoice = promise ? repo.invoices.get(promise.invoice_id) : undefined;
+      if (promise && invoice?.merchant_id === merchantId) return promise;
+      const related = a.db.select({ event: s.caseEvents, kase: s.cases }).from(s.caseEvents).innerJoin(s.cases, eq(s.cases.id, s.caseEvents.case_id)).where(eq(s.caseEvents.evidence_ref, ref)).all().find((row) => row.kase.merchant_id === merchantId);
+      return related?.event ?? null;
+    })()
   );
 }

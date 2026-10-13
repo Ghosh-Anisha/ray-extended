@@ -110,7 +110,7 @@ export async function seedHandling(db: Db): Promise<Builder> {
         { at: t0 + 2 * MIN, kind: "finding", source: "Bank", text: "The card itself is fine: the same card paid a smaller amount earlier this year.", ref: "pay_LB_oliver_failed" },
         { at: t0 + 4 * MIN, kind: "move", to: "waiting_merchant", reason: "Raising the limit is Razorpay's decision; RAY drafted the request." },
         { at: t0 + 4 * MIN, kind: "proposals", actions: [{ id: "prop_oliver", label: "Send limit request to Razorpay", tool: "send_message", args: { to: "support@razorpay.example.com", channel: "email", body: "Please raise our international limit to ₹4 lakh for a corporate order of £2,800." }, covered: false }] },
-        { at: t0 + 40 * MIN, kind: "action", tool: "send_message", args: { to: "support@razorpay.example.com", channel: "email" }, status: "done", approvedBy: "tap", result: { sent: true } },
+        { at: t0 + 40 * MIN, kind: "action", tool: "send_message", args: { to: "support@razorpay.example.com", channel: "email", body: "Please raise our international limit to ₹4 lakh for a corporate order of £2,800. Payment pay_LB_oliver_failed failed because the amount exceeded the current account limit." }, status: "done", approvedBy: "tap", result: { sent: true, recipient: "support@razorpay.example.com", audience: "Razorpay support", simulated: true } },
         { at: t0 + 40 * MIN, kind: "move", to: "acting", reason: "Merchant tapped approve" },
         { at: t0 + 41 * MIN, kind: "note", payload: { kind: "approval_handled", to: "verifying", reason: "Request sent to Razorpay. They usually answer in 2 working days." } },
         { at: t0 + 41 * MIN, kind: "move", to: "verifying", reason: "Waiting for Razorpay to answer the limit request." },

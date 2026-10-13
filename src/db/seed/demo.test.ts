@@ -13,7 +13,7 @@ import { DEMO_NOW } from "@/db/seed";
 import { openProposals } from "@/engine/orchestrator";
 import { heroCases } from "@/surfaces/refs";
 import { hoursLabel, merchantStats, rupees } from "@/surfaces/stats";
-import { alertsView, caseView, inboxView } from "@/surfaces/views";
+import { alertsView, caseView, evidence, inboxView } from "@/surfaces/views";
 import { seedDemo } from "./demo";
 
 vi.setConfig({ testTimeout: 60_000 });
@@ -91,6 +91,8 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     expect(repo.cases.get(refs["RD-1042"])).toMatchObject({ state: "waiting_merchant", confidence: "sure", situation: "B" });
     expect(repo.cases.get(refs["RD-1043"])).toMatchObject({ state: "waiting_merchant", confidence: "sure" });
     expect(caseView(a, refs["RD-1042"]).yourCall.primary?.label).toBe("Mark paid & ship");
+    expect(refs["RD-1060"]).toBe("case_demo_karan");
+    expect(caseView(a, "case_demo_karan").id).toBe("case_demo_karan");
   });
 
   it("does not assign customer requests or unmatched payments to a bank", () => {
@@ -104,13 +106,83 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
 
   it("marks U7 evidence as simulated and does not call it a customer wait", () => {
     const v = caseView(a, "case_u7_whose_side");
-    expect(v.state.label).toBe("Simulated preview · no customer action pending");
+    expect(v.state.label).toBe("Simulated preview · Cause uncertain · review evidence");
     expect(inboxView(a, LEAFY).tabs[1]!.rows.find((row) => row.id === v.id)?.state.label).toBe(v.state.label);
     expect(alertsView(a, LEAFY).alerts.find((row) => row.caseId === v.id)?.state?.label).toBe(v.state.label);
-    expect(v.findings[0]).toMatchObject({ source: "Simulated", text: expect.stringContaining("prior-evening outage fixture") });
+    expect(v.findings[0]).toMatchObject({ source: "Simulated", text: expect.stringContaining("prior evening") });
     const cited = createRepository(db).caseEvents.get(v.findings[0]!.evidenceRef!)!;
     expect(cited.id).toBe(v.findings[0]!.id);
     expect(cited.payload.simulated).toBe(true);
+    expect(v.side).toBeNull();
+    expect(v.yourCall.unsure).toBe(true);
+    expect(v.confidence.reason).toContain("Check the exact payment time, method, and Razorpay transaction");
+    expect(v.findings.some((f) => /prior evening/.test(f.text) && /does not match/.test(f.text))).toBe(true);
+  });
+
+  it("keeps action authorization, actor, messages and support requests coherent for every seeded case", () => {
+    const repo = createRepository(db);
+    const all = repo.cases.list(eq(s.cases.merchant_id, LEAFY));
+    expect(all.length).toBe(50);
+    for (const kase of all) {
+      const v = caseView(a, kase.id);
+      expect(v.id).toBe(kase.id);
+      const events = repo.caseEvents.listByCase(kase.id);
+      const outbound = v.conversation.filter((message) => message.direction === "out");
+      for (const message of [...repo.messages.list(eq(s.messages.case_id, kase.id))]) {
+        const event = message.channel === "call"
+          ? events.find((item) => item.type === "note" && item.payload.kind === "call_summary" && item.evidence_ref === message.id)
+          : events.find((item) => item.type === (message.direction === "out" ? "message_out" : "message_in") && item.evidence_ref === message.id);
+        expect(event, `${kase.id} (${kase.moment}): ${message.id} ${message.direction}/${message.channel} missing timeline event; events=${events.map((item) => `${item.type}:${item.evidence_ref}`).join(",")}`).toBeTruthy();
+        expect(outbound.some((item) => item.id === message.id), `${kase.id}: message missing from conversation`).toBe(message.direction === "out");
+      }
+      for (const action of repo.actions.list(eq(s.actions.case_id, kase.id)).filter((item) => item.approved_by === "tap" && item.status === "done")) {
+        const call = events.find((item) => item.type === "tool_call" && item.evidence_ref === action.id);
+        const approval = events.find((item) => item.type === "approval" && item.payload.choice === "approve" && (item.payload.action_id === action.id || item.at <= (call?.at ?? -Infinity)));
+        expect(call, `${kase.id}: action missing timeline event`).toBeTruthy();
+        expect(approval, `${kase.id}: action lacks earlier merchant approval`).toBeTruthy();
+        expect(approval!.at).toBeLessThanOrEqual(call!.at);
+        expect(v.events.find((item) => item.id === approval!.id)?.who).toMatch(/You/);
+        expect(v.events.find((item) => item.id === call!.id)?.who).toMatch(/You|rule/i);
+      }
+      if (kase.state === "waiting_customer") {
+        expect(outbound.length, `${kase.id}: waiting for customer without an outbound message`).toBeGreaterThan(0);
+      }
+      expect(v.results.join(" ")).not.toContain("Action completed: the message");
+    }
+  });
+
+  it("resolves the cited evidence behind every seeded finding", () => {
+    const repo = createRepository(db);
+    for (const kase of repo.cases.list(eq(s.cases.merchant_id, LEAFY))) {
+      for (const finding of caseView(a, kase.id).findings) {
+        if (finding.evidenceRef) expect(evidence(a, LEAFY, finding.evidenceRef), `${kase.id}: ${finding.text}`).not.toBeNull();
+      }
+    }
+  });
+
+  it("shows Oliver's internal request as support activity and waits on Razorpay, not the customer", () => {
+    const v = caseView(a, "case_demo_oliver");
+    expect(v.state.label).toBe("Simulated · Waiting on Razorpay");
+    expect(v.conversation).toEqual([]);
+    expect(v.internalActivity).toHaveLength(1);
+    expect(v.internalActivity[0]).toMatchObject({ recipient: "support@razorpay.example.com", channel: "email", status: "Simulated request sent in the seeded demo; awaiting Razorpay in the story" });
+    expect(v.results.join(" ")).toContain("Simulated Razorpay support request sent");
+    const approvalAt = v.events.find((event) => event.what === "You approved")!.at;
+    const requestAt = v.events.find((event) => event.what.includes("Simulated Razorpay support request sent"))!.at;
+    expect(new Date(approvalAt).getTime()).toBeLessThanOrEqual(new Date(requestAt).getTime());
+  });
+
+  it("keeps Priya's WhatsApp status update distinct from the unapproved store action", () => {
+    const kase = createRepository(db).cases.list(eq(s.cases.payment_id, "pay_LB1234PRIYA"))[0]!;
+    const v = caseView(a, kase.id);
+    expect(kase.state).toBe("waiting_merchant");
+    expect(v.conversation.some((item) => item.channel === "WhatsApp voice note")).toBe(true);
+    const autoUpdate = v.conversation.find((item) => item.direction === "out");
+    expect(autoUpdate).toMatchObject({ channel: "WhatsApp", from: "Leafy Bakes" });
+    expect(autoUpdate?.body).toContain("UTR ending 0021");
+    expect(autoUpdate?.body).not.toContain("order confirmed");
+    expect(v.results.join(" ")).toContain("recommended merchant action still needs your approval");
+    expect(v.yourCall.primary?.label).toBe("Mark paid & ship");
   });
 
   it("opens Priya's case from payment and webhook signals before her first message", () => {

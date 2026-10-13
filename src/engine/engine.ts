@@ -37,7 +37,7 @@ export type TickResult = {
 export type Engine = {
   handleEvent(event: EngineEventInput): Promise<HandleResult>;
   // Records a customer message, then hands it to handleEvent.
-  receiveMessage(input: ReceiveInput): Promise<HandleResult>;
+  receiveMessage(input: ReceiveInput & { newCaseId?: string }): Promise<HandleResult>;
   // A WhatsApp voice note: transcribed (ElevenLabs, or a recorded sample),
   // recorded with its audio and transcript, then handled like any message.
   receiveVoiceNote(input: VoiceNoteInput): Promise<HandleResult & { messageId: string; transcript: string }>;
@@ -134,7 +134,7 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
         return { outcome: "unmatched" };
       }
       kase = repo.cases.insert({
-        id: newId("case"),
+        id: e.newCaseId ?? newId("case"),
         merchant_id: e.merchantId,
         moment: detection.moment,
         situation: detection.situation ?? null,
@@ -280,7 +280,7 @@ export function createEngine(opts: { db: Db; clock: Clock; registry: Registry; a
     async receiveMessage(input) {
       if (!adapters) throw new Error("This engine has no messaging adapter");
       const m = await adapters.messaging.receive(input);
-      return engine.handleEvent(fromMessage(m, input.merchantId));
+      return engine.handleEvent(fromMessage(m, input.merchantId, input.newCaseId));
     },
     async receiveVoiceNote(input) {
       if (!adapters) throw new Error("This engine has no voice adapter");

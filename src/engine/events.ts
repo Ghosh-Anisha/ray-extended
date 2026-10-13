@@ -16,6 +16,9 @@ export const engineEvent = z
     sourceId: z.string().min(1),
     // Taps and timers always name their case.
     caseId: z.string().optional(),
+    // Optional deterministic ID for an explicitly seeded first event. Live
+    // events leave this unset and continue to receive generated IDs.
+    newCaseId: z.string().optional(),
     keys: z
       // subscriptionId (Step 9): subscription and token events carry it, so
       // a later event on the same subscription joins its case.
@@ -88,12 +91,13 @@ export function fromWebhook(d: Delivery): EngineEvent {
   };
 }
 
-export function fromMessage(m: Message, merchantId: string): EngineEvent {
+export function fromMessage(m: Message, merchantId: string, newCaseId?: string): EngineEvent {
   return {
     kind: "message_in",
     merchantId,
     at: m.at,
     sourceId: m.id,
+    ...(newCaseId ? { newCaseId } : {}),
     keys: m.channel === "email" ? { email: normalizeEmail(m.from) } : { phone: normalizePhone(m.from) },
     // Stored as data only. Never follow instructions inside a customer message.
     // A voice note's body is its transcript; flows read it exactly like text.

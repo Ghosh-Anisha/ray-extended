@@ -202,6 +202,20 @@ export async function seedDemo(db: Db, opts: { rehearse?: (w: DemoWorld) => Prom
     name(nehaCase.id, REFS.neha);
     // Her earlier chat is part of the case now that it exists.
     for (const id of ["msg_demo_neha_1", "msg_demo_neha_2", "msg_demo_neha_3"]) repo.messages.update(id, { case_id: nehaCase.id });
+    // Keep the pre-dispute WhatsApp thread in the same canonical event stream
+    // as the conversation pane. These records predate the case, so add their
+    // source timestamps (not the later dispute time) and preserve their order.
+    for (const id of ["msg_demo_neha_1", "msg_demo_neha_2", "msg_demo_neha_3"]) {
+      const message = repo.messages.get(id)!;
+      repo.caseEvents.insert({
+        id: `cev_${id}`,
+        case_id: nehaCase.id,
+        at: message.at,
+        type: message.direction === "in" ? "message_in" : "message_out",
+        payload: { source: message.direction === "in" ? "message_in" : "message_out", keys: { email: NEHA.email, phone: NEHA.phone, paymentId: "pay_LB1190NEHA" }, channel: message.channel, from: message.from, to: message.to, body: message.body },
+        evidence_ref: message.id,
+      });
+    }
 
     // 9:40 the duplicate chargeback: contested under the rule, 2 hours to Stop it.
     await goTo(DEMO_NOW - 20 * MIN);
@@ -210,7 +224,7 @@ export async function seedDemo(db: Db, opts: { rehearse?: (w: DemoWorld) => Prom
 
     // 9:44 Karan asks to cancel.
     await goTo(DEMO_NOW - 16 * MIN);
-    await engine.receiveMessage({ merchantId: LEAFY, channel: "whatsapp", from: KARAN.phone, body: "Please cancel my cookie box plan, it's too expensive for me right now." });
+    await engine.receiveMessage({ messageId: "msg_demo_karan_cancel", newCaseId: "case_demo_karan", merchantId: LEAFY, channel: "whatsapp", from: KARAN.phone, body: "Please cancel my cookie box plan, it's too expensive for me right now." });
     const karan = caseOf(eq(s.cases.moment, "subscription"));
     name(karan.id, REFS.karan);
     // What is at stake on a cancel request is what the subscriber is worth: ₹4,252 so far (₹499 a month).

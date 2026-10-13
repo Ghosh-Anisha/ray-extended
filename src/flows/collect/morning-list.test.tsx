@@ -90,6 +90,9 @@ describe("the morning list", () => {
     const text = textOf(render("desktop", <CasePage v={v} />));
     expect(text).toContain("Send firm reminder");
     expect(text).toContain("Your call");
+    const caseHtml = render("desktop", <CasePage v={v} />);
+    expect(caseHtml).toContain(`href="/merchant/${PR}/collect?buyerId=${BUYERS.mehra}"`);
+    expect(caseHtml).toContain(`href="/merchant/${PR}/banking"`);
     expect(bannedWordsIn(text)).toEqual([]);
   });
 

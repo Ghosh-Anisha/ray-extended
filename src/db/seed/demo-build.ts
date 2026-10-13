@@ -150,8 +150,18 @@ export function createBuilder(db: Db) {
           break;
         }
         case "action": {
+          const actionId = id("act", c.id);
+          // Seeded actions marked "tap" represent the merchant tap described
+          // by the story. Keep that authorization in the same append-only
+          // history, before the action it permits.
+          if (step.approvedBy === "tap") {
+            repo.caseEvents.insert({
+              id: id("cev", c.id), case_id: c.id, at: step.at, type: "approval",
+              payload: { choice: "approve", actor: "merchant", action_id: actionId }, evidence_ref: actionId,
+            });
+          }
           const a = repo.actions.insert({
-            id: id("act", c.id),
+            id: actionId,
             case_id: c.id,
             tool: step.tool,
             args: step.args,
@@ -167,7 +177,7 @@ export function createBuilder(db: Db) {
             case_id: c.id,
             at: step.at,
             type: "tool_call",
-            payload: { kind: step.status === "done" ? "action_done" : "action_held", tool: step.tool, approved_by: step.approvedBy },
+            payload: { kind: step.status === "done" ? "action_done" : "action_held", tool: step.tool, approved_by: step.approvedBy, action_id: a.id },
             evidence_ref: a.id,
           });
           last = a.id;

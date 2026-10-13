@@ -65,7 +65,7 @@ describe("B: the 200-but-dropped plugin failure (the hero case)", () => {
     const confirmation = w.sent(caseId).at(-1)!;
     expect(confirmation.body).toMatch(/#1234/);
     expect(w.state(caseId).state).toBe("verifying");
-    expect(caseView(w.a, caseId).results).toContain("Simulated action completed. The customer outcome is not verified yet.");
+    expect(caseView(w.a, caseId).results).toContain("Simulated action recorded. No customer outcome is verified yet.");
 
     await w.engine.advanceBy(20 * MIN);
     await w.says(PRIYA_EMAIL, "The order arrived, thank you!", "email");

@@ -85,6 +85,11 @@ export function CasePage({ v, returnTo }: { v: CaseView; returnTo?: string }) {
         <BackLink href={returnTo ?? `/merchant/${v.merchant.id}/cases`} />
       </p>
       <Header v={v} />
+      {v.moment === "Invoice overdue" && <div className="banner promise" role="note">
+        <span>Review this buyer’s simulated reminder workflow and activity.</span>
+        <Link href={`/merchant/${v.merchant.id}/collect${v.buyerId ? `?buyerId=${encodeURIComponent(v.buyerId)}` : ""}`}>Open Collect workflow</Link>
+        <Link href={`/merchant/${v.merchant.id}/banking`}>Banking+ setup</Link>
+      </div>}
       {phone && banners}
       {phone ? (
         <>
@@ -343,8 +348,20 @@ function ConversationPane({ v }: { v: CaseView }) {
           })}
         </div>
       )}
+      {v.internalActivity.length > 0 && (
+        <div className="panel stack" aria-label="Internal support activity">
+          <div className="row"><strong>Internal support activity</strong><span className="chip simulated">Simulated</span></div>
+          {v.internalActivity.map((item) => (
+            <article key={item.id} className="bubble">
+              <div className="meta">To {item.recipient} · {item.channel} · {item.at}</div>
+              <p>{item.body}</p>
+              <div className="muted">{item.status}</div>
+            </article>
+          ))}
+        </div>
+      )}
       <div className="composer" aria-label="Reply">
-        <span className="muted">{`RAY will reply from ${from}`}</span>
+        <span className="muted">{v.conversation.length === 0 ? "No customer-facing message is recorded on this case yet." : `RAY will reply from ${from}`}</span>
       </div>
     </section>
   );
