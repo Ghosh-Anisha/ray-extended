@@ -3,7 +3,7 @@
 // currency column where it can be non-INR; times are epoch ms.
 import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-export const MOMENTS = ["paid_no_order", "international", "subscription", "chargeback", "collect"] as const;
+export const MOMENTS = ["paid_no_order", "international", "subscription", "chargeback", "collect", "whose_side", "ticket", "settlement_hold", "ai_chat_order"] as const;
 export const SITUATIONS = ["A", "B", "C", "D", "E", "F"] as const;
 export const CASE_STATES = [
   "likely",

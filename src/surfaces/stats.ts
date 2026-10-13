@@ -20,6 +20,10 @@ export const MINUTES_PER_CASE: Record<Moment, number> = {
   subscription: 30,
   chargeback: 60,
   collect: 30,
+  whose_side: 0,
+  ticket: 0,
+  settlement_hold: 0,
+  ai_chat_order: 0,
 };
 
 export const DEFINITIONS = {

@@ -22,9 +22,9 @@ describe("npm run db:reset && npm run db:seed", () => {
       const count = (t: string) => (db.$client.prepare(`select count(*) as n from ${t}`).get() as { n: number }).n;
       expect(count("merchants")).toBe(13);
       // db:seed builds the demo world (docs/ui-rebuild.md section 4): PackRight's 38 invoices
-      // plus Leafy Bakes' 14, and Leafy's 46 cases, 4 of them waiting on the merchant.
+      // plus Leafy Bakes' 14, and Leafy's 50 cases, 4 of them waiting on the merchant.
       expect(count("invoices")).toBe(52);
-      expect(count("cases")).toBe(46);
+      expect(count("cases")).toBe(50);
       expect(count("cases where state = 'waiting_merchant'")).toBe(4);
       expect(count("case_events")).toBeGreaterThan(0);
       db.$client.close();

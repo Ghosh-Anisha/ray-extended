@@ -16,6 +16,10 @@ export const DECIDE_OPTIONS = {
   subscription: ["send_update_link", "pause_subscription", "cancel_subscription", "ask", "escalate"],
   chargeback: ["contest_dispute", "accept_dispute", "refund", "ask", "escalate"],
   collect: ["send_reminder", "propose_payment_plan", "ask", "escalate"],
+  whose_side: ["ask", "escalate"],
+  ticket: ["ask", "escalate"],
+  settlement_hold: ["ask", "escalate"],
+  ai_chat_order: ["ask", "escalate"],
 } as const satisfies Record<Moment, readonly string[]>;
 
 const ALL_OPTIONS = [...new Set(Object.values(DECIDE_OPTIONS).flat())] as [string, ...string[]];

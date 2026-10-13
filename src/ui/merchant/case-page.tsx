@@ -17,6 +17,7 @@ import { useToast } from "../toast";
 import { useView } from "../view";
 import { CallCard, PreCallNotice, VoiceNoteBubble } from "../voice";
 import { ApprovalCard } from "./approval-card";
+import { CoachMark } from "../coach-mark";
 
 // Set after a tap until the refreshed case arrives (or a few seconds pass).
 type Pending = { state: string; results: number } | null;
@@ -129,6 +130,7 @@ export function CasePage({ v }: { v: CaseView }) {
         text={next ? `RAY recommends: ${next}. ${v.yourCall.primary?.covered ? "It is covered, so it costs you nothing." : "It is your call."}` : v.open ? "Nothing needs your tap on this case right now." : "This case is finished. Back to the rest of your list."}
         action={{ label: "All cases", href: `/merchant/${v.merchant.id}/cases` }}
       />
+      {v.simulated && <CoachMark id={`case-${v.id}`} steps={["This is a replayed U7 case using the same findings, timeline and Your call layout as a live case.", "Every external system on this case is labelled Simulated. RAY's checks are visible in the middle pane."]} />}
     </div>
   );
 }
@@ -158,7 +160,7 @@ function Header({ v }: { v: CaseView }) {
     <section className="panel stack" style={{ gap: 6 }}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <h1 className="page-title">{`${v.name} · ${v.amount}`}</h1>
-        <Chip chip={v.state} />
+        <span className="row"><Chip chip={v.state} />{v.simulated && <SimulatedTag />}</span>
       </div>
       <div className="row muted">
         <span>{v.moment}</span>

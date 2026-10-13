@@ -37,8 +37,8 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
     expect(needs.map((r) => `${r.name} ${r.amount}`)).toEqual(["Karan Mehta ₹4,252", "Neha K ₹2,400", "Priya Sharma ₹1,299", "Rahul M ₹499"]);
   });
 
-  it("splits the inbox into Needs you 4, RAY is handling 9 and Closed 23", () => {
-    expect(inboxView(a, LEAFY).tabs.map((t) => [t.label, t.rows.length])).toEqual([["Needs you", 4], ["RAY is handling", 9], ["Closed", 23]]);
+  it("splits the inbox into Needs you 4, RAY is handling 13 and Closed 23", () => {
+    expect(inboxView(a, LEAFY).tabs.map((t) => [t.label, t.rows.length])).toEqual([["Needs you", 4], ["RAY is handling", 13], ["Closed", 23]]);
   });
 
   it("computes Home's numbers from the rows", () => {
@@ -55,7 +55,7 @@ describe("Leafy Bakes on Tue 13 Oct 2026, 10:00 AM", () => {
 
   it("gives the story's cases their numbers and real, tappable proposals", () => {
     const refs = heroCases(a, LEAFY);
-    expect(Object.keys(refs).sort()).toEqual(["RD-1042", "RD-1043", "RD-1047", "RD-1048", "RD-1049", "RD-1050", "RD-1051", "RD-1052", "RD-1054", "RD-1055", "RD-1056", "RD-1057", "RD-1060"]);
+    expect(Object.keys(refs).sort()).toEqual(["RD-1042", "RD-1043", "RD-1047", "RD-1048", "RD-1049", "RD-1050", "RD-1051", "RD-1052", "RD-1054", "RD-1055", "RD-1056", "RD-1057", "RD-1060", "RD-1071", "RD-1072", "RD-1073", "RD-1074"]);
     const labels = (ref: string) => openProposals({ db, repo: createRepository(db), clock: a.clock }, refs[ref]).map((p) => p.label);
     expect(labels("RD-1042")).toContain("Mark paid & ship");
     expect(labels("RD-1043")[0]).toBe("Refund the extra ₹499");

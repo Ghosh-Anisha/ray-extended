@@ -1,6 +1,6 @@
 // The information architecture from docs/ui-rebuild.md section 1: one place
 // for the left nav, the top bar tabs and the breadcrumb labels.
-import { Building2, Home, Inbox, LayoutDashboard, ListChecks, Mail, MessageCircle, Sparkles, Store, type LucideIcon } from "lucide-react";
+import { Building2, CalendarClock, Home, Inbox, LayoutDashboard, ListChecks, Mail, MessageCircle, Sparkles, Store, type LucideIcon } from "lucide-react";
 
 export type NavItem = { key: string; label: string; icon: LucideIcon; href: (merchantId: string) => string; simulated?: boolean; badge?: "needs_you" };
 export type NavSection = { label: string | null; items: NavItem[] };
@@ -16,6 +16,7 @@ export const NAV: NavSection[] = [
       { key: "ask", label: "Ask RAY", icon: Sparkles, href: merchantPage("/ask") },
       { key: "dashboard", label: "My dashboard", icon: LayoutDashboard, href: merchantPage("/dashboard") },
       { key: "rules", label: "Rules", icon: ListChecks, href: merchantPage("/rules") },
+      { key: "dues", label: "Dues", icon: CalendarClock, href: merchantPage("/dues") },
     ],
   },
   { label: "Channels", items: [{ key: "whatsapp", label: "RAY on WhatsApp", icon: MessageCircle, href: merchantPage("/whatsapp") }] },
@@ -39,6 +40,7 @@ const SECTION_OF: [prefix: string, key: string][] = [
   ["/ask", "ask"],
   ["/dashboard", "dashboard"],
   ["/rules", "rules"],
+  ["/dues", "dues"],
   ["/playbook", "rules"],
   ["/whatsapp", "whatsapp"],
 ];

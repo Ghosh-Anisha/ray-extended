@@ -202,6 +202,14 @@ function summaryOf(kase: Case, sub: Subject): string {
       return `Dispute on ${sub.amount}`;
     case "collect":
       return `Invoice of ${sub.amount} overdue`;
+    case "whose_side":
+      return `Success rate drop, ${sub.amount} at stake`;
+    case "ticket":
+      return `Support ticket needs an update, ${sub.amount}`;
+    case "settlement_hold":
+      return `${sub.amount} held for review`;
+    case "ai_chat_order":
+      return `Chat order check, ${sub.amount}`;
   }
 }
 
@@ -355,6 +363,7 @@ export type CaseView = {
   // When the cause is on the merchant's side: the brief for their developer
   // (technical words are fine inside it).
   developerBrief: string | null;
+  simulated: boolean;
 };
 
 const FINAL: CaseState[] = ["closed", "fixed_itself"];
@@ -614,6 +623,7 @@ export function caseView(a: Adapters, caseId: string): CaseView {
     card: null,
     preCall: FINAL.includes(kase.state) ? null : preCallNotice(a, kase.id, sub.name),
     developerBrief: (timeline.findLast((e) => e.payload.kind === "pno_developer_brief")?.payload.text as string | undefined) ?? null,
+    simulated: ["whose_side", "ticket", "settlement_hold", "ai_chat_order"].includes(kase.moment),
   };
   view.card = cardOf(view, voiceNoteFor(timeline, proposals));
   return view;
